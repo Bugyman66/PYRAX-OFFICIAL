@@ -29,7 +29,7 @@ export default function TeamPage() {
       name: 'Shawn Wilson',
       role: t('roles.coFounder'),
       bio: t('bios.shawn'),
-      image: 'https://pyrax-assets.nyc3.cdn.digitaloceanspaces.com/team%20images/swilson.jpg',
+      image: '/swilson.jpg',
     },
     {
       name: 'Gabriel Mascioli',
