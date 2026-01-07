@@ -1,0 +1,31 @@
+[Unit]
+Description=PYRAX Blockchain Node
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pyrax
+Group=pyrax
+EnvironmentFile=/opt/pyrax/deployment/env/%i.env
+WorkingDirectory=/opt/pyrax/pyrax-node
+ExecStart=/opt/pyrax/pyrax-node/target/release/pyrax-node \
+    --network ${PYRAX_NETWORK} \
+    --data-dir ${PYRAX_DATA_DIR} \
+    --rpc-bind ${PYRAX_RPC_BIND} \
+    --rpc-port ${PYRAX_RPC_PORT} \
+    --p2p-port ${PYRAX_NODE_PORT} \
+    --log-level ${PYRAX_LOG_LEVEL}
+Restart=always
+RestartSec=5
+LimitNOFILE=65535
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=${PYRAX_DATA_DIR}
+
+[Install]
+WantedBy=multi-user.target

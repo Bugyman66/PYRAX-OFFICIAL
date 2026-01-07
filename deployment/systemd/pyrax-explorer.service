@@ -1,0 +1,23 @@
+[Unit]
+Description=PYRAX Block Explorer
+After=network.target pyrax-node.service
+Wants=pyrax-node.service
+
+[Service]
+Type=simple
+User=pyrax
+Group=pyrax
+EnvironmentFile=/opt/pyrax/deployment/env/%i.env
+WorkingDirectory=/opt/pyrax/pyrax-explorer
+ExecStart=/usr/bin/node /opt/pyrax/pyrax-explorer/.next/standalone/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

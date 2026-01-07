@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "blockchain": "بلوكتشين",
+    "technology": "التقنية",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "توزيع واقتصاديات التوكن",
+    "miningDesc": "تدفقات تعدين GPU و ASIC",
+    "roadmapDesc": "الجدول الزمني للتطوير",
+    "resources": "الموارد",
+    "downloads": "التنزيلات",
+    "downloadsDesc": "تطبيق سطح المكتب لجميع المنصات",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "المجتمع",
+    "discord": "Discord",
+    "discordDesc": "انضم لخادم Discord",
+    "twitter": "Twitter",
+    "twitterDesc": "تابعنا على Twitter",
+    "telegram": "Telegram",
+    "telegramDesc": "انضم لمجموعة Telegram",
+    "reddit": "Reddit",
+    "redditDesc": "انضم لمجتمع Reddit",
+    "facebook": "Facebook",
+    "facebookDesc": "تابع صفحتنا على Facebook",
+    "instagram": "Instagram",
+    "instagramDesc": "تابعنا على Instagram",
+    "facebookGroup": "مجموعة Facebook",
+    "facebookGroupDesc": "انضم لمجتمعنا على Facebook",
+    "roadmap": "خارطة الطريق",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "تشغيل التطبيق",
+    "launchExplorer": "تشغيل المستكشف",
+    "featured": "مميز",
+    "explore": "استكشاف",
+    "viewAll": "عرض الكل",
+    "aiCompute": "حوسبة الذكاء الاصطناعي",
+    "developerTools": "أدوات المطورين",
+    "openSource": "مفتوح المصدر",
+    "buildOnPyrax": "ابنِ على PYRAX باستخدام SDK والوثائق الشاملة الخاصة بنا.",
+    "joinMovement": "انضم إلى الحركة",
+    "growingFast": "نمو سريع",
+    "connectCommunity": "تواصل مع المعدنين والمطورين والمتحمسين من جميع أنحاء العالم.",
+    "language": "اللغة",
+    "aiSystems": "أنظمة الذكاء الاصطناعي",
+    "aiSystemsDesc": "منصة حوسبة ذكاء اصطناعي لامركزية مع تسجيل النماذج وتنفيذ المهام.",
+    "dao": "PYRAX DAO",
+    "daoDesc": "الحوكمة اللامركزية لشبكة PYRAX",
+    "bdagCommunity": "مجتمع BDAG",
+    "bdagCommunityDesc": "تخصيص الرموز لحاملي BlockDAG"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "منظمة مستقلة لامركزية",
+    "comingSoon": "هيكل DAO قريباً",
+    "description": "نحن نبني نظام حوكمة لامركزي شامل سيمكّن مجتمع PYRAX من المشاركة في القرارات الرئيسية حول مستقبل الشبكة."
+  },
+  "hero": {
+    "badge": "الشبكة الرئيسية Q3 2026",
+    "title": "مستقبل",
+    "titleHighlight": "الذكاء الاصطناعي اللامركزي",
+    "subtitle": "يجمع PYRAX بين إجماع TriStream DAG الثوري وسوق حوسبة الذكاء الاصطناعي اللامركزي. يؤمن معدنو GPU الشبكة ويوفرون قوة حوسبة AI.",
+    "cta": {
+      "primary": "استكشف التكنولوجيا",
+      "secondary": "اقرأ الورقة البيضاء"
+    },
+    "stats": {
+      "tps": "+500K TPS",
+      "tpsLabel": "إنتاجية L2",
+      "blockTime": "2 ثانية",
+      "blockTimeLabel": "وقت كتلة EVM",
+      "supply": "100 مليار",
+      "supplyLabel": "إجمالي العرض",
+      "streams": "3",
+      "streamsLabel": "تدفقات التعدين"
+    }
+  },
+  "features": {
+    "title": "لماذا PYRAX؟",
+    "subtitle": "بلوكتشين مبني لعصر الذكاء الاصطناعي مع أمان وقابلية توسع وتكامل حوسبة AI أصلي غير مسبوق.",
+    "tristream": {
+      "title": "إجماع TriStream DAG",
+      "description": "ثلاثة تدفقات تعدين متوازية (ASIC، GPU، ZK) توفر أقصى درجات الأمان واللامركزية. ترتيب GHOSTDAG يضمن نهائية سريعة.",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "منصة حوسبة الذكاء الاصطناعي",
+    "subtitle": "أول سوق ذكاء اصطناعي أصلي على البلوكتشين في العالم مع حوسبة قابلة للتحقق وتسوية تلقائية.",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "سجل النماذج",
+      "description": "سجّل وأدِر إصدارات واكتشف نماذج الذكاء الاصطناعي. تتبع المعايير والتقييمات ومتطلبات الأجهزة.",
+      "features": {
+        "registration": "تسجيل النماذج",
+        "registrationDesc": "سجّل نماذجك مع البيانات الوصفية والمعايير والتسعير",
+        "versioning": "إدارة الإصدارات",
+        "versioningDesc": "تتبع إصدارات النماذج مع السجل الكامل والمقارنات",
+        "discovery": "اكتشاف النماذج",
+        "discoveryDesc": "ابحث وفلتر النماذج حسب النوع والوسوم والتقييمات"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "محرك تنفيذ المهام",
+      "description": "أرسل مهام الذكاء الاصطناعي وتنفيذها بواسطة شبكة عالمية من مزودي GPU مع نتائج قابلة للتحقق.",
+      "features": {
+        "submission": "إرسال المهام",
+        "submissionDesc": "أرسل مهام الاستدلال أو التدريب أو الضبط الدقيق",
+        "execution": "التنفيذ الموزع",
+        "executionDesc": "مطابقة المهام تلقائياً مع المزودين الأمثل",
+        "verification": "التحقق من النتائج",
+        "verificationDesc": "إجماع متعدد العقد أو التحقق من إثبات ZK"
+      }
+    },
+    "jobTypes": {
+      "title": "أنواع المهام المدعومة",
+      "inference": "الاستدلال",
+      "inferenceDesc": "تنبؤات وتوليد النماذج في الوقت الفعلي",
+      "training": "التدريب",
+      "trainingDesc": "تدريب النموذج الكامل من الصفر",
+      "fineTuning": "الضبط الدقيق",
+      "fineTuningDesc": "تكييف النماذج الموجودة مع بياناتك",
+      "embedding": "التضمين",
+      "embeddingDesc": "توليد تضمينات متجهية للبحث",
+      "imageGen": "توليد الصور",
+      "imageGenDesc": "إنشاء صور باستخدام نماذج الانتشار",
+      "batch": "المعالجة الدفعية",
+      "batchDesc": "معالجة البيانات عالية الحجم"
+    },
+    "providerTiers": {
+      "title": "مستويات المزودين",
+      "hobbyist": "هاوٍ",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1,000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/شهر",
+      "professional": "محترف",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5,000 PYRAX stake",
+      "professionalRevenue": "1,500-3,000 PYRAX/شهر",
+      "enterprise": "مؤسسي",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25,000 PYRAX stake",
+      "enterpriseRevenue": "5,000-15,000 PYRAX/شهر"
+    }
+  },
+  "tokenomics": {
+    "title": "اقتصاديات الرمز",
+    "subtitle": "نموذج اقتصادي مصمم بعناية يضمن الاستدامة طويلة المدى والتوزيع العادل.",
+    "overview": {
+      "name": "اسم الرمز",
+      "nameValue": "PYRAX",
+      "symbol": "الرمز",
+      "symbolValue": "$PYRAX",
+      "supply": "إجمالي العرض",
+      "supplyValue": "100,000,000,000",
+      "decimals": "الكسور العشرية",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "توزيع الرموز",
+      "presale": "البيع المسبق",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE، شهر واحد cliff، 12 شهر vesting",
+      "bdagCommunity": "مجتمع BDAG",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 شهر cliff، 12 شهر vesting",
+      "mining": "مكافآت التعدين",
+      "miningPercent": "35%",
+      "miningDesc": "لكل كتلة مُعدَّنة (halving ~4 سنوات)",
+      "zkProver": "مكافآت ZK Prover",
+      "zkPercent": "5%",
+      "zkDesc": "لكل شهادة (10% محروقة)",
+      "team": "الفريق والمؤسسون",
+      "teamPercent": "4%",
+      "teamDesc": "12 شهر cliff، 48 شهر vesting",
+      "advisors": "المستشارون",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 شهر cliff، 48 شهر vesting",
+      "ecosystem": "النظام البيئي",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "قائم على المعالم، موافقة DAO",
+      "marketing": "التسويق",
+      "marketingPercent": "5%",
+      "marketingDesc": "موافقة التوقيع المتعدد",
+      "liquidity": "السيولة",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "100% عند TGE",
+      "treasury": "الخزينة",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "مطلوب موافقة DAO بنسبة 75%",
+      "reserve": "الاحتياطي",
+      "reservePercent": "1%",
+      "reserveDesc": "مخزون البروتوكول"
+    },
+    "feeDistribution": {
+      "title": "توزيع رسوم الغاز",
+      "streamA": "معدنو Stream A",
+      "streamAPercent": "20%",
+      "streamB": "معدنو Stream B",
+      "streamBPercent": "40%",
+      "streamC": "مدققو Stream C",
+      "streamCPercent": "30%",
+      "treasury": "خزينة البروتوكول",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "معاملات الرهن",
+      "validatorStake": "رهن المدقق",
+      "validatorStakeValue": "100,000 PYRAX",
+      "minDelegation": "الحد الأدنى للتفويض",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "رهن المزود",
+      "providerStakeValue": "1,000 PYRAX",
+      "unbonding": "فترة فك الربط",
+      "unbondingValue": "7 أيام",
+      "doubleSign": "عقوبة التوقيع المزدوج",
+      "doubleSignValue": "5%",
+      "downtime": "عقوبة التوقف",
+      "downtimeValue": "0.1%"
+    }
+  },
+  "roadmap": {
+    "title": "خارطة الطريق",
+    "subtitle": "رحلتنا لإحداث ثورة في حوسبة الذكاء الاصطناعي اللامركزية.",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "الأساس",
+      "status": "completed",
+      "items": [
+        "العقدة الأساسية مع تعدين BLAKE3 PoW",
+        "شبكة P2P (libp2p، GossipSub)",
+        "طبقة تخزين RocksDB",
+        "خادم API JSON-RPC",
+        "تطبيق محفظة سطح المكتب",
+        "معدّن GPU (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "توسيع المنصة",
+      "status": "in-progress",
+      "items": [
+        "إطلاق شبكة الاختبار العامة",
+        "تفعيل EVM sidechain",
+        "بيئة عقود Rust/WASM",
+        "بيتا سوق الذكاء الاصطناعي",
+        "تطوير محفظة الهاتف",
+        "تحضيرات الإدراج في البورصات"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "إطلاق الشبكة الرئيسية",
+      "status": "upcoming",
+      "items": [
+        "إكمال تدقيقات الأمان",
+        "إنشاء كتلة التكوين",
+        "نشر عقد البذور",
+        "إدراج CEX/DEX",
+        "إطلاق منصة الذكاء الاصطناعي",
+        "تفعيل الجسور"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "التوسع",
+      "status": "upcoming",
+      "items": [
+        "شراكات المؤسسات",
+        "جسور عبر السلاسل (ETH، BSC)",
+        "ميزات الذكاء الاصطناعي المتقدمة",
+        "توسيع العقد العالمية",
+        "تحسينات الأداء",
+        "إطلاق حوكمة DAO"
+      ]
+    }
+  },
+  "technology": {
+    "title": "التعمق في التكنولوجيا",
+    "subtitle": "استكشف التكنولوجيا المبتكرة التي تشغل PYRAX.",
+    "architecture": {
+      "title": "نظرة عامة على الهندسة المعمارية",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "500K+ TPS للذكاء الاصطناعي، DeFi، الألعاب",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x، Rust/WASM، جسر L1",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "ترتيب GHOSTDAG، 3 تيارات تعدين"
+    },
+    "consensus": {
+      "title": "إجماع TriStream",
+      "description": "ثلاثة تيارات متوازية تعمل معاً لتوفير أمان ولامركزية غير مسبوقين.",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "تعدين ASIC",
+        "blockTime": "10 ثواني",
+        "reward": "50 PYRAX/كتلة",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "تعدين GPU",
+        "blockTime": "60 ثانية",
+        "reward": "100 PYRAX/كتلة",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "إثبات الحصة",
+        "blockTime": "متغير",
+        "reward": "10 PYRAX/نقطة تفتيش",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "البدائيات التشفيرية",
+      "addressDerivation": "اشتقاق العنوان",
+      "addressValue": "Keccak-256 (متوافق مع EVM)",
+      "blockHash": "تجزئة رأس الكتلة",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "تجزئة المعاملة",
+      "txHashValue": "Keccak-256",
+      "signatures": "التوقيعات",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "إثباتات ZK",
+      "zkProofsValue": "STARK، SNARK، Plonk، Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "النظام البيئي",
+    "subtitle": "مجموعة كاملة من الأدوات والتطبيقات لشبكة PYRAX.",
+    "products": {
+      "node": {
+        "title": "عقدة PYRAX",
+        "description": "عقدة بلوكتشين أساسية مع إجماع وشبكة P2P وخادم RPC.",
+        "language": "Rust",
+        "status": "مكتمل"
+      },
+      "miner": {
+        "title": "معدّن GPU",
+        "description": "معدّن KAWPOW عالي الأداء مع دعم CUDA و OpenCL.",
+        "language": "C++/CUDA",
+        "status": "مكتمل"
+      },
+      "desktop": {
+        "title": "محفظة سطح المكتب",
+        "description": "تطبيق سطح مكتب كامل المميزات مع محفظة وإدارة عقد وتعدين.",
+        "language": "Tauri/Rust",
+        "status": "مكتمل"
+      },
+      "explorer": {
+        "title": "مستكشف الكتل",
+        "description": "مستكشف بلوكتشين في الوقت الفعلي مع لوحة معلومات الذكاء الاصطناعي والتحليلات.",
+        "language": "Next.js",
+        "status": "مكتمل"
+      },
+      "wallet": {
+        "title": "مكتبة المحفظة",
+        "description": "مكتبة محفظة أساسية مع اشتقاق HD والتوقيع وإدارة المفاتيح.",
+        "language": "Rust",
+        "status": "مكتمل"
+      },
+      "ai": {
+        "title": "منصة الذكاء الاصطناعي",
+        "description": "سوق ذكاء اصطناعي لامركزي مع سجل النماذج وتنفيذ المهام.",
+        "language": "Rust",
+        "status": "مكتمل"
+      }
+    }
+  },
+  "cta": {
+    "title": "هل أنت مستعد لبناء المستقبل؟",
+    "subtitle": "انضم إلى مجتمع PYRAX وكن جزءاً من ثورة الذكاء الاصطناعي اللامركزية.",
+    "buttons": {
+      "explorer": "افتح المستكشف",
+      "docs": "اقرأ الوثائق",
+      "discord": "انضم إلى Discord"
+    }
+  },
+  "footer": {
+    "description": "PYRAX هو بلوكتشين Layer 1 من الجيل التالي يجمع بين إجماع TriStream DAG وسوق حوسبة الذكاء الاصطناعي اللامركزية.",
+    "technology": "التكنولوجيا",
+    "resources": "الموارد",
+    "community": "المجتمع",
+    "legal": "قانوني",
+    "whitepaper": "الورقة البيضاء",
+    "documentation": "الوثائق",
+    "github": "GitHub",
+    "brandKit": "مجموعة العلامة التجارية",
+    "privacyPolicy": "سياسة الخصوصية",
+    "termsOfService": "شروط الخدمة",
+    "copyright": "© 2026 PYRAX. جميع الحقوق محفوظة."
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "التكنولوجيا",
+      "subtitle": "استكشف الهندسة المعمارية المبتكرة التي تشغل بلوكتشين PYRAX."
+    },
+    "tristream": {
+      "title": "إجماع TriStream DAG",
+      "description": "ثلاثة تيارات تعدين متوازية توفر أماناً ولامركزية وإنتاجية غير مسبوقة."
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "تعدين ASIC",
+        "description": "تعدين BLAKE3 عالي الإنتاجية محسن للأجهزة المتخصصة. يوفر أمان الطبقة الأساسية.",
+        "feature1": "دالة تجزئة BLAKE3",
+        "feature2": "وقت كتلة 10 ثواني",
+        "feature3": "50% من مكافآت الكتلة",
+        "feature4": "مثالي لمعدني ASIC"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "تعدين GPU",
+        "description": "خوارزمية KAWPOW تضمن مقاومة ASIC، مما يتيح مشاركة عادلة في تعدين GPU.",
+        "feature1": "خوارزمية KAWPOW",
+        "feature2": "وقت كتلة 60 ثانية",
+        "feature3": "30% من مكافآت الكتلة",
+        "feature4": "تصميم مقاوم لـ ASIC"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "إثبات الحصة",
+        "description": "مدققو ZK-STARK يوفرون نقاط تفتيش نهائية ويكسبون مكافآت الرهن.",
+        "feature1": "إثباتات ZK-STARK",
+        "feature2": "نهائية نقاط التفتيش",
+        "feature3": "20% من مكافآت الكتلة",
+        "feature4": "100,000 PYRAX رهن"
+      }
+    },
+    "labels": {
+      "algorithm": "الخوارزمية",
+      "type": "النوع",
+      "blockTime": "وقت الكتلة",
+      "reward": "حصة المكافأة",
+      "features": "الميزات الرئيسية"
+    },
+    "architecture": {
+      "title": "الهندسة متعددة الطبقات",
+      "description": "يستخدم PYRAX هندسة متعددة الطبقات لأقصى قابلية للتوسع.",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "Rollups خاصة بالتطبيقات للذكاء الاصطناعي، DeFi، الألعاب",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "عقود ذكية Solidity 0.8.x و Rust/WASM",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "إجماع GHOSTDAG مع 3 تيارات تعدين"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "التوافق الكامل مع Ethereum Virtual Machine يسمح بنشر سلس للعقود الذكية الموجودة.",
+      "feature1": "دعم Solidity 0.8.x",
+      "feature2": "وقت كتلة ثانيتين",
+      "feature3": "إنتاجية 1,000-5,000 TPS",
+      "feature4": "جسر L1 أصلي",
+      "feature5": "قابلية التشغيل البيني EVM ↔ WASM",
+      "specs": "المواصفات الفنية",
+      "specBlockTime": "وقت الكتلة",
+      "specTps": "الإنتاجية",
+      "specSolidity": "إصدار Solidity",
+      "specChainId": "معرف السلسلة",
+      "specGasUnit": "وحدة الغاز"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "توفر rollups المعرفة الصفرية قابلية توسع هائلة مع وراثة أمان L1.",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "إنتاجية هائلة لتطبيقات الذكاء الاصطناعي و DeFi",
+      "feature2Title": "دعم إثباتات متعددة",
+      "feature2Desc": "مخططات STARK، SNARK، Plonk، و Groth16",
+      "feature3Title": "مُتسلسل لامركزي",
+      "feature3Desc": "لا توجد نقطة فشل واحدة أو رقابة"
+    },
+    "crypto": {
+      "title": "البدائيات التشفيرية",
+      "description": "البدائيات التشفيرية القياسية الصناعية تضمن الأمان وقابلية التشغيل البيني.",
+      "addressLabel": "اشتقاق العنوان",
+      "blockHashLabel": "تجزئة الكتلة",
+      "txHashLabel": "تجزئة المعاملة",
+      "signaturesLabel": "التوقيعات",
+      "zkProofsLabel": "إثباتات ZK",
+      "merkleLabel": "شجرة ميركل"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "اقتصاديات الرمز",
+      "subtitle": "نموذج اقتصادي مصمم بعناية يضمن الاستدامة طويلة المدى والتوزيع العادل."
+    },
+    "overview": {
+      "name": "اسم الرمز",
+      "symbol": "الرمز",
+      "supply": "إجمالي العرض",
+      "decimals": "الكسور العشرية"
+    },
+    "distribution": {
+      "title": "توزيع الرموز",
+      "subtitle": "100 مليار PYRAX موزعة على التعدين والمجتمع والفريق والنظام البيئي.",
+      "presale": "البيع المسبق",
+      "presaleDesc": "30% TGE، شهر واحد cliff، 12 شهر vesting",
+      "bdagCommunity": "مجتمع BDAG",
+      "bdagDesc": "12 شهر cliff، 12 شهر vesting",
+      "mining": "مكافآت التعدين",
+      "miningDesc": "لكل كتلة مُعدَّنة (halving ~4 سنوات)",
+      "zkProver": "مكافآت ZK Prover",
+      "zkDesc": "لكل شهادة (10% محروقة)",
+      "team": "الفريق والمؤسسون",
+      "teamDesc": "12 شهر cliff، 48 شهر vesting",
+      "advisors": "المستشارون",
+      "advisorsDesc": "12 شهر cliff، 48 شهر vesting",
+      "ecosystem": "صندوق النظام البيئي",
+      "ecosystemDesc": "قائم على المعالم، موافقة DAO",
+      "marketing": "التسويق",
+      "marketingDesc": "مطلوب موافقة التوقيع المتعدد",
+      "liquidity": "السيولة",
+      "liquidityDesc": "100% متاحة عند TGE",
+      "treasury": "الخزينة",
+      "treasuryDesc": "مطلوب موافقة DAO بنسبة 75%",
+      "reserve": "الاحتياطي",
+      "reserveDesc": "مخزون طوارئ البروتوكول"
+    },
+    "fees": {
+      "title": "توزيع الرسوم",
+      "description": "يتم توزيع رسوم المعاملات على جميع تيارات التعدين الثلاثة وخزينة البروتوكول.",
+      "streamA": "معدنو Stream A",
+      "streamB": "معدنو Stream B",
+      "streamC": "مدققو Stream C",
+      "treasury": "خزينة البروتوكول"
+    },
+    "staking": {
+      "title": "معاملات الرهن",
+      "validatorStake": "الحد الأدنى للمدقق",
+      "minDelegation": "الحد الأدنى للتفويض",
+      "providerStake": "رهن مزود الذكاء الاصطناعي",
+      "unbonding": "فترة فك الربط",
+      "doubleSign": "عقوبة التوقيع المزدوج",
+      "downtime": "عقوبة التوقف"
+    },
+    "emission": {
+      "title": "جدول الإصدار",
+      "description": "تتناقص مكافآت التعدين بمرور الوقت وفقاً لجدول التنصيف.",
+      "year1": "السنة 1",
+      "year2": "السنة 2",
+      "year3": "السنة 3",
+      "year4": "السنة 4+",
+      "miningRate": "من إجمالي التعدين",
+      "cumulative": "المُعدَّن التراكمي"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "التعدين والرهن",
+      "subtitle": "طرق متعددة لكسب المكافآت وتأمين شبكة PYRAX."
+    },
+    "overview": {
+      "title": "ثلاثة تيارات تعدين",
+      "description": "يتميز PYRAX بثلاثة تيارات تعدين متوازية، لكل منها خوارزميات ومتطلبات أجهزة فريدة."
+    },
+    "labels": {
+      "reward": "حصة المكافأة",
+      "mining": "التعدين",
+      "requirements": "متطلبات الأجهزة",
+      "howToStart": "كيف تبدأ"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "تعدين ASIC مع BLAKE3",
+      "hardware": "محسن لأجهزة ASIC المتخصصة لأقصى كفاءة.",
+      "req1Label": "الخوارزمية",
+      "req1Value": "BLAKE3",
+      "req2Label": "الأجهزة",
+      "req2Value": "معدنو ASIC",
+      "req3Label": "وقت الكتلة",
+      "req3Value": "10 ثواني",
+      "req4Label": "حصة المكافأة",
+      "req4Value": "50%",
+      "step1": "اشترِ أو ابنِ معدن ASIC متوافق مع BLAKE3",
+      "step2": "قم بتنزيل وتكوين برنامج تعدين PYRAX",
+      "step3": "اتصل بمجمع تعدين أو شغّل التعدين الفردي",
+      "step4": "ابدأ التعدين واكسب مكافآت PYRAX"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "تعدين GPU مع KAWPOW",
+      "hardware": "خوارزمية مقاومة ASIC مصممة لأجهزة GPU المستهلكة.",
+      "req1Label": "الخوارزمية",
+      "req1Value": "KAWPOW",
+      "req2Label": "الأجهزة",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "وقت الكتلة",
+      "req3Value": "60 ثانية",
+      "req4Label": "حصة المكافأة",
+      "req4Value": "30%",
+      "step1": "تأكد من أن لديك GPU متوافق (RTX 20 series أو أحدث موصى به)",
+      "step2": "قم بتنزيل معدن GPU PYRAX مع دعم CUDA أو OpenCL",
+      "step3": "قم بتكوين عنوان محفظتك وإعدادات المجمع",
+      "step4": "ابدأ التعدين وراقب معدل التجزئة الخاص بك"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "إثبات الحصة مع ZK-STARK",
+      "hardware": "راهن رموز PYRAX لتصبح مدققاً واكسب المكافآت.",
+      "req1Label": "الخوارزمية",
+      "req1Value": "ZK-STARK",
+      "req2Label": "الحد الأدنى للرهن",
+      "req2Value": "100,000 PYRAX",
+      "req3Label": "الأجهزة",
+      "req3Value": "خادم قياسي",
+      "req4Label": "حصة المكافأة",
+      "req4Value": "20%",
+      "step1": "احصل على 100,000 رمز PYRAX على الأقل",
+      "step2": "قم بإعداد عقدة مدقق بالمواصفات المطلوبة",
+      "step3": "سجّل كمدقق وراهن رموزك",
+      "step4": "حافظ على وقت التشغيل لتعظيم المكافآت وتجنب القطع"
+    },
+    "staking": {
+      "title": "خيارات الرهن",
+      "description": "طرق متعددة لكسب مكافآت الرهن على شبكة PYRAX.",
+      "validatorTitle": "تشغيل مدقق",
+      "validatorDesc": "شغّل عقدة مدقق لتأمين الشبكة وكسب أقصى المكافآت.",
+      "delegationTitle": "فوّض رموزك",
+      "delegationDesc": "فوّض للمدققين الموجودين واكسب المكافآت دون تشغيل البنية التحتية.",
+      "minStake": "الحد الأدنى للرهن",
+      "apy": "العائد السنوي المتوقع",
+      "unbonding": "فترة فك الربط",
+      "slashing": "مخاطر القطع",
+      "minDelegation": "الحد الأدنى للتفويض",
+      "delegatorApy": "عائد المفوض السنوي",
+      "commission": "عمولة المدقق",
+      "rewards": "توزيع المكافآت",
+      "rewardsValue": "كل حقبة"
+    },
+    "cta": {
+      "title": "هل أنت مستعد لبدء التعدين؟",
+      "description": "قم بتنزيل برنامج التعدين وانضم إلى الشبكة اليوم.",
+      "downloadMiner": "تنزيل المعدّن",
+      "readDocs": "قراءة الوثائق"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "نشر Devnet", "item8": "نشر Testnet" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "مجتمع BDAG", "title": "مبادرة مجتمع BDAG", "subtitle": "يكافئ برنامج تخصيص مجتمع BDAG حاملي رموز BlockDAG الحاليين الذين ينتقلون إلى شبكة PYRAX. تم تخصيص 10 مليار رمز PYRAX (10% من العرض) لأعضاء مجتمع BDAG المعتمدين." },
+    "stats": { "poolSize": "حجم المجمع", "poolSizeSub": "10% من العرض", "allocationRate": "معدل التخصيص الفعلي", "allocationRateSub": "من الاستثمار الأصلي", "cliff": "فترة Cliff", "cliffSub": "قبل بدء الإصدار", "vesting": "إجمالي Vesting", "vestingSub": "فترة vesting كاملة" },
+    "formula": { "title": "صيغة التخصيص", "base": "التخصيص الأساسي", "baseDesc": "من شراء BDAG (دولار)", "bonus": "مكافأة", "bonusDesc": "من التخصيص الأساسي", "total": "المعدل الإجمالي", "totalDesc": "من الاستثمار الأصلي", "example": "مثال:", "exampleText": "إذا اشتريت 1,000 دولار من BDAG، تحصل على 250 دولار أساسي + 62.50 دولار مكافأة = 312.50 دولار من PYRAX بسعر البيع المسبق الحالي" },
+    "examples": { "title": "أمثلة التخصيص", "subtitle": "بسعر المرحلة 1 (0.0062 دولار لكل رمز)", "colPurchase": "شراء BDAG", "colBase": "أساسي (25%)", "colBonus": "مكافأة (25%)", "colTotal": "إجمالي الدولار", "colTokens": "رموز PYRAX" },
+    "eligibility": { "title": "متطلبات الأهلية", "req1": "امتلاك رموز BDAG المشتراة قبل إعلان البيع المسبق لـ PYRAX", "req2": "تقديم إثبات شراء قابل للتحقق (hash المعاملة)", "req3": "إكمال التحقق من هوية KYC", "req4": "تقديم المطالبة قبل الموعد النهائي (سيتم تحديده)" },
+    "vesting": { "title": "جدول Vesting", "cliffPeriod": "فترة Cliff", "cliffDesc": "0% يُصدر خلال cliff", "vestingPeriod": "فترة Vesting", "vestingDesc": "8.33% يُصدر شهرياً" },
+    "timeline": { "title": "الجدول الزمني المهم", "claimOpens": "فتح نافذة المطالبة", "deadline": "الموعد النهائي للمطالبة", "tge": "توليد الرمز", "cliffEnds": "انتهاء Cliff", "fullyVested": "مُستحق بالكامل" },
+    "burn": { "title": "حرق الرموز غير المُطالب بها", "subtitle": "جميع الرموز التي لم يُطالب بها قبل الموعد النهائي تُحرق بشكل دائم. لا يوجد تمديد أو فترة سماح.", "benefit1": "آلية انكماشية", "benefit2": "يكافئ المشاركين النشطين", "benefit3": "يمنع الاستغلال", "benefit4": "الموعد النهائي الواضح يحفز العمل" },
+    "claimEarly": { "title": "طالب مبكراً للحصول على المزيد من الرموز", "subtitle": "المطالبة مبكراً (المرحلة 1) تعطيك المزيد من الرموز لأن السعر أقل. المطالبة في المرحلة 4 تؤدي إلى عدد أقل من الرموز لنفس تخصيص الدولار." },
+    "cta": { "title": "قدم مطالبتك", "submit": "تحقق من حيازاتك من BDAG وطالب بـ PYRAX", "viewVesting": "عرض تفاصيل Vesting", "portalDisclaimer": "بوابة المطالبات لم تفتح بعد. تابعنا على وسائل التواصل الاجتماعي ليتم إعلامك عند فتح البوابة." }
+  }
+}

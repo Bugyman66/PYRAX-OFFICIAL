@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "होम",
+    "blockchain": "ब्लॉकचेन",
+    "technology": "प्रौद्योगिकी",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "टोकन वितरण और अर्थशास्त्र",
+    "miningDesc": "GPU और ASIC माइनिंग स्ट्रीम",
+    "roadmapDesc": "विकास समयरेखा",
+    "resources": "संसाधन",
+    "downloads": "डाउनलोड",
+    "downloadsDesc": "सभी प्लेटफॉर्म के लिए डेस्कटॉप ऐप",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "समुदाय",
+    "discord": "Discord",
+    "discordDesc": "Discord सर्वर से जुड़ें",
+    "twitter": "Twitter",
+    "twitterDesc": "Twitter पर फॉलो करें",
+    "telegram": "Telegram",
+    "telegramDesc": "Telegram ग्रुप से जुड़ें",
+    "reddit": "Reddit",
+    "redditDesc": "Reddit समुदाय से जुड़ें",
+    "facebook": "Facebook",
+    "facebookDesc": "Facebook पेज फॉलो करें",
+    "instagram": "Instagram",
+    "instagramDesc": "Instagram पर फॉलो करें",
+    "facebookGroup": "Facebook ग्रुप",
+    "facebookGroupDesc": "Facebook समुदाय से जुड़ें",
+    "roadmap": "रोडमैप",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "ऐप लॉन्च करें",
+    "launchExplorer": "एक्सप्लोरर लॉन्च करें",
+    "featured": "विशेष",
+    "explore": "एक्सप्लोर करें",
+    "viewAll": "सभी देखें",
+    "aiCompute": "AI कंप्यूटिंग",
+    "developerTools": "डेवलपर टूल्स",
+    "openSource": "ओपन सोर्स",
+    "buildOnPyrax": "हमारे व्यापक SDK और दस्तावेज़ीकरण के साथ PYRAX पर बनाएं।",
+    "joinMovement": "आंदोलन में शामिल हों",
+    "growingFast": "तेज़ी से बढ़ रहा है",
+    "connectCommunity": "दुनिया भर के माइनर्स, डेवलपर्स और उत्साही लोगों से जुड़ें।",
+    "language": "भाषा",
+    "aiSystems": "AI सिस्टम",
+    "aiSystemsDesc": "मॉडल रजिस्ट्री और जॉब एक्जीक्यूशन के साथ विकेंद्रीकृत AI कंप्यूट प्लेटफॉर्म।",
+    "dao": "PYRAX DAO",
+    "daoDesc": "PYRAX नेटवर्क के लिए विकेंद्रीकृत शासन",
+    "bdagCommunity": "BDAG समुदाय",
+    "bdagCommunityDesc": "BlockDAG धारकों के लिए टोकन आवंटन"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "विकेंद्रीकृत स्वायत्त संगठन",
+    "comingSoon": "DAO संरचना जल्द आ रही है",
+    "description": "हम एक व्यापक विकेंद्रीकृत शासन प्रणाली का निर्माण कर रहे हैं जो PYRAX समुदाय को नेटवर्क के भविष्य के बारे में महत्वपूर्ण निर्णयों में भाग लेने के लिए सशक्त बनाएगी।"
+  },
+  "hero": {
+    "badge": "मेननेट Q3 2026",
+    "title": "विकेंद्रीकृत AI का",
+    "titleHighlight": "भविष्य",
+    "subtitle": "PYRAX क्रांतिकारी TriStream DAG सहमति को विकेंद्रीकृत AI कंप्यूट मार्केटप्लेस के साथ जोड़ता है। GPU माइनर्स नेटवर्क को सुरक्षित करते हैं और AI कंप्यूटिंग पावर प्रदान करते हैं।",
+    "cta": {
+      "primary": "तकनीक का अन्वेषण करें",
+      "secondary": "व्हाइटपेपर पढ़ें"
+    },
+    "stats": {
+      "tps": "500K+ TPS",
+      "tpsLabel": "L2 थ्रूपुट",
+      "blockTime": "2 सेकंड",
+      "blockTimeLabel": "EVM ब्लॉक समय",
+      "supply": "100 अरब",
+      "supplyLabel": "कुल आपूर्ति",
+      "streams": "3",
+      "streamsLabel": "माइनिंग स्ट्रीम"
+    }
+  },
+  "features": {
+    "title": "PYRAX क्यों?",
+    "subtitle": "AI युग के लिए निर्मित एक ब्लॉकचेन जिसमें अभूतपूर्व सुरक्षा, स्केलेबिलिटी और नेटिव AI कंप्यूट एकीकरण है।",
+    "tristream": {
+      "title": "TriStream DAG सहमति",
+      "description": "तीन समानांतर माइनिंग स्ट्रीम (ASIC, GPU, ZK) अधिकतम सुरक्षा और विकेंद्रीकरण प्रदान करते हैं। GHOSTDAG क्रम तेज़ अंतिमता सुनिश्चित करता है।",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "AI कंप्यूट प्लेटफॉर्म",
+    "subtitle": "सत्यापन योग्य कंप्यूट और स्वचालित निपटान के साथ दुनिया का पहला ब्लॉकचेन-नेटिव AI मार्केटप्लेस।",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "मॉडल रजिस्ट्री",
+      "description": "AI मॉडल पंजीकृत करें, संस्करण बनाएं और खोजें। बेंचमार्क, रेटिंग और हार्डवेयर आवश्यकताओं को ट्रैक करें।",
+      "features": {
+        "registration": "मॉडल पंजीकरण",
+        "registrationDesc": "मेटाडेटा, बेंचमार्क और मूल्य निर्धारण के साथ अपने मॉडल पंजीकृत करें",
+        "versioning": "सिमेंटिक वर्जनिंग",
+        "versioningDesc": "पूर्ण इतिहास और तुलनाओं के साथ मॉडल संस्करणों को ट्रैक करें",
+        "discovery": "मॉडल खोज",
+        "discoveryDesc": "प्रकार, टैग और रेटिंग के आधार पर मॉडल खोजें और फ़िल्टर करें"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "जॉब निष्पादन इंजन",
+      "description": "AI जॉब सबमिट करें और उन्हें सत्यापन योग्य परिणामों के साथ GPU प्रदाताओं के वैश्विक नेटवर्क द्वारा निष्पादित करवाएं।",
+      "features": {
+        "submission": "जॉब सबमिशन",
+        "submissionDesc": "इन्फरेंस, ट्रेनिंग या फाइन-ट्यूनिंग जॉब सबमिट करें",
+        "execution": "वितरित निष्पादन",
+        "executionDesc": "जॉब स्वचालित रूप से इष्टतम प्रदाताओं से मिलान होते हैं",
+        "verification": "परिणाम सत्यापन",
+        "verificationDesc": "मल्टी-नोड सहमति या ZK प्रूफ सत्यापन"
+      }
+    },
+    "jobTypes": {
+      "title": "समर्थित जॉब प्रकार",
+      "inference": "इन्फरेंस",
+      "inferenceDesc": "रियल-टाइम मॉडल भविष्यवाणियां और जनरेशन",
+      "training": "ट्रेनिंग",
+      "trainingDesc": "शुरू से पूर्ण मॉडल ट्रेनिंग",
+      "fineTuning": "फाइन-ट्यूनिंग",
+      "fineTuningDesc": "मौजूदा मॉडल को अपने डेटा के अनुसार अनुकूलित करें",
+      "embedding": "एम्बेडिंग",
+      "embeddingDesc": "खोज के लिए वेक्टर एम्बेडिंग जनरेट करें",
+      "imageGen": "इमेज जनरेशन",
+      "imageGenDesc": "डिफ्यूजन मॉडल के साथ इमेज बनाएं",
+      "batch": "बैच प्रोसेसिंग",
+      "batchDesc": "उच्च-मात्रा डेटा प्रोसेसिंग"
+    },
+    "providerTiers": {
+      "title": "प्रदाता स्तर",
+      "hobbyist": "शौकिया",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1,000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/महीना",
+      "professional": "पेशेवर",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5,000 PYRAX stake",
+      "professionalRevenue": "1,500-3,000 PYRAX/महीना",
+      "enterprise": "एंटरप्राइज",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25,000 PYRAX stake",
+      "enterpriseRevenue": "5,000-15,000 PYRAX/महीना"
+    }
+  },
+  "tokenomics": {
+    "title": "टोकन अर्थशास्त्र",
+    "subtitle": "दीर्घकालिक स्थिरता और उचित वितरण सुनिश्चित करने वाला सावधानीपूर्वक डिज़ाइन किया गया आर्थिक मॉडल।",
+    "overview": {
+      "name": "टोकन नाम",
+      "nameValue": "PYRAX",
+      "symbol": "प्रतीक",
+      "symbolValue": "$PYRAX",
+      "supply": "कुल आपूर्ति",
+      "supplyValue": "100,000,000,000",
+      "decimals": "दशमलव",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "टोकन वितरण",
+      "presale": "प्रीसेल",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE, 1 महीना cliff, 12 महीना vesting",
+      "bdagCommunity": "BDAG समुदाय",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 महीना cliff, 12 महीना vesting",
+      "mining": "माइनिंग रिवॉर्ड",
+      "miningPercent": "35%",
+      "miningDesc": "प्रति ब्लॉक माइन (halving ~4 वर्ष)",
+      "zkProver": "ZK प्रूवर रिवॉर्ड",
+      "zkPercent": "5%",
+      "zkDesc": "प्रति प्रमाणन (10% जलाया गया)",
+      "team": "टीम और संस्थापक",
+      "teamPercent": "4%",
+      "teamDesc": "12 महीना cliff, 48 महीना vesting",
+      "advisors": "सलाहकार",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 महीना cliff, 48 महीना vesting",
+      "ecosystem": "इकोसिस्टम",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "माइलस्टोन-आधारित, DAO अनुमोदन",
+      "marketing": "मार्केटिंग",
+      "marketingPercent": "5%",
+      "marketingDesc": "मल्टी-सिग अनुमोदन",
+      "liquidity": "तरलता",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "TGE पर 100%",
+      "treasury": "खजाना",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "75% DAO अनुमोदन आवश्यक",
+      "reserve": "रिजर्व",
+      "reservePercent": "1%",
+      "reserveDesc": "प्रोटोकॉल बफर"
+    },
+    "feeDistribution": {
+      "title": "गैस शुल्क वितरण",
+      "streamA": "Stream A माइनर",
+      "streamAPercent": "20%",
+      "streamB": "Stream B माइनर",
+      "streamBPercent": "40%",
+      "streamC": "Stream C वैलिडेटर",
+      "streamCPercent": "30%",
+      "treasury": "प्रोटोकॉल खजाना",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "स्टेकिंग पैरामीटर",
+      "validatorStake": "वैलिडेटर स्टेक",
+      "validatorStakeValue": "100,000 PYRAX",
+      "minDelegation": "न्यूनतम डेलीगेशन",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "प्रदाता स्टेक",
+      "providerStakeValue": "1,000 PYRAX",
+      "unbonding": "अनबॉन्डिंग अवधि",
+      "unbondingValue": "7 दिन",
+      "doubleSign": "डबल-साइन स्लैश",
+      "doubleSignValue": "5%",
+      "downtime": "डाउनटाइम स्लैश",
+      "downtimeValue": "0.1%"
+    }
+  },
+  "roadmap": {
+    "title": "रोडमैप",
+    "subtitle": "विकेंद्रीकृत AI कंप्यूट में क्रांति लाने की हमारी यात्रा।",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "नींव",
+      "status": "completed",
+      "items": [
+        "BLAKE3 PoW माइनिंग के साथ कोर नोड",
+        "P2P नेटवर्किंग (libp2p, GossipSub)",
+        "RocksDB स्टोरेज लेयर",
+        "JSON-RPC API सर्वर",
+        "डेस्कटॉप वॉलेट एप्लिकेशन",
+        "GPU माइनर (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "प्लेटफॉर्म विस्तार",
+      "status": "in-progress",
+      "items": [
+        "पब्लिक टेस्टनेट लॉन्च",
+        "EVM साइडचेन सक्रियण",
+        "Rust/WASM कॉन्ट्रैक्ट रनटाइम",
+        "AI मार्केटप्लेस बीटा",
+        "मोबाइल वॉलेट विकास",
+        "एक्सचेंज लिस्टिंग तैयारी"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "मेननेट लॉन्च",
+      "status": "upcoming",
+      "items": [
+        "सुरक्षा ऑडिट पूर्णता",
+        "जेनेसिस ब्लॉक जनरेशन",
+        "सीड नोड डिप्लॉयमेंट",
+        "CEX/DEX लिस्टिंग",
+        "AI प्लेटफॉर्म प्रोडक्शन लॉन्च",
+        "ब्रिज सक्रियण"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "स्केल",
+      "status": "upcoming",
+      "items": [
+        "एंटरप्राइज साझेदारी",
+        "क्रॉस-चेन ब्रिज (ETH, BSC)",
+        "उन्नत AI फीचर्स",
+        "वैश्विक नोड विस्तार",
+        "प्रदर्शन अनुकूलन",
+        "DAO गवर्नेंस लॉन्च"
+      ]
+    }
+  },
+  "technology": {
+    "title": "टेक्नोलॉजी गहराई में",
+    "subtitle": "PYRAX को शक्ति देने वाली नवीन तकनीक का अन्वेषण करें।",
+    "architecture": {
+      "title": "आर्किटेक्चर अवलोकन",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "AI, DeFi, गेमिंग के लिए 500K+ TPS",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x, Rust/WASM, L1 ब्रिज",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "GHOSTDAG ऑर्डरिंग, 3 माइनिंग स्ट्रीम"
+    },
+    "consensus": {
+      "title": "TriStream सहमति",
+      "description": "तीन समानांतर स्ट्रीम अभूतपूर्व सुरक्षा और विकेंद्रीकरण प्रदान करने के लिए एक साथ काम करती हैं।",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "ASIC माइनिंग",
+        "blockTime": "10 सेकंड",
+        "reward": "50 PYRAX/ब्लॉक",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "GPU माइनिंग",
+        "blockTime": "60 सेकंड",
+        "reward": "100 PYRAX/ब्लॉक",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "प्रूफ ऑफ स्टेक",
+        "blockTime": "परिवर्तनशील",
+        "reward": "10 PYRAX/चेकपॉइंट",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "क्रिप्टोग्राफिक प्रिमिटिव्स",
+      "addressDerivation": "एड्रेस डेरिवेशन",
+      "addressValue": "Keccak-256 (EVM-संगत)",
+      "blockHash": "ब्लॉक हेडर हैश",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "ट्रांजैक्शन हैश",
+      "txHashValue": "Keccak-256",
+      "signatures": "सिग्नेचर",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "ZK प्रूफ्स",
+      "zkProofsValue": "STARK, SNARK, Plonk, Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "इकोसिस्टम",
+    "subtitle": "PYRAX नेटवर्क के लिए टूल्स और एप्लिकेशन का पूर्ण सूट।",
+    "products": {
+      "node": {
+        "title": "PYRAX नोड",
+        "description": "सहमति, P2P नेटवर्किंग और RPC सर्वर के साथ कोर ब्लॉकचेन नोड।",
+        "language": "Rust",
+        "status": "पूर्ण"
+      },
+      "miner": {
+        "title": "GPU माइनर",
+        "description": "CUDA और OpenCL सपोर्ट के साथ उच्च-प्रदर्शन KAWPOW माइनर।",
+        "language": "C++/CUDA",
+        "status": "पूर्ण"
+      },
+      "desktop": {
+        "title": "डेस्कटॉप वॉलेट",
+        "description": "वॉलेट, नोड प्रबंधन और माइनिंग के साथ पूर्ण-फीचर डेस्कटॉप एप्लिकेशन।",
+        "language": "Tauri/Rust",
+        "status": "पूर्ण"
+      },
+      "explorer": {
+        "title": "ब्लॉक एक्सप्लोरर",
+        "description": "AI डैशबोर्ड और एनालिटिक्स के साथ रियल-टाइम ब्लॉकचेन एक्सप्लोरर।",
+        "language": "Next.js",
+        "status": "पूर्ण"
+      },
+      "wallet": {
+        "title": "वॉलेट लाइब्रेरी",
+        "description": "HD डेरिवेशन, साइनिंग और की मैनेजमेंट के साथ कोर वॉलेट लाइब्रेरी।",
+        "language": "Rust",
+        "status": "पूर्ण"
+      },
+      "ai": {
+        "title": "AI प्लेटफॉर्म",
+        "description": "मॉडल रजिस्ट्री और जॉब निष्पादन के साथ विकेंद्रीकृत AI मार्केटप्लेस।",
+        "language": "Rust",
+        "status": "पूर्ण"
+      }
+    }
+  },
+  "cta": {
+    "title": "भविष्य बनाने के लिए तैयार हैं?",
+    "subtitle": "PYRAX समुदाय में शामिल हों और विकेंद्रीकृत AI क्रांति का हिस्सा बनें।",
+    "buttons": {
+      "explorer": "एक्सप्लोरर लॉन्च करें",
+      "docs": "डॉक्यूमेंटेशन पढ़ें",
+      "discord": "Discord में शामिल हों"
+    }
+  },
+  "footer": {
+    "description": "PYRAX एक अगली पीढ़ी का Layer 1 ब्लॉकचेन है जो TriStream DAG सहमति को विकेंद्रीकृत AI कंप्यूट मार्केटप्लेस के साथ जोड़ता है।",
+    "technology": "टेक्नोलॉजी",
+    "resources": "संसाधन",
+    "community": "समुदाय",
+    "legal": "कानूनी",
+    "whitepaper": "व्हाइटपेपर",
+    "documentation": "डॉक्यूमेंटेशन",
+    "github": "GitHub",
+    "brandKit": "ब्रांड किट",
+    "privacyPolicy": "गोपनीयता नीति",
+    "termsOfService": "सेवा की शर्तें",
+    "copyright": "© 2026 PYRAX. सर्वाधिकार सुरक्षित।"
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "टेक्नोलॉजी",
+      "subtitle": "PYRAX ब्लॉकचेन को शक्ति देने वाली नवीन आर्किटेक्चर का अन्वेषण करें।"
+    },
+    "tristream": {
+      "title": "TriStream DAG सहमति",
+      "description": "तीन समानांतर माइनिंग स्ट्रीम अभूतपूर्व सुरक्षा, विकेंद्रीकरण और थ्रूपुट प्रदान करती हैं।"
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "ASIC माइनिंग",
+        "description": "विशेष हार्डवेयर के लिए अनुकूलित उच्च-थ्रूपुट BLAKE3 माइनिंग। बेस लेयर सुरक्षा प्रदान करता है।",
+        "feature1": "BLAKE3 हैश फंक्शन",
+        "feature2": "10 सेकंड ब्लॉक टाइम",
+        "feature3": "50% ब्लॉक रिवॉर्ड",
+        "feature4": "ASIC माइनर के लिए इष्टतम"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "GPU माइनिंग",
+        "description": "KAWPOW एल्गोरिथम ASIC प्रतिरोध सुनिश्चित करता है, निष्पक्ष GPU माइनिंग भागीदारी को सक्षम करता है।",
+        "feature1": "KAWPOW एल्गोरिथम",
+        "feature2": "60 सेकंड ब्लॉक टाइम",
+        "feature3": "30% ब्लॉक रिवॉर्ड",
+        "feature4": "ASIC-प्रतिरोधी डिज़ाइन"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "प्रूफ ऑफ स्टेक",
+        "description": "ZK-STARK वैलिडेटर फाइनैलिटी चेकपॉइंट प्रदान करते हैं और स्टेकिंग रिवॉर्ड कमाते हैं।",
+        "feature1": "ZK-STARK प्रूफ्स",
+        "feature2": "चेकपॉइंट फाइनैलिटी",
+        "feature3": "20% ब्लॉक रिवॉर्ड",
+        "feature4": "100,000 PYRAX स्टेक"
+      }
+    },
+    "labels": {
+      "algorithm": "एल्गोरिथम",
+      "type": "प्रकार",
+      "blockTime": "ब्लॉक टाइम",
+      "reward": "रिवॉर्ड शेयर",
+      "features": "मुख्य फीचर्स"
+    },
+    "architecture": {
+      "title": "लेयर्ड आर्किटेक्चर",
+      "description": "PYRAX अधिकतम स्केलेबिलिटी के लिए मल्टी-लेयर आर्किटेक्चर का उपयोग करता है।",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "AI, DeFi, गेमिंग के लिए एप्लिकेशन-विशिष्ट रोलअप",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x और Rust/WASM स्मार्ट कॉन्ट्रैक्ट",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "3 माइनिंग स्ट्रीम के साथ GHOSTDAG सहमति"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "पूर्ण Ethereum Virtual Machine संगतता मौजूदा स्मार्ट कॉन्ट्रैक्ट की सहज तैनाती की अनुमति देती है।",
+      "feature1": "Solidity 0.8.x सपोर्ट",
+      "feature2": "2 सेकंड ब्लॉक टाइम",
+      "feature3": "1,000-5,000 TPS थ्रूपुट",
+      "feature4": "नेटिव L1 ब्रिज",
+      "feature5": "EVM ↔ WASM इंटरऑपरेबिलिटी",
+      "specs": "तकनीकी विनिर्देश",
+      "specBlockTime": "ब्लॉक टाइम",
+      "specTps": "थ्रूपुट",
+      "specSolidity": "Solidity वर्जन",
+      "specChainId": "चेन ID",
+      "specGasUnit": "गैस यूनिट"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "जीरो-नॉलेज रोलअप L1 सुरक्षा विरासत में लेते हुए बड़े पैमाने पर स्केलेबिलिटी प्रदान करते हैं।",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "AI और DeFi एप्लिकेशन के लिए विशाल थ्रूपुट",
+      "feature2Title": "मल्टी-प्रूफ सपोर्ट",
+      "feature2Desc": "STARK, SNARK, Plonk, और Groth16 स्कीम",
+      "feature3Title": "विकेंद्रीकृत सीक्वेंसर",
+      "feature3Desc": "कोई एकल विफलता बिंदु या सेंसरशिप नहीं"
+    },
+    "crypto": {
+      "title": "क्रिप्टोग्राफिक प्रिमिटिव्स",
+      "description": "उद्योग-मानक क्रिप्टोग्राफिक प्रिमिटिव्स सुरक्षा और इंटरऑपरेबिलिटी सुनिश्चित करते हैं।",
+      "addressLabel": "एड्रेस डेरिवेशन",
+      "blockHashLabel": "ब्लॉक हैश",
+      "txHashLabel": "ट्रांजैक्शन हैश",
+      "signaturesLabel": "सिग्नेचर",
+      "zkProofsLabel": "ZK प्रूफ्स",
+      "merkleLabel": "मर्कल ट्री"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "टोकनॉमिक्स",
+      "subtitle": "दीर्घकालिक स्थिरता और उचित वितरण सुनिश्चित करने वाला सावधानीपूर्वक डिज़ाइन किया गया आर्थिक मॉडल।"
+    },
+    "overview": {
+      "name": "टोकन नाम",
+      "symbol": "प्रतीक",
+      "supply": "कुल आपूर्ति",
+      "decimals": "दशमलव"
+    },
+    "distribution": {
+      "title": "टोकन वितरण",
+      "subtitle": "100 बिलियन PYRAX माइनिंग, समुदाय, टीम और इकोसिस्टम में आवंटित।",
+      "presale": "प्रीसेल",
+      "presaleDesc": "30% TGE, 1 महीना cliff, 12 महीना vesting",
+      "bdagCommunity": "BDAG समुदाय",
+      "bdagDesc": "12 महीना cliff, 12 महीना vesting",
+      "mining": "माइनिंग रिवॉर्ड",
+      "miningDesc": "प्रति ब्लॉक माइन (halving ~4 वर्ष)",
+      "zkProver": "ZK प्रूवर रिवॉर्ड",
+      "zkDesc": "प्रति प्रमाणन (10% जलाया गया)",
+      "team": "टीम और संस्थापक",
+      "teamDesc": "12 महीना cliff, 48 महीना vesting",
+      "advisors": "सलाहकार",
+      "advisorsDesc": "12 महीना cliff, 48 महीना vesting",
+      "ecosystem": "इकोसिस्टम फंड",
+      "ecosystemDesc": "माइलस्टोन-आधारित, DAO अनुमोदन",
+      "marketing": "मार्केटिंग",
+      "marketingDesc": "मल्टी-सिग अनुमोदन आवश्यक",
+      "liquidity": "तरलता",
+      "liquidityDesc": "TGE पर 100% उपलब्ध",
+      "treasury": "खजाना",
+      "treasuryDesc": "75% DAO अनुमोदन आवश्यक",
+      "reserve": "रिजर्व",
+      "reserveDesc": "प्रोटोकॉल आपातकालीन बफर"
+    },
+    "fees": {
+      "title": "शुल्क वितरण",
+      "description": "ट्रांजैक्शन शुल्क सभी तीन माइनिंग स्ट्रीम और प्रोटोकॉल खजाने में वितरित होते हैं।",
+      "streamA": "Stream A माइनर",
+      "streamB": "Stream B माइनर",
+      "streamC": "Stream C वैलिडेटर",
+      "treasury": "प्रोटोकॉल खजाना"
+    },
+    "staking": {
+      "title": "स्टेकिंग पैरामीटर",
+      "validatorStake": "वैलिडेटर न्यूनतम",
+      "minDelegation": "डेलीगेशन न्यूनतम",
+      "providerStake": "AI प्रदाता स्टेक",
+      "unbonding": "अनबॉन्डिंग अवधि",
+      "doubleSign": "डबल-साइन पेनल्टी",
+      "downtime": "डाउनटाइम पेनल्टी"
+    },
+    "emission": {
+      "title": "एमिशन शेड्यूल",
+      "description": "माइनिंग रिवॉर्ड हैविंग शेड्यूल के अनुसार समय के साथ घटते हैं।",
+      "year1": "वर्ष 1",
+      "year2": "वर्ष 2",
+      "year3": "वर्ष 3",
+      "year4": "वर्ष 4+",
+      "miningRate": "कुल माइनिंग का",
+      "cumulative": "संचयी माइन"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "माइनिंग और स्टेकिंग",
+      "subtitle": "PYRAX नेटवर्क पर रिवॉर्ड कमाने और सुरक्षित करने के कई तरीके।"
+    },
+    "overview": {
+      "title": "तीन माइनिंग स्ट्रीम",
+      "description": "PYRAX में तीन समानांतर माइनिंग स्ट्रीम हैं, प्रत्येक में अद्वितीय एल्गोरिथम और हार्डवेयर आवश्यकताएं हैं।"
+    },
+    "labels": {
+      "reward": "रिवॉर्ड शेयर",
+      "mining": "माइनिंग",
+      "requirements": "हार्डवेयर आवश्यकताएं",
+      "howToStart": "कैसे शुरू करें"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "BLAKE3 के साथ ASIC माइनिंग",
+      "hardware": "अधिकतम दक्षता के लिए विशेष ASIC हार्डवेयर के लिए अनुकूलित।",
+      "req1Label": "एल्गोरिथम",
+      "req1Value": "BLAKE3",
+      "req2Label": "हार्डवेयर",
+      "req2Value": "ASIC माइनर",
+      "req3Label": "ब्लॉक टाइम",
+      "req3Value": "10 सेकंड",
+      "req4Label": "रिवॉर्ड शेयर",
+      "req4Value": "50%",
+      "step1": "BLAKE3-संगत ASIC माइनर खरीदें या बनाएं",
+      "step2": "PYRAX माइनिंग सॉफ्टवेयर डाउनलोड और कॉन्फ़िगर करें",
+      "step3": "माइनिंग पूल से कनेक्ट करें या सोलो माइनिंग चलाएं",
+      "step4": "माइनिंग शुरू करें और PYRAX रिवॉर्ड कमाएं"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "KAWPOW के साथ GPU माइनिंग",
+      "hardware": "उपभोक्ता GPU हार्डवेयर के लिए डिज़ाइन किया गया ASIC-प्रतिरोधी एल्गोरिथम।",
+      "req1Label": "एल्गोरिथम",
+      "req1Value": "KAWPOW",
+      "req2Label": "हार्डवेयर",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "ब्लॉक टाइम",
+      "req3Value": "60 सेकंड",
+      "req4Label": "रिवॉर्ड शेयर",
+      "req4Value": "30%",
+      "step1": "सुनिश्चित करें कि आपके पास संगत GPU है (RTX 20 सीरीज या नया अनुशंसित)",
+      "step2": "CUDA या OpenCL सपोर्ट के साथ PYRAX GPU माइनर डाउनलोड करें",
+      "step3": "अपना वॉलेट एड्रेस और पूल सेटिंग्स कॉन्फ़िगर करें",
+      "step4": "माइनिंग शुरू करें और अपना हैशरेट मॉनिटर करें"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "ZK-STARK के साथ प्रूफ ऑफ स्टेक",
+      "hardware": "वैलिडेटर बनने और रिवॉर्ड कमाने के लिए PYRAX टोकन स्टेक करें।",
+      "req1Label": "एल्गोरिथम",
+      "req1Value": "ZK-STARK",
+      "req2Label": "न्यूनतम स्टेक",
+      "req2Value": "100,000 PYRAX",
+      "req3Label": "हार्डवेयर",
+      "req3Value": "स्टैंडर्ड सर्वर",
+      "req4Label": "रिवॉर्ड शेयर",
+      "req4Value": "20%",
+      "step1": "कम से कम 100,000 PYRAX टोकन प्राप्त करें",
+      "step2": "आवश्यक विनिर्देशों के साथ वैलिडेटर नोड सेट अप करें",
+      "step3": "वैलिडेटर के रूप में पंजीकरण करें और अपने टोकन स्टेक करें",
+      "step4": "रिवॉर्ड अधिकतम करने और स्लैशिंग से बचने के लिए अपटाइम बनाए रखें"
+    },
+    "staking": {
+      "title": "स्टेकिंग विकल्प",
+      "description": "PYRAX नेटवर्क पर स्टेकिंग रिवॉर्ड कमाने के कई तरीके।",
+      "validatorTitle": "वैलिडेटर चलाएं",
+      "validatorDesc": "नेटवर्क सुरक्षित करने और अधिकतम रिवॉर्ड कमाने के लिए वैलिडेटर नोड संचालित करें।",
+      "delegationTitle": "अपने टोकन डेलीगेट करें",
+      "delegationDesc": "इंफ्रास्ट्रक्चर चलाए बिना मौजूदा वैलिडेटर को डेलीगेट करें और रिवॉर्ड कमाएं।",
+      "minStake": "न्यूनतम स्टेक",
+      "apy": "अपेक्षित APY",
+      "unbonding": "अनबॉन्डिंग अवधि",
+      "slashing": "स्लैशिंग जोखिम",
+      "minDelegation": "न्यूनतम डेलीगेशन",
+      "delegatorApy": "डेलीगेटर APY",
+      "commission": "वैलिडेटर कमीशन",
+      "rewards": "रिवॉर्ड वितरण",
+      "rewardsValue": "प्रत्येक epoch"
+    },
+    "cta": {
+      "title": "माइनिंग शुरू करने के लिए तैयार?",
+      "description": "माइनर सॉफ्टवेयर डाउनलोड करें और आज ही नेटवर्क से जुड़ें।",
+      "downloadMiner": "माइनर डाउनलोड करें",
+      "readDocs": "डॉक्यूमेंटेशन पढ़ें"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "Devnet परिनियोजन", "item8": "Testnet परिनियोजन" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "BDAG समुदाय", "title": "BDAG समुदाय पहल", "subtitle": "BDAG समुदाय आवंटन कार्यक्रम मौजूदा BlockDAG टोकन धारकों को पुरस्कृत करता है जो PYRAX नेटवर्क में माइग्रेट करते हैं। 10 बिलियन PYRAX टोकन (आपूर्ति का 10%) सत्यापित BDAG समुदाय सदस्यों को आवंटित।" },
+    "stats": { "poolSize": "पूल आकार", "poolSizeSub": "आपूर्ति का 10%", "allocationRate": "प्रभावी आवंटन दर", "allocationRateSub": "मूल निवेश का", "cliff": "क्लिफ अवधि", "cliffSub": "रिलीज शुरू होने से पहले", "vesting": "कुल वेस्टिंग", "vestingSub": "पूर्ण वेस्टिंग अवधि" },
+    "formula": { "title": "आवंटन फॉर्मूला", "base": "बेस आवंटन", "baseDesc": "BDAG खरीद (USD) का", "bonus": "बोनस", "bonusDesc": "बेस आवंटन का", "total": "कुल दर", "totalDesc": "मूल निवेश का", "example": "उदाहरण:", "exampleText": "यदि आपने $1,000 का BDAG खरीदा, तो आपको $250 बेस + $62.50 बोनस = $312.50 USD मूल्य का PYRAX वर्तमान प्रीसेल मूल्य पर मिलता है" },
+    "examples": { "title": "आवंटन उदाहरण", "subtitle": "फेज 1 मूल्य पर ($0.0062 प्रति टोकन)", "colPurchase": "BDAG खरीद", "colBase": "बेस (25%)", "colBonus": "बोनस (25%)", "colTotal": "कुल USD", "colTokens": "PYRAX टोकन" },
+    "eligibility": { "title": "पात्रता आवश्यकताएं", "req1": "PYRAX प्रीसेल घोषणा से पहले खरीदे गए BDAG टोकन रखें", "req2": "सत्यापन योग्य खरीद प्रमाण प्रदान करें (ट्रांजैक्शन हैश)", "req3": "KYC पहचान सत्यापन पूरा करें", "req4": "समय सीमा से पहले दावा सबमिट करें (निर्धारित किया जाएगा)" },
+    "vesting": { "title": "वेस्टिंग शेड्यूल", "cliffPeriod": "क्लिफ अवधि", "cliffDesc": "क्लिफ के दौरान 0% रिलीज", "vestingPeriod": "वेस्टिंग अवधि", "vestingDesc": "मासिक 8.33% रिलीज" },
+    "timeline": { "title": "महत्वपूर्ण टाइमलाइन", "claimOpens": "दावा विंडो खुलती है", "deadline": "दावा की समय सीमा", "tge": "टोकन जनरेशन", "cliffEnds": "क्लिफ समाप्त", "fullyVested": "पूर्ण वेस्टेड" },
+    "burn": { "title": "दावा न किए गए टोकन जलाए जाते हैं", "subtitle": "समय सीमा तक दावा न किए गए सभी टोकन स्थायी रूप से जला दिए जाते हैं। कोई विस्तार या ग्रेस पीरियड नहीं है।", "benefit1": "अपस्फीति तंत्र", "benefit2": "सक्रिय प्रतिभागियों को पुरस्कृत करता है", "benefit3": "शोषण को रोकता है", "benefit4": "स्पष्ट समय सीमा कार्रवाई को प्रेरित करती है" },
+    "claimEarly": { "title": "अधिक टोकन के लिए जल्दी दावा करें", "subtitle": "पहले दावा करना (फेज 1) अधिक टोकन देता है क्योंकि कीमत कम है। फेज 4 में दावा करने से समान USD आवंटन के लिए कम टोकन मिलते हैं।" },
+    "cta": { "title": "अपना दावा जमा करें", "submit": "अपनी BDAG होल्डिंग्स सत्यापित करें और PYRAX का दावा करें", "viewVesting": "वेस्टिंग विवरण देखें", "portalDisclaimer": "दावा पोर्टल अभी खुला नहीं है। पोर्टल खुलने पर सूचित होने के लिए सोशल मीडिया पर हमें फॉलो करें।" }
+  }
+}

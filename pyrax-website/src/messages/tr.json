@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "Ana Sayfa",
+    "blockchain": "Blockchain",
+    "technology": "Teknoloji",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "Token dağıtımı ve ekonomisi",
+    "miningDesc": "GPU ve ASIC madencilik akışları",
+    "roadmapDesc": "Geliştirme zaman çizelgesi",
+    "resources": "Kaynaklar",
+    "downloads": "İndirmeler",
+    "downloadsDesc": "Tüm platformlar için masaüstü uygulaması",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "Topluluk",
+    "discord": "Discord",
+    "discordDesc": "Discord sunucumuza katılın",
+    "twitter": "Twitter",
+    "twitterDesc": "Twitter'da takip edin",
+    "telegram": "Telegram",
+    "telegramDesc": "Telegram grubuna katılın",
+    "reddit": "Reddit",
+    "redditDesc": "Reddit topluluğuna katılın",
+    "facebook": "Facebook",
+    "facebookDesc": "Facebook sayfamızı takip edin",
+    "instagram": "Instagram",
+    "instagramDesc": "Instagram'da takip edin",
+    "facebookGroup": "Facebook Grubu",
+    "facebookGroupDesc": "Facebook topluluğumuza katılın",
+    "roadmap": "Yol Haritası",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "Uygulamayı Başlat",
+    "launchExplorer": "Gezgini Başlat",
+    "featured": "Öne Çıkanlar",
+    "explore": "Keşfet",
+    "viewAll": "Tümünü Gör",
+    "aiCompute": "AI Hesaplama",
+    "developerTools": "Geliştirici Araçları",
+    "openSource": "Açık Kaynak",
+    "buildOnPyrax": "Kapsamlı SDK ve dokümantasyonumuzla PYRAX üzerinde geliştirin.",
+    "joinMovement": "Harekete Katıl",
+    "growingFast": "Hızla Büyüyor",
+    "connectCommunity": "Dünya genelindeki madenciler, geliştiriciler ve meraklılarla bağlantı kurun.",
+    "language": "Dil",
+    "aiSystems": "AI Sistemleri",
+    "aiSystemsDesc": "Model kaydı ve iş yürütme ile merkezi olmayan AI hesaplama platformu.",
+    "dao": "PYRAX DAO",
+    "daoDesc": "PYRAX ağı için merkezi olmayan yönetim",
+    "bdagCommunity": "BDAG Topluluğu",
+    "bdagCommunityDesc": "BlockDAG sahipleri için token tahsisi"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "Merkezi Olmayan Özerk Organizasyon",
+    "comingSoon": "DAO Yapısı Yakında",
+    "description": "PYRAX topluluğunun ağın geleceği hakkında önemli kararlara katılmasını sağlayacak kapsamlı bir merkezi olmayan yönetişim sistemi oluşturuyoruz."
+  },
+  "hero": {
+    "badge": "Mainnet 2026 Q3",
+    "title": "Merkeziyetsiz AI'ın",
+    "titleHighlight": "Geleceği",
+    "subtitle": "PYRAX, devrimci TriStream DAG konsensüsünü merkeziyetsiz AI hesaplama pazarıyla birleştirir. GPU madencileri ağı korur VE AI hesaplama gücü sağlar.",
+    "cta": {
+      "primary": "Teknolojiyi Keşfet",
+      "secondary": "Whitepaper'ı Oku"
+    },
+    "stats": {
+      "tps": "500K+ TPS",
+      "tpsLabel": "L2 Verim",
+      "blockTime": "2sn",
+      "blockTimeLabel": "EVM Blok Süresi",
+      "supply": "100 Milyar",
+      "supplyLabel": "Toplam Arz",
+      "streams": "3",
+      "streamsLabel": "Madencilik Akışı"
+    }
+  },
+  "features": {
+    "title": "Neden PYRAX?",
+    "subtitle": "Benzersiz güvenlik, ölçeklenebilirlik ve yerel AI hesaplama entegrasyonu ile AI çağı için inşa edilmiş bir blockchain.",
+    "tristream": {
+      "title": "TriStream DAG Konsensüsü",
+      "description": "Üç paralel madencilik akışı (ASIC, GPU, ZK) maksimum güvenlik ve merkeziyetsizlik sağlar. GHOSTDAG sıralaması hızlı kesinlik sağlar.",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "AI Hesaplama Platformu",
+    "subtitle": "Doğrulanabilir hesaplama ve otomatik ödeme ile dünyanın ilk blockchain-yerel AI pazarı.",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "Model Kayıt Defteri",
+      "description": "AI modellerini kaydedin, sürümleyin ve keşfedin. Benchmark'ları, derecelendirmeleri ve donanım gereksinimlerini takip edin.",
+      "features": {
+        "registration": "Model Kaydı",
+        "registrationDesc": "Modellerinizi metadata, benchmark'lar ve fiyatlandırma ile kaydedin",
+        "versioning": "Semantik Sürümleme",
+        "versioningDesc": "Model sürümlerini tam geçmiş ve karşılaştırmalarla takip edin",
+        "discovery": "Model Keşfi",
+        "discoveryDesc": "Modelleri tür, etiket ve derecelendirmeye göre arayın ve filtreleyin"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "İş Yürütme Motoru",
+      "description": "AI işlerini gönderin ve doğrulanabilir sonuçlarla küresel GPU sağlayıcı ağı tarafından yürütülmesini sağlayın.",
+      "features": {
+        "submission": "İş Gönderimi",
+        "submissionDesc": "Çıkarım, eğitim veya ince ayar işleri gönderin",
+        "execution": "Dağıtık Yürütme",
+        "executionDesc": "İşler otomatik olarak optimal sağlayıcılara eşleştirilir",
+        "verification": "Sonuç Doğrulama",
+        "verificationDesc": "Çoklu düğüm konsensüsü veya ZK kanıt doğrulaması"
+      }
+    },
+    "jobTypes": {
+      "title": "Desteklenen İş Türleri",
+      "inference": "Çıkarım",
+      "inferenceDesc": "Gerçek zamanlı model tahminleri ve üretimi",
+      "training": "Eğitim",
+      "trainingDesc": "Sıfırdan tam model eğitimi",
+      "fineTuning": "İnce Ayar",
+      "fineTuningDesc": "Mevcut modelleri verilerinize uyarlayın",
+      "embedding": "Gömme",
+      "embeddingDesc": "Arama için vektör gömmeleri oluşturun",
+      "imageGen": "Görüntü Oluşturma",
+      "imageGenDesc": "Difüzyon modelleri ile görüntüler oluşturun",
+      "batch": "Toplu İşleme",
+      "batchDesc": "Yüksek hacimli veri işleme"
+    },
+    "providerTiers": {
+      "title": "Sağlayıcı Seviyeleri",
+      "hobbyist": "Hobi",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1.000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/ay",
+      "professional": "Profesyonel",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5.000 PYRAX stake",
+      "professionalRevenue": "1.500-3.000 PYRAX/ay",
+      "enterprise": "Kurumsal",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25.000 PYRAX stake",
+      "enterpriseRevenue": "5.000-15.000 PYRAX/ay"
+    }
+  },
+  "tokenomics": {
+    "title": "Token Ekonomisi",
+    "subtitle": "Uzun vadeli sürdürülebilirlik ve adil dağıtım sağlayan özenle tasarlanmış ekonomik model.",
+    "overview": {
+      "name": "Token Adı",
+      "nameValue": "PYRAX",
+      "symbol": "Sembol",
+      "symbolValue": "$PYRAX",
+      "supply": "Toplam Arz",
+      "supplyValue": "100.000.000.000",
+      "decimals": "Ondalık",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "Token Dağıtımı",
+      "presale": "Ön Satış",
+      "presalePercent": "15%",
+      "presaleDesc": "%30 TGE, 1 ay cliff, 12 ay vesting",
+      "bdagCommunity": "BDAG Topluluğu",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 ay cliff, 12 ay vesting",
+      "mining": "Madencilik Ödülleri",
+      "miningPercent": "35%",
+      "miningDesc": "Blok başına (yarılanma ~4 yıl)",
+      "zkProver": "ZK Prover Ödülleri",
+      "zkPercent": "5%",
+      "zkDesc": "Attestasyon başına (%10 yakılır)",
+      "team": "Ekip ve Kurucular",
+      "teamPercent": "4%",
+      "teamDesc": "12 ay cliff, 48 ay vesting",
+      "advisors": "Danışmanlar",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 ay cliff, 48 ay vesting",
+      "ecosystem": "Ekosistem",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "Kilometre taşı bazlı, DAO onayı",
+      "marketing": "Pazarlama",
+      "marketingPercent": "5%",
+      "marketingDesc": "Multi-sig onayı",
+      "liquidity": "Likidite",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "TGE'de %100",
+      "treasury": "Hazine",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "%75 DAO onayı gerekli",
+      "reserve": "Rezerv",
+      "reservePercent": "1%",
+      "reserveDesc": "Protokol tamponu"
+    },
+    "feeDistribution": {
+      "title": "Gas Ücreti Dağılımı",
+      "streamA": "Stream A Madencileri",
+      "streamAPercent": "20%",
+      "streamB": "Stream B Madencileri",
+      "streamBPercent": "40%",
+      "streamC": "Stream C Doğrulayıcıları",
+      "streamCPercent": "30%",
+      "treasury": "Protokol Hazinesi",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "Stake Parametreleri",
+      "validatorStake": "Doğrulayıcı Stake",
+      "validatorStakeValue": "100.000 PYRAX",
+      "minDelegation": "Min Delegasyon",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "Sağlayıcı Stake",
+      "providerStakeValue": "1.000 PYRAX",
+      "unbonding": "Çözme Süresi",
+      "unbondingValue": "7 gün",
+      "doubleSign": "Çift-İmza Kesintisi",
+      "doubleSignValue": "%5",
+      "downtime": "Kesinti Kesintisi",
+      "downtimeValue": "%0,1"
+    }
+  },
+  "roadmap": {
+    "title": "Yol Haritası",
+    "subtitle": "Merkeziyetsiz AI hesaplamayı devrimleştirme yolculuğumuz.",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "Temel",
+      "status": "completed",
+      "items": [
+        "BLAKE3 PoW madenciliği ile çekirdek düğüm",
+        "P2P ağı (libp2p, GossipSub)",
+        "RocksDB depolama katmanı",
+        "JSON-RPC API sunucusu",
+        "Masaüstü cüzdan uygulaması",
+        "GPU madenci (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "Platform Genişlemesi",
+      "status": "in-progress",
+      "items": [
+        "Halka açık testnet lansmanı",
+        "EVM sidechain aktivasyonu",
+        "Rust/WASM kontrat runtime",
+        "AI pazaryeri beta",
+        "Mobil cüzdan geliştirme",
+        "Borsa listeleme hazırlıkları"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "Mainnet Lansmanı",
+      "status": "upcoming",
+      "items": [
+        "Güvenlik denetimlerinin tamamlanması",
+        "Genesis bloğu oluşturma",
+        "Seed düğüm dağıtımı",
+        "CEX/DEX listelemeler",
+        "AI platform üretim lansmanı",
+        "Köprü aktivasyonları"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "Ölçekleme",
+      "status": "upcoming",
+      "items": [
+        "Kurumsal ortaklıklar",
+        "Çapraz zincir köprüleri (ETH, BSC)",
+        "Gelişmiş AI özellikleri",
+        "Küresel düğüm genişlemesi",
+        "Performans optimizasyonları",
+        "DAO yönetişim lansmanı"
+      ]
+    }
+  },
+  "technology": {
+    "title": "Teknoloji Derinlemesine",
+    "subtitle": "PYRAX'ı güçlendiren yenilikçi teknolojiyi keşfedin.",
+    "architecture": {
+      "title": "Mimari Genel Bakış",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "AI, DeFi, Gaming için 500K+ TPS",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x, Rust/WASM, L1 Köprüsü",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "GHOSTDAG sıralaması, 3 madencilik akışı"
+    },
+    "consensus": {
+      "title": "TriStream Konsensüs",
+      "description": "Üç paralel akış, benzersiz güvenlik ve merkeziyetsizlik sağlamak için birlikte çalışır.",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "ASIC Madenciliği",
+        "blockTime": "10 saniye",
+        "reward": "50 PYRAX/blok",
+        "feeShare": "%20"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "GPU Madenciliği",
+        "blockTime": "60 saniye",
+        "reward": "100 PYRAX/blok",
+        "feeShare": "%40"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "Proof of Stake",
+        "blockTime": "Değişken",
+        "reward": "10 PYRAX/checkpoint",
+        "feeShare": "%30"
+      }
+    },
+    "cryptography": {
+      "title": "Kriptografik Temel Öğeler",
+      "addressDerivation": "Adres Türetme",
+      "addressValue": "Keccak-256 (EVM uyumlu)",
+      "blockHash": "Blok Başlığı Hash",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "İşlem Hash",
+      "txHashValue": "Keccak-256",
+      "signatures": "İmzalar",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "ZK Kanıtları",
+      "zkProofsValue": "STARK, SNARK, Plonk, Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "Ekosistem",
+    "subtitle": "PYRAX ağı için eksiksiz araç ve uygulama seti.",
+    "products": {
+      "node": {
+        "title": "PYRAX Düğümü",
+        "description": "Konsensüs, P2P ağı ve RPC sunucusu ile çekirdek blockchain düğümü.",
+        "language": "Rust",
+        "status": "Tamamlandı"
+      },
+      "miner": {
+        "title": "GPU Madenci",
+        "description": "CUDA ve OpenCL desteği ile yüksek performanslı KAWPOW madenci.",
+        "language": "C++/CUDA",
+        "status": "Tamamlandı"
+      },
+      "desktop": {
+        "title": "Masaüstü Cüzdan",
+        "description": "Cüzdan, düğüm yönetimi ve madencilik ile tam özellikli masaüstü uygulaması.",
+        "language": "Tauri/Rust",
+        "status": "Tamamlandı"
+      },
+      "explorer": {
+        "title": "Blok Gezgini",
+        "description": "AI dashboard ve analitiklerle gerçek zamanlı blockchain gezgini.",
+        "language": "Next.js",
+        "status": "Tamamlandı"
+      },
+      "wallet": {
+        "title": "Cüzdan Kütüphanesi",
+        "description": "HD türetme, imzalama ve anahtar yönetimi ile çekirdek cüzdan kütüphanesi.",
+        "language": "Rust",
+        "status": "Tamamlandı"
+      },
+      "ai": {
+        "title": "AI Platformu",
+        "description": "Model kayıt defteri ve iş yürütme ile merkeziyetsiz AI pazaryeri.",
+        "language": "Rust",
+        "status": "Tamamlandı"
+      }
+    }
+  },
+  "cta": {
+    "title": "Geleceği İnşa Etmeye Hazır mısınız?",
+    "subtitle": "PYRAX topluluğuna katılın ve merkeziyetsiz AI devriminin bir parçası olun.",
+    "buttons": {
+      "explorer": "Gezgini Başlat",
+      "docs": "Belgeleri Oku",
+      "discord": "Discord'a Katıl"
+    }
+  },
+  "footer": {
+    "description": "PYRAX, TriStream DAG konsensüsünü merkeziyetsiz AI hesaplama pazaryeri ile birleştiren yeni nesil Layer 1 blockchain.",
+    "technology": "Teknoloji",
+    "resources": "Kaynaklar",
+    "community": "Topluluk",
+    "legal": "Yasal",
+    "whitepaper": "Whitepaper",
+    "documentation": "Belgeler",
+    "github": "GitHub",
+    "brandKit": "Marka Kiti",
+    "privacyPolicy": "Gizlilik Politikası",
+    "termsOfService": "Kullanım Şartları",
+    "copyright": "© 2026 PYRAX. Tüm hakları saklıdır."
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "Teknoloji",
+      "subtitle": "PYRAX blockchain'i güçlendiren yenilikçi mimariyi keşfedin."
+    },
+    "tristream": {
+      "title": "TriStream DAG Konsensüs",
+      "description": "Üç paralel madencilik akışı benzersiz güvenlik, merkeziyetsizlik ve verimlilik sağlar."
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "ASIC Madenciliği",
+        "description": "Özelleşmiş donanım için optimize edilmiş yüksek verimli BLAKE3 madenciliği. Temel katman güvenliği sağlar.",
+        "feature1": "BLAKE3 hash fonksiyonu",
+        "feature2": "10 saniyelik blok süresi",
+        "feature3": "Blok ödüllerinin %50'si",
+        "feature4": "ASIC madenciler için optimal"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "GPU Madenciliği",
+        "description": "KAWPOW algoritması ASIC direnci sağlayarak adil GPU madenciliği katılımını mümkün kılar.",
+        "feature1": "KAWPOW algoritması",
+        "feature2": "60 saniyelik blok süresi",
+        "feature3": "Blok ödüllerinin %30'u",
+        "feature4": "ASIC-dirençli tasarım"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "Proof of Stake",
+        "description": "ZK-STARK doğrulayıcıları finalite checkpoint'leri sağlar ve stake ödülleri kazanır.",
+        "feature1": "ZK-STARK kanıtları",
+        "feature2": "Checkpoint finalitesi",
+        "feature3": "Blok ödüllerinin %20'si",
+        "feature4": "100.000 PYRAX stake"
+      }
+    },
+    "labels": {
+      "algorithm": "Algoritma",
+      "type": "Tür",
+      "blockTime": "Blok Süresi",
+      "reward": "Ödül Payı",
+      "features": "Temel Özellikler"
+    },
+    "architecture": {
+      "title": "Katmanlı Mimari",
+      "description": "PYRAX maksimum ölçeklenebilirlik için çok katmanlı mimari kullanır.",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "AI, DeFi, Gaming için uygulamaya özel rollup'lar",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x ve Rust/WASM akıllı kontratlar",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "3 madencilik akışı ile GHOSTDAG konsensüsü"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Tam Ethereum Virtual Machine uyumluluğu mevcut akıllı kontratların sorunsuz dağıtımını sağlar.",
+      "feature1": "Solidity 0.8.x desteği",
+      "feature2": "2 saniyelik blok süresi",
+      "feature3": "1.000-5.000 TPS verimlilik",
+      "feature4": "Native L1 köprüsü",
+      "feature5": "EVM ↔ WASM birlikte çalışabilirlik",
+      "specs": "Teknik Özellikler",
+      "specBlockTime": "Blok Süresi",
+      "specTps": "Verimlilik",
+      "specSolidity": "Solidity Versiyonu",
+      "specChainId": "Chain ID",
+      "specGasUnit": "Gas Birimi"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "Sıfır bilgi rollup'ları L1 güvenliğini devralırken büyük ölçeklenebilirlik sağlar.",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "AI ve DeFi uygulamaları için büyük verimlilik",
+      "feature2Title": "Çoklu Kanıt Desteği",
+      "feature2Desc": "STARK, SNARK, Plonk ve Groth16 şemaları",
+      "feature3Title": "Merkeziyetsiz Sequencer",
+      "feature3Desc": "Tek nokta hatası veya sansür yok"
+    },
+    "crypto": {
+      "title": "Kriptografik Temel Öğeler",
+      "description": "Endüstri standardı kriptografik temel öğeler güvenlik ve birlikte çalışabilirlik sağlar.",
+      "addressLabel": "Adres Türetme",
+      "blockHashLabel": "Blok Hash",
+      "txHashLabel": "İşlem Hash",
+      "signaturesLabel": "İmzalar",
+      "zkProofsLabel": "ZK Kanıtları",
+      "merkleLabel": "Merkle Ağacı"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "Tokenomik",
+      "subtitle": "Uzun vadeli sürdürülebilirlik ve adil dağıtım sağlayan özenle tasarlanmış ekonomik model."
+    },
+    "overview": {
+      "name": "Token Adı",
+      "symbol": "Sembol",
+      "supply": "Toplam Arz",
+      "decimals": "Ondalık"
+    },
+    "distribution": {
+      "title": "Token Dağıtımı",
+      "subtitle": "100 milyar PYRAX madencilik, topluluk, ekip ve ekosisteme dağıtıldı.",
+      "presale": "Ön Satış",
+      "presaleDesc": "%30 TGE, 1 ay cliff, 12 ay vesting",
+      "bdagCommunity": "BDAG Topluluğu",
+      "bdagDesc": "12 ay cliff, 12 ay vesting",
+      "mining": "Madencilik Ödülleri",
+      "miningDesc": "Blok başına (yarılanma ~4 yıl)",
+      "zkProver": "ZK Prover Ödülleri",
+      "zkDesc": "Attestasyon başına (%10 yakılır)",
+      "team": "Ekip ve Kurucular",
+      "teamDesc": "12 ay cliff, 48 ay vesting",
+      "advisors": "Danışmanlar",
+      "advisorsDesc": "12 ay cliff, 48 ay vesting",
+      "ecosystem": "Ekosistem Fonu",
+      "ecosystemDesc": "Kilometre taşı bazlı, DAO onayı",
+      "marketing": "Pazarlama",
+      "marketingDesc": "Multi-sig onayı gerekli",
+      "liquidity": "Likidite",
+      "liquidityDesc": "TGE'de %100 mevcut",
+      "treasury": "Hazine",
+      "treasuryDesc": "%75 DAO onayı gerekli",
+      "reserve": "Rezerv",
+      "reserveDesc": "Protokol acil durum tamponu"
+    },
+    "fees": {
+      "title": "Ücret Dağıtımı",
+      "description": "İşlem ücretleri üç madencilik akışı ve protokol hazinesine dağıtılır.",
+      "streamA": "Stream A Madencileri",
+      "streamB": "Stream B Madencileri",
+      "streamC": "Stream C Doğrulayıcıları",
+      "treasury": "Protokol Hazinesi"
+    },
+    "staking": {
+      "title": "Stake Parametreleri",
+      "validatorStake": "Doğrulayıcı Minimumu",
+      "minDelegation": "Delegasyon Minimumu",
+      "providerStake": "AI Sağlayıcı Stake",
+      "unbonding": "Çözme Süresi",
+      "doubleSign": "Çift-İmza Cezası",
+      "downtime": "Kesinti Cezası"
+    },
+    "emission": {
+      "title": "Emisyon Takvimi",
+      "description": "Madencilik ödülleri yarılanma takvimini takip ederek zamanla azalır.",
+      "year1": "Yıl 1",
+      "year2": "Yıl 2",
+      "year3": "Yıl 3",
+      "year4": "Yıl 4+",
+      "miningRate": "toplam madenciliğin",
+      "cumulative": "Kümülatif Çıkarılan"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "Madencilik ve Stake",
+      "subtitle": "PYRAX ağını güvence altına almak ve ödül kazanmak için birden fazla yol."
+    },
+    "overview": {
+      "title": "Üç Madencilik Akışı",
+      "description": "PYRAX, her biri benzersiz algoritma ve donanım gereksinimlerine sahip üç paralel madencilik akışına sahiptir."
+    },
+    "labels": {
+      "reward": "Ödül Payı",
+      "mining": "Madencilik",
+      "requirements": "Donanım Gereksinimleri",
+      "howToStart": "Nasıl Başlanır"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "BLAKE3 ile ASIC Madenciliği",
+      "hardware": "Maksimum verimlilik için özelleşmiş ASIC donanımı için optimize edilmiş.",
+      "req1Label": "Algoritma",
+      "req1Value": "BLAKE3",
+      "req2Label": "Donanım",
+      "req2Value": "ASIC Madenciler",
+      "req3Label": "Blok Süresi",
+      "req3Value": "10 saniye",
+      "req4Label": "Ödül Payı",
+      "req4Value": "%50",
+      "step1": "BLAKE3 uyumlu bir ASIC madenci satın alın veya yapın",
+      "step2": "PYRAX madencilik yazılımını indirin ve yapılandırın",
+      "step3": "Bir madencilik havuzuna bağlanın veya solo madencilik yapın",
+      "step4": "Madenciliğe başlayın ve PYRAX ödülleri kazanın"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "KAWPOW ile GPU Madenciliği",
+      "hardware": "Tüketici GPU donanımı için tasarlanmış ASIC-dirençli algoritma.",
+      "req1Label": "Algoritma",
+      "req1Value": "KAWPOW",
+      "req2Label": "Donanım",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "Blok Süresi",
+      "req3Value": "60 saniye",
+      "req4Label": "Ödül Payı",
+      "req4Value": "%30",
+      "step1": "Uyumlu bir GPU'nuz olduğundan emin olun (RTX 20 serisi veya daha yenisi önerilir)",
+      "step2": "CUDA veya OpenCL desteği ile PYRAX GPU madencisini indirin",
+      "step3": "Cüzdan adresinizi ve havuz ayarlarınızı yapılandırın",
+      "step4": "Madenciliğe başlayın ve hashrate'inizi izleyin"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "ZK-STARK ile Proof of Stake",
+      "hardware": "Doğrulayıcı olmak ve ödül kazanmak için PYRAX tokenları stake edin.",
+      "req1Label": "Algoritma",
+      "req1Value": "ZK-STARK",
+      "req2Label": "Minimum Stake",
+      "req2Value": "100.000 PYRAX",
+      "req3Label": "Donanım",
+      "req3Value": "Standart sunucu",
+      "req4Label": "Ödül Payı",
+      "req4Value": "%20",
+      "step1": "En az 100.000 PYRAX token edinin",
+      "step2": "Gerekli özelliklerle bir doğrulayıcı düğümü kurun",
+      "step3": "Doğrulayıcı olarak kaydolun ve tokenlarınızı stake edin",
+      "step4": "Ödülleri maksimize etmek ve slashing'den kaçınmak için çalışma süresini koruyun"
+    },
+    "staking": {
+      "title": "Stake Seçenekleri",
+      "description": "PYRAX ağında stake ödülleri kazanmanın birden fazla yolu.",
+      "validatorTitle": "Doğrulayıcı Çalıştır",
+      "validatorDesc": "Ağı güvence altına almak ve maksimum ödül kazanmak için bir doğrulayıcı düğümü işletin.",
+      "delegationTitle": "Tokenlarınızı Delege Edin",
+      "delegationDesc": "Mevcut doğrulayıcılara delege edin ve altyapı çalıştırmadan ödül kazanın.",
+      "minStake": "Minimum Stake",
+      "apy": "Beklenen APY",
+      "unbonding": "Çözme Süresi",
+      "slashing": "Slashing Riski",
+      "minDelegation": "Minimum Delegasyon",
+      "delegatorApy": "Delegatör APY",
+      "commission": "Doğrulayıcı Komisyonu",
+      "rewards": "Ödül Dağıtımı",
+      "rewardsValue": "Her epoch"
+    },
+    "cta": {
+      "title": "Madenciliğe Başlamaya Hazır mısınız?",
+      "description": "Madenci yazılımını indirin ve bugün ağa katılın.",
+      "downloadMiner": "Madenciyi İndir",
+      "readDocs": "Belgeleri Oku"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "Devnet dağıtımı", "item8": "Testnet dağıtımı" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "BDAG Topluluğu", "title": "BDAG Topluluk Girişimi", "subtitle": "BDAG Topluluk Tahsis Programı, PYRAX Ağına geçiş yapan mevcut BlockDAG token sahiplerini ödüllendirir. 10 milyar PYRAX token (arzın %10'u) doğrulanmış BDAG topluluk üyelerine tahsis edilmiştir." },
+    "stats": { "poolSize": "Havuz Boyutu", "poolSizeSub": "Arzın %10'u", "allocationRate": "Efektif Tahsis Oranı", "allocationRateSub": "orijinal yatırımın", "cliff": "Cliff Dönemi", "cliffSub": "serbest bırakma başlamadan önce", "vesting": "Toplam Vesting", "vestingSub": "tam vesting süresi" },
+    "formula": { "title": "Tahsis Formülü", "base": "Temel Tahsis", "baseDesc": "BDAG alımının (USD)", "bonus": "Bonus", "bonusDesc": "temel tahsisin", "total": "Toplam Oran", "totalDesc": "orijinal yatırımın", "example": "Örnek:", "exampleText": "$1.000 BDAG satın aldıysanız, $250 temel + $62,50 bonus = mevcut ön satış fiyatıyla $312,50 USD değerinde PYRAX alırsınız" },
+    "examples": { "title": "Tahsis Örnekleri", "subtitle": "Faz 1 fiyatında (token başına $0,0062)", "colPurchase": "BDAG Alımı", "colBase": "Temel (%25)", "colBonus": "Bonus (%25)", "colTotal": "Toplam USD", "colTokens": "PYRAX Token" },
+    "eligibility": { "title": "Uygunluk Gereksinimleri", "req1": "PYRAX ön satış duyurusundan önce satın alınmış BDAG tokenlarına sahip olmak", "req2": "Doğrulanabilir satın alma kanıtı (işlem hash'i) sağlamak", "req3": "KYC kimlik doğrulamasını tamamlamak", "req4": "Son tarihe kadar talep gönder (Belirlenecek)" },
+    "vesting": { "title": "Vesting Programı", "cliffPeriod": "Cliff Dönemi", "cliffDesc": "Cliff süresince %0 serbest bırakılır", "vestingPeriod": "Vesting Dönemi", "vestingDesc": "Aylık %8,33 serbest bırakılır" },
+    "timeline": { "title": "Önemli Zaman Çizelgesi", "claimOpens": "Talep Penceresi Açılır", "deadline": "Talep Son Tarihi", "tge": "Token Üretimi", "cliffEnds": "Cliff Biter", "fullyVested": "Tamamen Kazanıldı" },
+    "burn": { "title": "Talep Edilmeyen Tokenlar Yakılır", "subtitle": "Son tarihe kadar talep edilmeyen tüm tokenlar kalıcı olarak yakılır. Uzatma veya ek süre yoktur.", "benefit1": "Deflasyonist mekanizma", "benefit2": "Aktif katılımcıları ödüllendirir", "benefit3": "İstismarı önler", "benefit4": "Net son tarih harekete geçirir" },
+    "claimEarly": { "title": "Daha Fazla Token İçin Erken Talep Edin", "subtitle": "Daha erken talep etmek (Faz 1) fiyat düşük olduğu için daha fazla token verir. Faz 4'te talep etmek aynı USD tahsisi için daha az token verir." },
+    "cta": { "title": "Talebinizi Gönderin", "submit": "BDAG varlıklarınızı doğrulayın ve PYRAX talep edin", "viewVesting": "Vesting Detaylarını Görüntüle", "portalDisclaimer": "Talep portalı henüz açık değil. Portal açıldığında bilgilendirilmek için sosyal medyada bizi takip edin." }
+  }
+}

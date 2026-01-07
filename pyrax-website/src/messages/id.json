@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "Beranda",
+    "blockchain": "Blockchain",
+    "technology": "Teknologi",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "Distribusi dan ekonomi token",
+    "miningDesc": "Stream penambangan GPU dan ASIC",
+    "roadmapDesc": "Timeline pengembangan",
+    "resources": "Sumber Daya",
+    "downloads": "Unduhan",
+    "downloadsDesc": "Aplikasi desktop untuk semua platform",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "Komunitas",
+    "discord": "Discord",
+    "discordDesc": "Bergabung dengan server Discord",
+    "twitter": "Twitter",
+    "twitterDesc": "Ikuti kami di Twitter",
+    "telegram": "Telegram",
+    "telegramDesc": "Bergabung dengan grup Telegram",
+    "reddit": "Reddit",
+    "redditDesc": "Bergabung dengan komunitas Reddit",
+    "facebook": "Facebook",
+    "facebookDesc": "Ikuti halaman Facebook kami",
+    "instagram": "Instagram",
+    "instagramDesc": "Ikuti kami di Instagram",
+    "facebookGroup": "Grup Facebook",
+    "facebookGroupDesc": "Bergabung dengan komunitas Facebook",
+    "roadmap": "Peta Jalan",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "Luncurkan Aplikasi",
+    "launchExplorer": "Luncurkan Explorer",
+    "featured": "Unggulan",
+    "explore": "Jelajahi",
+    "viewAll": "Lihat semua",
+    "aiCompute": "Komputasi AI",
+    "developerTools": "Alat Pengembang",
+    "openSource": "Sumber Terbuka",
+    "buildOnPyrax": "Bangun di PYRAX dengan SDK dan dokumentasi lengkap kami.",
+    "joinMovement": "Bergabung dengan Gerakan",
+    "growingFast": "Berkembang Pesat",
+    "connectCommunity": "Terhubung dengan penambang, pengembang, dan penggemar dari seluruh dunia.",
+    "language": "Bahasa",
+    "aiSystems": "Sistem AI",
+    "aiSystemsDesc": "Platform komputasi AI terdesentralisasi dengan registrasi model dan eksekusi tugas.",
+    "dao": "PYRAX DAO",
+    "daoDesc": "Tata kelola terdesentralisasi untuk jaringan PYRAX",
+    "bdagCommunity": "Komunitas BDAG",
+    "bdagCommunityDesc": "Alokasi token untuk pemegang BlockDAG"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "Organisasi Otonom Terdesentralisasi",
+    "comingSoon": "Struktur DAO Segera Hadir",
+    "description": "Kami sedang membangun sistem tata kelola terdesentralisasi yang komprehensif yang akan memberdayakan komunitas PYRAX untuk berpartisipasi dalam keputusan penting tentang masa depan jaringan."
+  },
+  "hero": {
+    "badge": "Mainnet Q3 2026",
+    "title": "Masa Depan",
+    "titleHighlight": "AI Terdesentralisasi",
+    "subtitle": "PYRAX menggabungkan konsensus TriStream DAG revolusioner dengan marketplace komputasi AI terdesentralisasi. Penambang GPU mengamankan jaringan DAN menyediakan daya komputasi AI.",
+    "cta": {
+      "primary": "Jelajahi Teknologi",
+      "secondary": "Baca Whitepaper"
+    },
+    "stats": {
+      "tps": "500K+ TPS",
+      "tpsLabel": "Throughput L2",
+      "blockTime": "2 detik",
+      "blockTimeLabel": "Waktu Blok EVM",
+      "supply": "100 Miliar",
+      "supplyLabel": "Total Pasokan",
+      "streams": "3",
+      "streamsLabel": "Stream Penambangan"
+    }
+  },
+  "features": {
+    "title": "Mengapa PYRAX?",
+    "subtitle": "Blockchain yang dibangun untuk era AI dengan keamanan, skalabilitas, dan integrasi komputasi AI native yang belum pernah ada sebelumnya.",
+    "tristream": {
+      "title": "Konsensus TriStream DAG",
+      "description": "Tiga aliran penambangan paralel (ASIC, GPU, ZK) memberikan keamanan dan desentralisasi maksimum. Pengurutan GHOSTDAG memastikan finalitas cepat.",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "Platform Komputasi AI",
+    "subtitle": "Marketplace AI berbasis blockchain pertama di dunia dengan komputasi terverifikasi dan penyelesaian otomatis.",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "Registri Model",
+      "description": "Daftarkan, kelola versi, dan temukan model AI. Lacak benchmark, peringkat, dan persyaratan perangkat keras.",
+      "features": {
+        "registration": "Registrasi Model",
+        "registrationDesc": "Daftarkan model Anda dengan metadata, benchmark, dan harga",
+        "versioning": "Versioning Semantik",
+        "versioningDesc": "Lacak versi model dengan riwayat lengkap dan perbandingan",
+        "discovery": "Penemuan Model",
+        "discoveryDesc": "Cari dan filter model berdasarkan jenis, tag, dan peringkat"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "Mesin Eksekusi Pekerjaan",
+      "description": "Kirim pekerjaan AI dan eksekusi oleh jaringan global penyedia GPU dengan hasil terverifikasi.",
+      "features": {
+        "submission": "Pengiriman Pekerjaan",
+        "submissionDesc": "Kirim pekerjaan inferensi, pelatihan, atau fine-tuning",
+        "execution": "Eksekusi Terdistribusi",
+        "executionDesc": "Pekerjaan dicocokkan dengan penyedia optimal secara otomatis",
+        "verification": "Verifikasi Hasil",
+        "verificationDesc": "Konsensus multi-node atau verifikasi bukti ZK"
+      }
+    },
+    "jobTypes": {
+      "title": "Jenis Pekerjaan yang Didukung",
+      "inference": "Inferensi",
+      "inferenceDesc": "Prediksi dan generasi model real-time",
+      "training": "Pelatihan",
+      "trainingDesc": "Pelatihan model penuh dari awal",
+      "fineTuning": "Fine-Tuning",
+      "fineTuningDesc": "Adaptasi model yang ada ke data Anda",
+      "embedding": "Embedding",
+      "embeddingDesc": "Hasilkan embedding vektor untuk pencarian",
+      "imageGen": "Generasi Gambar",
+      "imageGenDesc": "Buat gambar dengan model difusi",
+      "batch": "Pemrosesan Batch",
+      "batchDesc": "Pemrosesan data volume tinggi"
+    },
+    "providerTiers": {
+      "title": "Tingkat Penyedia",
+      "hobbyist": "Hobi",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1.000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/bulan",
+      "professional": "Profesional",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5.000 PYRAX stake",
+      "professionalRevenue": "1.500-3.000 PYRAX/bulan",
+      "enterprise": "Enterprise",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25.000 PYRAX stake",
+      "enterpriseRevenue": "5.000-15.000 PYRAX/bulan"
+    }
+  },
+  "tokenomics": {
+    "title": "Ekonomi Token",
+    "subtitle": "Model ekonomi yang dirancang dengan hati-hati untuk keberlanjutan jangka panjang dan distribusi yang adil.",
+    "overview": {
+      "name": "Nama Token",
+      "nameValue": "PYRAX",
+      "symbol": "Simbol",
+      "symbolValue": "$PYRAX",
+      "supply": "Total Pasokan",
+      "supplyValue": "100.000.000.000",
+      "decimals": "Desimal",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "Distribusi Token",
+      "presale": "Presale",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE, 1 bulan cliff, 12 bulan vesting",
+      "bdagCommunity": "Komunitas BDAG",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 bulan cliff, 12 bulan vesting",
+      "mining": "Hadiah Mining",
+      "miningPercent": "35%",
+      "miningDesc": "Per blok ditambang (halving ~4 tahun)",
+      "zkProver": "Hadiah ZK Prover",
+      "zkPercent": "5%",
+      "zkDesc": "Per attestasi (10% dibakar)",
+      "team": "Tim & Pendiri",
+      "teamPercent": "4%",
+      "teamDesc": "12 bulan cliff, 48 bulan vesting",
+      "advisors": "Penasihat",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 bulan cliff, 48 bulan vesting",
+      "ecosystem": "Ekosistem",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "Berbasis milestone, persetujuan DAO",
+      "marketing": "Pemasaran",
+      "marketingPercent": "5%",
+      "marketingDesc": "Persetujuan multi-sig",
+      "liquidity": "Likuiditas",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "100% saat TGE",
+      "treasury": "Treasury",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "Persetujuan DAO 75% diperlukan",
+      "reserve": "Cadangan",
+      "reservePercent": "1%",
+      "reserveDesc": "Buffer protokol"
+    },
+    "feeDistribution": {
+      "title": "Distribusi Biaya Gas",
+      "streamA": "Penambang Stream A",
+      "streamAPercent": "20%",
+      "streamB": "Penambang Stream B",
+      "streamBPercent": "40%",
+      "streamC": "Validator Stream C",
+      "streamCPercent": "30%",
+      "treasury": "Treasury Protokol",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "Parameter Staking",
+      "validatorStake": "Stake Validator",
+      "validatorStakeValue": "100.000 PYRAX",
+      "minDelegation": "Delegasi Minimum",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "Stake Penyedia",
+      "providerStakeValue": "1.000 PYRAX",
+      "unbonding": "Periode Unbonding",
+      "unbondingValue": "7 hari",
+      "doubleSign": "Penalti Tanda Tangan Ganda",
+      "doubleSignValue": "5%",
+      "downtime": "Penalti Downtime",
+      "downtimeValue": "0,1%"
+    }
+  },
+  "roadmap": {
+    "title": "Peta Jalan",
+    "subtitle": "Perjalanan kami merevolusi komputasi AI terdesentralisasi.",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "Fondasi",
+      "status": "completed",
+      "items": [
+        "Node inti dengan mining BLAKE3 PoW",
+        "Jaringan P2P (libp2p, GossipSub)",
+        "Lapisan penyimpanan RocksDB",
+        "Server API JSON-RPC",
+        "Aplikasi dompet desktop",
+        "Penambang GPU (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "Ekspansi Platform",
+      "status": "in-progress",
+      "items": [
+        "Peluncuran testnet publik",
+        "Aktivasi EVM sidechain",
+        "Runtime kontrak Rust/WASM",
+        "Beta marketplace AI",
+        "Pengembangan dompet mobile",
+        "Persiapan listing bursa"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "Peluncuran Mainnet",
+      "status": "upcoming",
+      "items": [
+        "Penyelesaian audit keamanan",
+        "Pembuatan blok genesis",
+        "Deployment node seed",
+        "Listing CEX/DEX",
+        "Peluncuran platform AI",
+        "Aktivasi bridge"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "Skalabilitas",
+      "status": "upcoming",
+      "items": [
+        "Kemitraan enterprise",
+        "Bridge cross-chain (ETH, BSC)",
+        "Fitur AI lanjutan",
+        "Ekspansi node global",
+        "Optimasi performa",
+        "Peluncuran tata kelola DAO"
+      ]
+    }
+  },
+  "technology": {
+    "title": "Teknologi Mendalam",
+    "subtitle": "Jelajahi teknologi inovatif yang menggerakkan PYRAX.",
+    "architecture": {
+      "title": "Ikhtisar Arsitektur",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "500K+ TPS untuk AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x, Rust/WASM, Bridge L1",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "Pengurutan GHOSTDAG, 3 stream mining"
+    },
+    "consensus": {
+      "title": "Konsensus TriStream",
+      "description": "Tiga stream paralel bekerja sama untuk memberikan keamanan dan desentralisasi yang belum pernah ada.",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "Mining ASIC",
+        "blockTime": "10 detik",
+        "reward": "50 PYRAX/blok",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "Mining GPU",
+        "blockTime": "60 detik",
+        "reward": "100 PYRAX/blok",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "Proof of Stake",
+        "blockTime": "Variabel",
+        "reward": "10 PYRAX/checkpoint",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "Primitif Kriptografi",
+      "addressDerivation": "Derivasi Alamat",
+      "addressValue": "Keccak-256 (kompatibel EVM)",
+      "blockHash": "Hash Header Blok",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "Hash Transaksi",
+      "txHashValue": "Keccak-256",
+      "signatures": "Tanda Tangan",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "Bukti ZK",
+      "zkProofsValue": "STARK, SNARK, Plonk, Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "Ekosistem",
+    "subtitle": "Rangkaian lengkap alat dan aplikasi untuk jaringan PYRAX.",
+    "products": {
+      "node": {
+        "title": "Node PYRAX",
+        "description": "Node blockchain inti dengan konsensus, jaringan P2P, dan server RPC.",
+        "language": "Rust",
+        "status": "Selesai"
+      },
+      "miner": {
+        "title": "Penambang GPU",
+        "description": "Penambang KAWPOW performa tinggi dengan dukungan CUDA dan OpenCL.",
+        "language": "C++/CUDA",
+        "status": "Selesai"
+      },
+      "desktop": {
+        "title": "Dompet Desktop",
+        "description": "Aplikasi desktop lengkap dengan dompet, manajemen node, dan mining.",
+        "language": "Tauri/Rust",
+        "status": "Selesai"
+      },
+      "explorer": {
+        "title": "Block Explorer",
+        "description": "Explorer blockchain real-time dengan dashboard AI dan analitik.",
+        "language": "Next.js",
+        "status": "Selesai"
+      },
+      "wallet": {
+        "title": "Library Dompet",
+        "description": "Library dompet inti dengan derivasi HD, penandatanganan, dan manajemen kunci.",
+        "language": "Rust",
+        "status": "Selesai"
+      },
+      "ai": {
+        "title": "Platform AI",
+        "description": "Marketplace AI terdesentralisasi dengan registri model dan eksekusi pekerjaan.",
+        "language": "Rust",
+        "status": "Selesai"
+      }
+    }
+  },
+  "cta": {
+    "title": "Siap Membangun Masa Depan?",
+    "subtitle": "Bergabunglah dengan komunitas PYRAX dan jadilah bagian dari revolusi AI terdesentralisasi.",
+    "buttons": {
+      "explorer": "Buka Explorer",
+      "docs": "Baca Dokumentasi",
+      "discord": "Gabung Discord"
+    }
+  },
+  "footer": {
+    "description": "PYRAX adalah blockchain Layer 1 generasi baru yang menggabungkan konsensus TriStream DAG dengan marketplace komputasi AI terdesentralisasi.",
+    "technology": "Teknologi",
+    "resources": "Sumber Daya",
+    "community": "Komunitas",
+    "legal": "Hukum",
+    "whitepaper": "Whitepaper",
+    "documentation": "Dokumentasi",
+    "github": "GitHub",
+    "brandKit": "Kit Merek",
+    "privacyPolicy": "Kebijakan Privasi",
+    "termsOfService": "Ketentuan Layanan",
+    "copyright": "© 2026 PYRAX. Hak cipta dilindungi."
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "Teknologi",
+      "subtitle": "Jelajahi arsitektur inovatif yang menggerakkan blockchain PYRAX."
+    },
+    "tristream": {
+      "title": "Konsensus TriStream DAG",
+      "description": "Tiga stream mining paralel memberikan keamanan, desentralisasi, dan throughput yang belum pernah ada."
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "Mining ASIC",
+        "description": "Mining BLAKE3 throughput tinggi yang dioptimalkan untuk perangkat keras khusus. Memberikan keamanan lapisan dasar.",
+        "feature1": "Fungsi hash BLAKE3",
+        "feature2": "Waktu blok 10 detik",
+        "feature3": "50% hadiah blok",
+        "feature4": "Optimal untuk penambang ASIC"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "Mining GPU",
+        "description": "Algoritma KAWPOW memastikan resistensi ASIC, memungkinkan partisipasi mining GPU yang adil.",
+        "feature1": "Algoritma KAWPOW",
+        "feature2": "Waktu blok 60 detik",
+        "feature3": "30% hadiah blok",
+        "feature4": "Desain tahan ASIC"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "Proof of Stake",
+        "description": "Validator ZK-STARK menyediakan checkpoint finality dan mendapatkan hadiah staking.",
+        "feature1": "Bukti ZK-STARK",
+        "feature2": "Finality checkpoint",
+        "feature3": "20% hadiah blok",
+        "feature4": "100.000 PYRAX stake"
+      }
+    },
+    "labels": {
+      "algorithm": "Algoritma",
+      "type": "Tipe",
+      "blockTime": "Waktu Blok",
+      "reward": "Bagian Hadiah",
+      "features": "Fitur Utama"
+    },
+    "architecture": {
+      "title": "Arsitektur Berlapis",
+      "description": "PYRAX menggunakan arsitektur multi-layer untuk skalabilitas maksimum.",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "Rollup khusus aplikasi untuk AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Kontrak pintar Solidity 0.8.x & Rust/WASM",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "Konsensus GHOSTDAG dengan 3 stream mining"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Kompatibilitas penuh Ethereum Virtual Machine memungkinkan deployment kontrak pintar yang ada dengan mulus.",
+      "feature1": "Dukungan Solidity 0.8.x",
+      "feature2": "Waktu blok 2 detik",
+      "feature3": "Throughput 1.000-5.000 TPS",
+      "feature4": "Bridge L1 native",
+      "feature5": "Interoperabilitas EVM ↔ WASM",
+      "specs": "Spesifikasi Teknis",
+      "specBlockTime": "Waktu Blok",
+      "specTps": "Throughput",
+      "specSolidity": "Versi Solidity",
+      "specChainId": "Chain ID",
+      "specGasUnit": "Unit Gas"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "Zero-knowledge rollups memberikan skalabilitas besar sambil mewarisi keamanan L1.",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "Throughput besar untuk aplikasi AI dan DeFi",
+      "feature2Title": "Dukungan Multi-Bukti",
+      "feature2Desc": "Skema STARK, SNARK, Plonk, dan Groth16",
+      "feature3Title": "Sequencer Terdesentralisasi",
+      "feature3Desc": "Tidak ada titik kegagalan atau sensor tunggal"
+    },
+    "crypto": {
+      "title": "Primitif Kriptografi",
+      "description": "Primitif kriptografi standar industri memastikan keamanan dan interoperabilitas.",
+      "addressLabel": "Derivasi Alamat",
+      "blockHashLabel": "Hash Blok",
+      "txHashLabel": "Hash Transaksi",
+      "signaturesLabel": "Tanda Tangan",
+      "zkProofsLabel": "Bukti ZK",
+      "merkleLabel": "Pohon Merkle"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "Tokenomik",
+      "subtitle": "Model ekonomi yang dirancang dengan hati-hati untuk keberlanjutan jangka panjang dan distribusi yang adil."
+    },
+    "overview": {
+      "name": "Nama Token",
+      "symbol": "Simbol",
+      "supply": "Total Pasokan",
+      "decimals": "Desimal"
+    },
+    "distribution": {
+      "title": "Distribusi Token",
+      "subtitle": "100 miliar PYRAX dialokasikan untuk mining, komunitas, tim, dan ekosistem.",
+      "presale": "Presale",
+      "presaleDesc": "30% TGE, 1 bulan cliff, 12 bulan vesting",
+      "bdagCommunity": "Komunitas BDAG",
+      "bdagDesc": "12 bulan cliff, 12 bulan vesting",
+      "mining": "Hadiah Mining",
+      "miningDesc": "Per blok ditambang (halving ~4 tahun)",
+      "zkProver": "Hadiah ZK Prover",
+      "zkDesc": "Per attestasi (10% dibakar)",
+      "team": "Tim & Pendiri",
+      "teamDesc": "12 bulan cliff, 48 bulan vesting",
+      "advisors": "Penasihat",
+      "advisorsDesc": "12 bulan cliff, 48 bulan vesting",
+      "ecosystem": "Dana Ekosistem",
+      "ecosystemDesc": "Berbasis milestone, persetujuan DAO",
+      "marketing": "Pemasaran",
+      "marketingDesc": "Persetujuan multi-sig diperlukan",
+      "liquidity": "Likuiditas",
+      "liquidityDesc": "100% tersedia saat TGE",
+      "treasury": "Treasury",
+      "treasuryDesc": "Persetujuan DAO 75% diperlukan",
+      "reserve": "Cadangan",
+      "reserveDesc": "Buffer darurat protokol"
+    },
+    "fees": {
+      "title": "Distribusi Biaya",
+      "description": "Biaya transaksi didistribusikan ke tiga stream mining dan treasury protokol.",
+      "streamA": "Penambang Stream A",
+      "streamB": "Penambang Stream B",
+      "streamC": "Validator Stream C",
+      "treasury": "Treasury Protokol"
+    },
+    "staking": {
+      "title": "Parameter Staking",
+      "validatorStake": "Minimum Validator",
+      "minDelegation": "Minimum Delegasi",
+      "providerStake": "Stake Penyedia AI",
+      "unbonding": "Periode Unbonding",
+      "doubleSign": "Penalti Tanda Tangan Ganda",
+      "downtime": "Penalti Downtime"
+    },
+    "emission": {
+      "title": "Jadwal Emisi",
+      "description": "Hadiah mining berkurang seiring waktu mengikuti jadwal halving.",
+      "year1": "Tahun 1",
+      "year2": "Tahun 2",
+      "year3": "Tahun 3",
+      "year4": "Tahun 4+",
+      "miningRate": "dari total mining",
+      "cumulative": "Total Ditambang"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "Mining & Staking",
+      "subtitle": "Berbagai cara untuk mendapatkan hadiah dan mengamankan jaringan PYRAX."
+    },
+    "overview": {
+      "title": "Tiga Stream Mining",
+      "description": "PYRAX memiliki tiga stream mining paralel, masing-masing dengan algoritma dan persyaratan perangkat keras unik."
+    },
+    "labels": {
+      "reward": "Bagian Hadiah",
+      "mining": "Mining",
+      "requirements": "Persyaratan Perangkat Keras",
+      "howToStart": "Cara Memulai"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "Mining ASIC dengan BLAKE3",
+      "hardware": "Dioptimalkan untuk perangkat keras ASIC khusus untuk efisiensi maksimum.",
+      "req1Label": "Algoritma",
+      "req1Value": "BLAKE3",
+      "req2Label": "Perangkat Keras",
+      "req2Value": "Penambang ASIC",
+      "req3Label": "Waktu Blok",
+      "req3Value": "10 detik",
+      "req4Label": "Bagian Hadiah",
+      "req4Value": "50%",
+      "step1": "Beli atau bangun penambang ASIC kompatibel BLAKE3",
+      "step2": "Unduh dan konfigurasi perangkat lunak mining PYRAX",
+      "step3": "Hubungkan ke pool mining atau jalankan mining solo",
+      "step4": "Mulai mining dan dapatkan hadiah PYRAX"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "Mining GPU dengan KAWPOW",
+      "hardware": "Algoritma tahan ASIC yang dirancang untuk perangkat keras GPU konsumen.",
+      "req1Label": "Algoritma",
+      "req1Value": "KAWPOW",
+      "req2Label": "Perangkat Keras",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "Waktu Blok",
+      "req3Value": "60 detik",
+      "req4Label": "Bagian Hadiah",
+      "req4Value": "30%",
+      "step1": "Pastikan Anda memiliki GPU yang kompatibel (RTX 20 series atau lebih baru disarankan)",
+      "step2": "Unduh penambang GPU PYRAX dengan dukungan CUDA atau OpenCL",
+      "step3": "Konfigurasi alamat dompet dan pengaturan pool Anda",
+      "step4": "Mulai mining dan pantau hashrate Anda"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "Proof of Stake dengan ZK-STARK",
+      "hardware": "Stake token PYRAX untuk menjadi validator dan mendapatkan hadiah.",
+      "req1Label": "Algoritma",
+      "req1Value": "ZK-STARK",
+      "req2Label": "Stake Minimum",
+      "req2Value": "100.000 PYRAX",
+      "req3Label": "Perangkat Keras",
+      "req3Value": "Server standar",
+      "req4Label": "Bagian Hadiah",
+      "req4Value": "20%",
+      "step1": "Dapatkan setidaknya 100.000 token PYRAX",
+      "step2": "Siapkan node validator dengan spesifikasi yang diperlukan",
+      "step3": "Daftar sebagai validator dan stake token Anda",
+      "step4": "Pertahankan uptime untuk memaksimalkan hadiah dan menghindari slashing"
+    },
+    "staking": {
+      "title": "Opsi Staking",
+      "description": "Berbagai cara untuk mendapatkan hadiah staking di jaringan PYRAX.",
+      "validatorTitle": "Jalankan Validator",
+      "validatorDesc": "Operasikan node validator untuk mengamankan jaringan dan mendapatkan hadiah maksimum.",
+      "delegationTitle": "Delegasikan Token Anda",
+      "delegationDesc": "Delegasikan ke validator yang ada dan dapatkan hadiah tanpa menjalankan infrastruktur.",
+      "minStake": "Stake Minimum",
+      "apy": "APY yang Diharapkan",
+      "unbonding": "Periode Unbonding",
+      "slashing": "Risiko Slashing",
+      "minDelegation": "Delegasi Minimum",
+      "delegatorApy": "APY Delegator",
+      "commission": "Komisi Validator",
+      "rewards": "Distribusi Hadiah",
+      "rewardsValue": "Setiap epoch"
+    },
+    "cta": {
+      "title": "Siap Memulai Mining?",
+      "description": "Unduh perangkat lunak mining dan bergabung dengan jaringan hari ini.",
+      "downloadMiner": "Unduh Penambang",
+      "readDocs": "Baca Dokumentasi"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "Penyebaran Devnet", "item8": "Penyebaran Testnet" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "Komunitas BDAG", "title": "Inisiatif Komunitas BDAG", "subtitle": "Program Alokasi Komunitas BDAG memberikan penghargaan kepada pemegang token BlockDAG yang bermigrasi ke Jaringan PYRAX. 10 miliar token PYRAX (10% dari pasokan) dialokasikan untuk anggota komunitas BDAG yang terverifikasi." },
+    "stats": { "poolSize": "Ukuran Pool", "poolSizeSub": "10% dari pasokan", "allocationRate": "Tingkat Alokasi Efektif", "allocationRateSub": "dari investasi awal", "cliff": "Periode Cliff", "cliffSub": "sebelum rilis dimulai", "vesting": "Total Vesting", "vestingSub": "periode vesting penuh" },
+    "formula": { "title": "Formula Alokasi", "base": "Alokasi Dasar", "baseDesc": "dari pembelian BDAG (USD)", "bonus": "Bonus", "bonusDesc": "dari alokasi dasar", "total": "Tingkat Total", "totalDesc": "dari investasi awal", "example": "Contoh:", "exampleText": "Jika Anda membeli $1.000 BDAG, Anda menerima $250 dasar + $62,50 bonus = $312,50 USD senilai PYRAX pada harga presale saat ini" },
+    "examples": { "title": "Contoh Alokasi", "subtitle": "Pada harga Fase 1 ($0,0062 per token)", "colPurchase": "Pembelian BDAG", "colBase": "Dasar (25%)", "colBonus": "Bonus (25%)", "colTotal": "Total USD", "colTokens": "Token PYRAX" },
+    "eligibility": { "title": "Persyaratan Kelayakan", "req1": "Memiliki token BDAG yang dibeli sebelum pengumuman presale PYRAX", "req2": "Memberikan bukti pembelian yang dapat diverifikasi (hash transaksi)", "req3": "Menyelesaikan verifikasi identitas KYC", "req4": "Ajukan klaim sebelum batas waktu (Akan ditentukan)" },
+    "vesting": { "title": "Jadwal Vesting", "cliffPeriod": "Periode Cliff", "cliffDesc": "0% dirilis selama cliff", "vestingPeriod": "Periode Vesting", "vestingDesc": "8,33% dirilis setiap bulan" },
+    "timeline": { "title": "Timeline Penting", "claimOpens": "Jendela Klaim Dibuka", "deadline": "Batas Waktu Klaim", "tge": "Generasi Token", "cliffEnds": "Cliff Berakhir", "fullyVested": "Sepenuhnya Vested" },
+    "burn": { "title": "Token Tidak Diklaim Dibakar", "subtitle": "Semua token yang tidak diklaim sebelum batas waktu akan dibakar secara permanen. Tidak ada perpanjangan atau masa tenggang.", "benefit1": "Mekanisme deflasi", "benefit2": "Menghargai peserta aktif", "benefit3": "Mencegah eksploitasi", "benefit4": "Batas waktu jelas memotivasi tindakan" },
+    "claimEarly": { "title": "Klaim Lebih Awal untuk Lebih Banyak Token", "subtitle": "Mengklaim lebih awal (Fase 1) memberikan lebih banyak token karena harganya lebih rendah. Mengklaim di Fase 4 menghasilkan lebih sedikit token untuk alokasi USD yang sama." },
+    "cta": { "title": "Ajukan Klaim Anda", "submit": "Verifikasi kepemilikan BDAG Anda dan klaim PYRAX", "viewVesting": "Lihat Detail Vesting", "portalDisclaimer": "Portal klaim belum dibuka. Ikuti kami di media sosial untuk mendapat notifikasi saat portal dibuka." }
+  }
+}

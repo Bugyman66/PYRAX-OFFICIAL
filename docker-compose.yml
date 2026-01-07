@@ -1,0 +1,126 @@
+# PYRAX Docker Compose - Production Deployment
+# Usage: docker compose up -d
+
+services:
+  # Main Website - pyrax.org
+  website:
+    build:
+      context: ./pyrax-website
+      dockerfile: Dockerfile
+    container_name: pyrax-website
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Faucet - faucet.pyrax.org
+  faucet:
+    build:
+      context: ./pyrax-faucet
+      dockerfile: Dockerfile
+    container_name: pyrax-faucet
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - FAUCET_PRIVATE_KEY=${FAUCET_PRIVATE_KEY}
+      - RPC_URL=${RPC_URL:-http://node:8545}
+      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-10}
+      - RATE_LIMIT_HOURS=${RATE_LIMIT_HOURS:-24}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Documentation - docs.pyrax.org
+  docs:
+    build:
+      context: ./pyrax-docs
+      dockerfile: Dockerfile
+    container_name: pyrax-docs
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Block Explorer - explorer.pyrax.org
+  explorer:
+    build:
+      context: ./pyrax-explorer
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_NETWORK=${NETWORK:-mainnet}
+        - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-https://rpc.pyrax.org}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.pyrax.org}
+    container_name: pyrax-explorer
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3003"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: pyrax-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx/docker.conf:/etc/nginx/nginx.conf:ro
+      - ./deployment/ssl:/etc/ssl/cloudflare:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - website
+      - faucet
+      - docs
+      - explorer
+    networks:
+      - pyrax-network
+
+  # Watchtower for automatic updates (optional)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: pyrax-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_LABEL_ENABLE=true
+    profiles:
+      - auto-update
+
+networks:
+  pyrax-network:
+    driver: bridge
+
+volumes:
+  nginx-cache:

@@ -1,0 +1,774 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "首頁",
+    "blockchain": "區塊鏈",
+    "technology": "技術",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "代幣分配與經濟",
+    "miningDesc": "GPU 和 ASIC 挖礦流",
+    "roadmapDesc": "開發時間線",
+    "resources": "資源",
+    "downloads": "下載",
+    "downloadsDesc": "全平台桌面應用程式",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "社群",
+    "discord": "Discord",
+    "discordDesc": "加入Discord伺服器",
+    "twitter": "Twitter",
+    "twitterDesc": "追蹤我們的Twitter",
+    "telegram": "Telegram",
+    "telegramDesc": "加入Telegram群組",
+    "reddit": "Reddit",
+    "redditDesc": "加入Reddit社群",
+    "facebook": "Facebook",
+    "facebookDesc": "追蹤Facebook專頁",
+    "instagram": "Instagram",
+    "instagramDesc": "追蹤Instagram",
+    "facebookGroup": "Facebook社團",
+    "facebookGroupDesc": "加入Facebook社群",
+    "roadmap": "路線圖",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "啟動應用",
+    "launchExplorer": "啟動瀏覽器",
+    "featured": "精選",
+    "explore": "探索",
+    "viewAll": "查看全部",
+    "aiCompute": "AI算力",
+    "developerTools": "開發者工具",
+    "openSource": "開源",
+    "buildOnPyrax": "使用我們全面的SDK和文檔在PYRAX上構建。",
+    "joinMovement": "加入運動",
+    "growingFast": "快速增長",
+    "connectCommunity": "與來自世界各地的礦工、開發者和愛好者建立聯繫。",
+    "language": "語言",
+    "aiSystems": "AI 系統",
+    "aiSystemsDesc": "去中心化AI運算平台，提供模型註冊和任務執行。",
+    "dao": "PYRAX DAO",
+    "daoDesc": "PYRAX網絡的去中心化治理",
+    "bdagCommunity": "BDAG社群",
+    "bdagCommunityDesc": "BlockDAG持有者代幣分配"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "去中心化自治組織",
+    "comingSoon": "DAO 結構即將推出",
+    "description": "我們正在建構一個全面的去中心化治理系統，將賦予PYRAX社區參與網路未來關鍵決策的權力。"
+  },
+  "hero": {
+    "badge": "主網將於2026年Q3上線",
+    "title": "去中心化AI的",
+    "titleHighlight": "未來",
+    "subtitle": "PYRAX將革命性的TriStream DAG共識與去中心化AI計算市場相結合。GPU礦工既可保護網絡安全，又可提供AI算力。",
+    "cta": {
+      "primary": "探索技術",
+      "secondary": "閱讀白皮書"
+    },
+    "stats": {
+      "tps": "50萬+ TPS",
+      "tpsLabel": "L2吞吐量",
+      "blockTime": "2秒",
+      "blockTimeLabel": "EVM出塊時間",
+      "supply": "1000億",
+      "supplyLabel": "總供應量",
+      "streams": "3",
+      "streamsLabel": "挖礦流"
+    }
+  },
+  "features": {
+    "title": "為什麼選擇PYRAX？",
+    "subtitle": "為AI時代構建的區塊鏈，具有前所未有的安全性、可擴展性和原生AI計算整合。",
+    "tristream": {
+      "title": "TriStream DAG共識",
+      "description": "三個並行挖礦流（ASIC、GPU、ZK）提供最大的安全性和去中心化。GHOSTDAG排序確保快速最終性。",
+      "streamA": "流A: BLAKE3 (ASIC) - 10秒區塊",
+      "streamB": "流B: KAWPOW (GPU) - 60秒區塊",
+      "streamC": "流C: ZK-STARK - 檢查點最終性"
+    },
+    "evm": {
+      "title": "EVM側鏈",
+      "description": "完全兼容Solidity 0.8.x，2秒區塊和1,000-5,000 TPS。無縫部署您現有的智能合約。",
+      "feature1": "完全以太坊兼容",
+      "feature2": "2秒區塊時間",
+      "feature3": "原生L1橋接"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "支持STARK、SNARK、Plonk和Groth16證明的Layer 2擴展至500,000+ TPS。去中心化排序器網絡。",
+      "feature1": "每秒50萬+交易",
+      "feature2": "多證明方案支持",
+      "feature3": "7天挑戰期"
+    },
+    "ai": {
+      "title": "原生AI市場",
+      "description": "具有鏈上作業結算的去中心化AI計算市場。在全球GPU網絡上運行推理、訓練和微調作業。",
+      "feature1": "帶版本控制的模型註冊表",
+      "feature2": "多節點驗證",
+      "feature3": "自動支付結算"
+    },
+    "wasm": {
+      "title": "Rust/WASM合約",
+      "description": "用Rust編寫高性能智能合約。跨VM互操作性允許EVM和WASM合約相互調用。",
+      "feature1": "Wasmtime運行時",
+      "feature2": "EVM ↔ WASM互操作",
+      "feature3": "基於Fuel的Gas計量"
+    },
+    "mining": {
+      "title": "雙用途挖礦",
+      "description": "GPU礦工為保護網絡獲得獎勵，還可以提供AI計算能力。最大化您的硬件ROI。",
+      "feature1": "KAWPOW抗ASIC挖礦",
+      "feature2": "AI作業執行獎勵",
+      "feature3": "質押驗證者獎勵"
+    }
+  },
+  "aiPlatform": {
+    "title": "AI 運算平台",
+    "subtitle": "全球首個具有可驗證運算和自動結算的區塊鏈原生 AI 市場。",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "模型註冊表",
+      "description": "註冊、版本控制和發現 AI 模型。追蹤基準測試、評分和硬體需求。",
+      "features": {
+        "registration": "模型註冊",
+        "registrationDesc": "使用元數據、基準測試和定價註冊您的模型",
+        "versioning": "語義版本控制",
+        "versioningDesc": "使用完整歷史記錄和比較追蹤模型版本",
+        "discovery": "模型發現",
+        "discoveryDesc": "按類型、標籤和評分搜索和篩選模型"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "任務執行引擎",
+      "description": "提交 AI 任務並由全球 GPU 提供者網絡執行，具有可驗證的結果。",
+      "features": {
+        "submission": "任務提交",
+        "submissionDesc": "提交推理、訓練或微調任務",
+        "execution": "分散式執行",
+        "executionDesc": "任務自動匹配到最佳提供者",
+        "verification": "結果驗證",
+        "verificationDesc": "多節點共識或 ZK 證明驗證"
+      }
+    },
+    "jobTypes": {
+      "title": "支援的任務類型",
+      "inference": "推理",
+      "inferenceDesc": "即時模型預測和生成",
+      "training": "訓練",
+      "trainingDesc": "從頭開始完整模型訓練",
+      "fineTuning": "微調",
+      "fineTuningDesc": "將現有模型適應您的數據",
+      "embedding": "嵌入",
+      "embeddingDesc": "為搜索生成向量嵌入",
+      "imageGen": "圖像生成",
+      "imageGenDesc": "使用擴散模型創建圖像",
+      "batch": "批次處理",
+      "batchDesc": "大量數據處理"
+    },
+    "providerTiers": {
+      "title": "提供者等級",
+      "hobbyist": "業餘愛好者",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1,000 PYRAX 質押",
+      "hobbyistRevenue": "200-500 PYRAX/月",
+      "professional": "專業級",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5,000 PYRAX 質押",
+      "professionalRevenue": "1,500-3,000 PYRAX/月",
+      "enterprise": "企業級",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25,000 PYRAX 質押",
+      "enterpriseRevenue": "5,000-15,000 PYRAX/月"
+    }
+  },
+  "tokenomics": {
+    "title": "代幣經濟學",
+    "subtitle": "精心設計的經濟模型，確保長期可持續性和公平分配。",
+    "overview": {
+      "name": "代幣名稱",
+      "nameValue": "PYRAX",
+      "symbol": "符號",
+      "symbolValue": "$PYRAX",
+      "supply": "總供應量",
+      "supplyValue": "100,000,000,000",
+      "decimals": "小數位",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "代幣分配",
+      "presale": "預售",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE，1個月鎖倉，12個月歸屬",
+      "bdagCommunity": "BDAG 社區",
+      "bdagPercent": "10%",
+      "bdagDesc": "12個月鎖倉，12個月歸屬",
+      "mining": "挖礦獎勵",
+      "miningPercent": "35%",
+      "miningDesc": "每個區塊（約4年減半）",
+      "zkProver": "ZK 證明者獎勵",
+      "zkPercent": "5%",
+      "zkDesc": "每次證明（10%銷毀）",
+      "team": "團隊與創始人",
+      "teamPercent": "4%",
+      "teamDesc": "12個月鎖倉，48個月歸屬",
+      "advisors": "顧問",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12個月鎖倉，48個月歸屬",
+      "ecosystem": "生態系統",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "里程碑式，DAO 批准",
+      "marketing": "營銷",
+      "marketingPercent": "5%",
+      "marketingDesc": "多重簽名批准",
+      "liquidity": "流動性",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "TGE 時 100%",
+      "treasury": "財庫",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "需要 75% DAO 批准",
+      "reserve": "儲備",
+      "reservePercent": "1%",
+      "reserveDesc": "協議緩衝"
+    },
+    "feeDistribution": {
+      "title": "Gas 費用分配",
+      "streamA": "Stream A 礦工",
+      "streamAPercent": "20%",
+      "streamB": "Stream B 礦工",
+      "streamBPercent": "40%",
+      "streamC": "Stream C 驗證者",
+      "streamCPercent": "30%",
+      "treasury": "協議財庫",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "質押參數",
+      "validatorStake": "驗證者質押",
+      "validatorStakeValue": "100,000 PYRAX",
+      "minDelegation": "最小委託",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "提供者質押",
+      "providerStakeValue": "1,000 PYRAX",
+      "unbonding": "解綁期間",
+      "unbondingValue": "7天",
+      "doubleSign": "雙重簽名懲罰",
+      "doubleSignValue": "5%",
+      "downtime": "停機懲罰",
+      "downtimeValue": "0.1%"
+    }
+  },
+  "roadmap": {
+    "title": "路線圖",
+    "subtitle": "我們革新去中心化 AI 運算的旅程。",
+    "q1_2026": {
+      "title": "2026年Q1",
+      "subtitle": "基礎",
+      "status": "completed",
+      "items": [
+        "帶有 BLAKE3 PoW 挖礦的核心節點",
+        "P2P 網絡（libp2p、GossipSub）",
+        "RocksDB 存儲層",
+        "JSON-RPC API 伺服器",
+        "桌面錢包應用程式",
+        "GPU 礦機（CUDA/OpenCL）"
+      ]
+    },
+    "q2_2026": {
+      "title": "2026年Q2",
+      "subtitle": "平台擴展",
+      "status": "in-progress",
+      "items": [
+        "公開測試網啟動",
+        "EVM 側鏈激活",
+        "Rust/WASM 合約運行時",
+        "AI 市場測試版",
+        "移動錢包開發",
+        "交易所上市準備"
+      ]
+    },
+    "q3_2026": {
+      "title": "2026年Q3",
+      "subtitle": "主網啟動",
+      "status": "upcoming",
+      "items": [
+        "安全審計完成",
+        "創世區塊生成",
+        "種子節點部署",
+        "CEX/DEX 上市",
+        "AI 平台生產啟動",
+        "橋接激活"
+      ]
+    },
+    "q4_2026": {
+      "title": "2026年Q4",
+      "subtitle": "規模化",
+      "status": "upcoming",
+      "items": [
+        "企業合作夥伴",
+        "跨鏈橋（ETH、BSC）",
+        "高級 AI 功能",
+        "全球節點擴展",
+        "性能優化",
+        "DAO 治理啟動"
+      ]
+    }
+  },
+  "technology": {
+    "title": "技術深入",
+    "subtitle": "探索驅動 PYRAX 的創新技術。",
+    "architecture": {
+      "title": "架構概述",
+      "layer3": "第3層：ZK-Rollups",
+      "layer3Desc": "AI、DeFi、遊戲的 50萬+ TPS",
+      "layer2": "第2層：EVM 側鏈",
+      "layer2Desc": "Solidity 0.8.x、Rust/WASM、L1 橋接",
+      "layer1": "第1層：TriStream DAG",
+      "layer1Desc": "GHOSTDAG 排序，3 個挖礦流"
+    },
+    "consensus": {
+      "title": "TriStream 共識",
+      "description": "三個並行流協同工作，提供前所未有的安全性和去中心化。",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "ASIC 挖礦",
+        "blockTime": "10秒",
+        "reward": "50 PYRAX/區塊",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "GPU 挖礦",
+        "blockTime": "60秒",
+        "reward": "100 PYRAX/區塊",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "權益證明",
+        "blockTime": "可變",
+        "reward": "10 PYRAX/檢查點",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "加密原語",
+      "addressDerivation": "地址派生",
+      "addressValue": "Keccak-256（EVM 兼容）",
+      "blockHash": "區塊頭雜湊",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "交易雜湊",
+      "txHashValue": "Keccak-256",
+      "signatures": "簽名",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "ZK 證明",
+      "zkProofsValue": "STARK、SNARK、Plonk、Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "生態系統",
+    "subtitle": "PYRAX 網絡的完整工具和應用程式套件。",
+    "products": {
+      "node": {
+        "title": "PYRAX 節點",
+        "description": "具有共識、P2P 網絡和 RPC 伺服器的核心區塊鏈節點。",
+        "language": "Rust",
+        "status": "完成"
+      },
+      "miner": {
+        "title": "GPU 礦機",
+        "description": "支援 CUDA 和 OpenCL 的高性能 KAWPOW 礦機。",
+        "language": "C++/CUDA",
+        "status": "完成"
+      },
+      "desktop": {
+        "title": "桌面錢包",
+        "description": "具有錢包、節點管理和挖礦功能的全功能桌面應用程式。",
+        "language": "Tauri/Rust",
+        "status": "完成"
+      },
+      "explorer": {
+        "title": "區塊瀏覽器",
+        "description": "具有 AI 儀表板和分析功能的即時區塊鏈瀏覽器。",
+        "language": "Next.js",
+        "status": "完成"
+      },
+      "wallet": {
+        "title": "錢包庫",
+        "description": "具有 HD 派生、簽名和密鑰管理的核心錢包庫。",
+        "language": "Rust",
+        "status": "完成"
+      },
+      "ai": {
+        "title": "AI 平台",
+        "description": "具有模型註冊表和任務執行的去中心化 AI 市場。",
+        "language": "Rust",
+        "status": "完成"
+      }
+    }
+  },
+  "cta": {
+    "title": "準備好構建未來了嗎？",
+    "subtitle": "加入 PYRAX 社區，成為去中心化 AI 革命的一部分。",
+    "buttons": {
+      "explorer": "啟動瀏覽器",
+      "docs": "閱讀文檔",
+      "discord": "加入 Discord"
+    }
+  },
+  "footer": {
+    "description": "PYRAX 是結合 TriStream DAG 共識與去中心化 AI 運算市場的下一代 Layer 1 區塊鏈。",
+    "technology": "技術",
+    "resources": "資源",
+    "community": "社區",
+    "legal": "法律",
+    "whitepaper": "白皮書",
+    "documentation": "文檔",
+    "github": "GitHub",
+    "brandKit": "品牌套件",
+    "privacyPolicy": "隱私政策",
+    "termsOfService": "服務條款",
+    "copyright": "© 2026 PYRAX. 版權所有。"
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "技術",
+      "subtitle": "探索驅動 PYRAX 區塊鏈的創新架構。"
+    },
+    "tristream": {
+      "title": "TriStream DAG 共識",
+      "description": "三個並行挖礦流提供前所未有的安全性、去中心化和吞吐量。"
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "ASIC 挖礦",
+        "description": "為專用硬體優化的高吞吐量 BLAKE3 挖礦。提供基礎層安全性。",
+        "feature1": "BLAKE3 雜湊函數",
+        "feature2": "10秒區塊時間",
+        "feature3": "50% 區塊獎勵",
+        "feature4": "ASIC 礦機最佳"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "GPU 挖礦",
+        "description": "KAWPOW 演算法確保抗 ASIC，實現公平的 GPU 挖礦參與。",
+        "feature1": "KAWPOW 演算法",
+        "feature2": "60秒區塊時間",
+        "feature3": "30% 區塊獎勵",
+        "feature4": "抗 ASIC 設計"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "權益證明",
+        "description": "ZK-STARK 驗證者提供最終性檢查點並獲得質押獎勵。",
+        "feature1": "ZK-STARK 證明",
+        "feature2": "檢查點最終性",
+        "feature3": "20% 區塊獎勵",
+        "feature4": "100,000 PYRAX 質押"
+      }
+    },
+    "labels": {
+      "algorithm": "演算法",
+      "type": "類型",
+      "blockTime": "區塊時間",
+      "reward": "獎勵份額",
+      "features": "主要特性"
+    },
+    "architecture": {
+      "title": "分層架構",
+      "description": "PYRAX 使用多層架構實現最大可擴展性。",
+      "layer3": "第3層：ZK-Rollups",
+      "layer3Desc": "AI、DeFi、遊戲的應用專用 rollups",
+      "layer2": "第2層：EVM 側鏈",
+      "layer2Desc": "Solidity 0.8.x & Rust/WASM 智能合約",
+      "layer1": "第1層：TriStream DAG",
+      "layer1Desc": "具有 3 個挖礦流的 GHOSTDAG 共識"
+    },
+    "evm": {
+      "title": "EVM 側鏈",
+      "description": "完全的以太坊虛擬機兼容性允許無縫部署現有智能合約。",
+      "feature1": "Solidity 0.8.x 支援",
+      "feature2": "2秒區塊時間",
+      "feature3": "1,000-5,000 TPS 吞吐量",
+      "feature4": "原生 L1 橋接",
+      "feature5": "EVM ↔ WASM 互操作性",
+      "specs": "技術規格",
+      "specBlockTime": "區塊時間",
+      "specTps": "吞吐量",
+      "specSolidity": "Solidity 版本",
+      "specChainId": "Chain ID",
+      "specGasUnit": "Gas 單位"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups 第2層",
+      "description": "零知識 rollups 在繼承 L1 安全性的同時提供大規模可擴展性。",
+      "feature1Title": "50萬+ TPS",
+      "feature1Desc": "AI 和 DeFi 應用的大規模吞吐量",
+      "feature2Title": "多證明支援",
+      "feature2Desc": "STARK、SNARK、Plonk 和 Groth16 方案",
+      "feature3Title": "去中心化排序器",
+      "feature3Desc": "無單點故障或審查"
+    },
+    "crypto": {
+      "title": "加密原語",
+      "description": "行業標準加密原語確保安全性和互操作性。",
+      "addressLabel": "地址派生",
+      "blockHashLabel": "區塊雜湊",
+      "txHashLabel": "交易雜湊",
+      "signaturesLabel": "簽名",
+      "zkProofsLabel": "ZK 證明",
+      "merkleLabel": "Merkle 樹"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "代幣經濟學",
+      "subtitle": "精心設計的經濟模型，確保長期可持續性和公平分配。"
+    },
+    "overview": {
+      "name": "代幣名稱",
+      "symbol": "符號",
+      "supply": "總供應量",
+      "decimals": "小數位"
+    },
+    "distribution": {
+      "title": "代幣分配",
+      "subtitle": "1000億 PYRAX 分配給挖礦、社區、團隊和生態系統。",
+      "presale": "預售",
+      "presaleDesc": "30% TGE，1個月鎖倉，12個月歸屬",
+      "bdagCommunity": "BDAG 社區",
+      "bdagDesc": "12個月鎖倉，12個月歸屬",
+      "mining": "挖礦獎勵",
+      "miningDesc": "每區塊（約4年減半）",
+      "zkProver": "ZK 證明者獎勵",
+      "zkDesc": "每次證明（10%銷毀）",
+      "team": "團隊與創始人",
+      "teamDesc": "12個月鎖倉，48個月歸屬",
+      "advisors": "顧問",
+      "advisorsDesc": "12個月鎖倉，48個月歸屬",
+      "ecosystem": "生態系統基金",
+      "ecosystemDesc": "里程碑式，DAO 批准",
+      "marketing": "營銷",
+      "marketingDesc": "需要多重簽名批准",
+      "liquidity": "流動性",
+      "liquidityDesc": "TGE 時 100% 可用",
+      "treasury": "財庫",
+      "treasuryDesc": "需要 75% DAO 批准",
+      "reserve": "儲備",
+      "reserveDesc": "協議緊急緩衝"
+    },
+    "fees": {
+      "title": "費用分配",
+      "description": "交易費用分配給所有三個挖礦流和協議財庫。",
+      "streamA": "Stream A 礦工",
+      "streamB": "Stream B 礦工",
+      "streamC": "Stream C 驗證者",
+      "treasury": "協議財庫"
+    },
+    "staking": {
+      "title": "質押參數",
+      "validatorStake": "驗證者最低",
+      "minDelegation": "委託最低",
+      "providerStake": "AI 提供者質押",
+      "unbonding": "解綁期間",
+      "doubleSign": "雙重簽名懲罰",
+      "downtime": "停機懲罰"
+    },
+    "emission": {
+      "title": "發行計劃",
+      "description": "挖礦獎勵按減半計劃隨時間減少。",
+      "year1": "第1年",
+      "year2": "第2年",
+      "year3": "第3年",
+      "year4": "第4年+",
+      "miningRate": "佔總挖礦",
+      "cumulative": "累計挖出"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "挖礦與質押",
+      "subtitle": "獲得獎勵和保護 PYRAX 網絡的多種方式。"
+    },
+    "overview": {
+      "title": "三個挖礦流",
+      "description": "PYRAX 具有三個並行挖礦流，每個都有獨特的演算法和硬體要求。"
+    },
+    "labels": {
+      "reward": "獎勵份額",
+      "mining": "挖礦",
+      "requirements": "硬體要求",
+      "howToStart": "如何開始"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "BLAKE3 ASIC 挖礦",
+      "hardware": "為專用 ASIC 硬體優化以實現最大效率。",
+      "req1Label": "演算法",
+      "req1Value": "BLAKE3",
+      "req2Label": "硬體",
+      "req2Value": "ASIC 礦機",
+      "req3Label": "區塊時間",
+      "req3Value": "10秒",
+      "req4Label": "獎勵份額",
+      "req4Value": "50%",
+      "step1": "購買或構建 BLAKE3 兼容 ASIC 礦機",
+      "step2": "下載並配置 PYRAX 挖礦軟體",
+      "step3": "連接礦池或運行獨立挖礦",
+      "step4": "開始挖礦並獲得 PYRAX 獎勵"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "KAWPOW GPU 挖礦",
+      "hardware": "為消費級 GPU 硬體設計的抗 ASIC 演算法。",
+      "req1Label": "演算法",
+      "req1Value": "KAWPOW",
+      "req2Label": "硬體",
+      "req2Value": "NVIDIA/AMD GPU",
+      "req3Label": "區塊時間",
+      "req3Value": "60秒",
+      "req4Label": "獎勵份額",
+      "req4Value": "30%",
+      "step1": "確保您有兼容的 GPU（建議 RTX 20 系列或更新）",
+      "step2": "下載支援 CUDA 或 OpenCL 的 PYRAX GPU 礦機",
+      "step3": "配置您的錢包地址和礦池設置",
+      "step4": "開始挖礦並監控您的算力"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "ZK-STARK 權益證明",
+      "hardware": "質押 PYRAX 代幣成為驗證者並獲得獎勵。",
+      "req1Label": "演算法",
+      "req1Value": "ZK-STARK",
+      "req2Label": "最低質押",
+      "req2Value": "100,000 PYRAX",
+      "req3Label": "硬體",
+      "req3Value": "標準伺服器",
+      "req4Label": "獎勵份額",
+      "req4Value": "20%",
+      "step1": "獲取至少 100,000 PYRAX 代幣",
+      "step2": "按要求規格設置驗證者節點",
+      "step3": "註冊為驗證者並質押您的代幣",
+      "step4": "保持運行時間以最大化獎勵並避免懲罰"
+    },
+    "staking": {
+      "title": "質押選項",
+      "description": "在 PYRAX 網絡上獲得質押獎勵的多種方式。",
+      "validatorTitle": "運行驗證者",
+      "validatorDesc": "運營驗證者節點以保護網絡並獲得最大獎勵。",
+      "delegationTitle": "委託您的代幣",
+      "delegationDesc": "委託給現有驗證者並在不運行基礎設施的情況下獲得獎勵。",
+      "minStake": "最低質押",
+      "apy": "預期 APY",
+      "unbonding": "解綁期間",
+      "slashing": "懲罰風險",
+      "minDelegation": "最低委託",
+      "delegatorApy": "委託者 APY",
+      "commission": "驗證者佣金",
+      "rewards": "獎勵分配",
+      "rewardsValue": "每個 epoch"
+    },
+    "cta": {
+      "title": "準備開始挖礦了嗎？",
+      "description": "下載礦機軟體並立即加入網絡。",
+      "downloadMiner": "下載礦機",
+      "readDocs": "閱讀文檔"
+    }
+  },
+  "roadmapPage": {
+    "hero": { "title": "路線圖", "subtitle": "我們革新去中心化AI計算和區塊鏈技術的旅程。" },
+    "status": { "completed": "已完成", "inProgress": "進行中", "upcoming": "即將推出", "future": "未來" },
+    "q1": { "subtitle": "基礎建設", "item1": "BLAKE3 PoW挖礦核心節點", "item2": "P2P網絡", "item3": "RocksDB存儲層", "item4": "JSON-RPC API服務器", "item5": "桌面錢包應用", "item6": "GPU礦機" },
+    "q2": { "subtitle": "平台擴展", "item1": "公開測試網啟動", "item2": "區塊瀏覽器部署", "item3": "EVM側鏈開發", "item4": "Rust/WASM合約運行時", "item5": "AI市場測試版", "item6": "移動錢包開發", "item7": "Devnet部署", "item8": "Testnet部署" },
+    "q3": { "subtitle": "主網啟動", "item1": "安全審計完成", "item2": "創世區塊生成", "item3": "種子節點部署", "item4": "CEX/DEX上市", "item5": "AI平台生產啟動", "item6": "跨鏈橋啟動" },
+    "q4": { "subtitle": "規模與增長", "item1": "企業合作夥伴", "item2": "跨鏈橋", "item3": "高級AI功能", "item4": "全球節點擴展", "item5": "性能優化", "item6": "DAO治理啟動" },
+    "future": { "subtitle": "長期願景", "item1": "Layer 3應用鏈", "item2": "硬體錢包整合", "item3": "企業AI解決方案", "item4": "全球擴展" },
+    "progress": { "title": "開發進度", "subtitle": "追踪各領域的開發進展。", "coreNode": "核心節點", "evmSidechain": "EVM側鏈", "aiPlatform": "AI平台", "desktop": "桌面應用" }
+  },
+  "foundryPage": {
+    "hero": { "badge": "AI模型註冊中心", "title": "Foundry", "subtitle": "用於在PYRAX上發現、版本控制和部署AI模型的去中心化模型註冊中心。", "cta1": "了解運作方式", "cta2": "查看功能" },
+    "onchain": { "title": "Foundry鏈上運作方式", "subtitle": "所有模型元數據都不可變地存儲在PYRAX區塊鏈上。", "registry": { "title": "模型註冊合約", "description": "存儲所有模型元數據的智能合約。", "item1": "不可變模型記錄", "item2": "版本歷史追踪", "item3": "所有權驗證" }, "storage": { "title": "去中心化存儲", "description": "模型權重存儲在IPFS/Filecoin上。", "item1": "IPFS內容尋址", "item2": "Filecoin持久化", "item3": "哈希驗證" }, "verification": { "title": "模型驗證", "description": "密碼學證明確保模型完整性。", "item1": "SHA-256校驗和", "item2": "簽名驗證", "item3": "基準測試證明" } },
+    "features": { "title": "核心功能", "subtitle": "鏈上管理AI模型所需的一切。", "registration": { "title": "模型註冊", "description": "使用完整元數據註冊模型。", "detail1": "名稱和描述", "detail2": "硬體要求", "detail3": "每請求定價", "detail4": "許可證信息" }, "versioning": { "title": "語義版本控制", "description": "追踪模型版本和完整歷史。", "detail1": "主要/次要/補丁", "detail2": "變更日誌", "detail3": "版本比較", "detail4": "棄用支持" }, "discovery": { "title": "模型發現", "description": "搜索和過濾模型。", "detail1": "類別過濾", "detail2": "性能搜索", "detail3": "社區評分", "detail4": "熱門排名" }, "benchmarks": { "title": "基準測試和評分", "description": "標準化基準測試和評分。", "detail1": "速度基準", "detail2": "質量指標", "detail3": "用戶評價", "detail4": "提供商聲譽" } },
+    "workflow": { "title": "註冊流程", "subtitle": "四個簡單步驟將模型上鏈。", "step1": { "title": "準備模型", "description": "打包模型和元數據。" }, "step2": { "title": "提交交易", "description": "發送註冊交易。" }, "step3": { "title": "驗證", "description": "網絡驗證模型可訪問性。" }, "step4": { "title": "上線", "description": "模型可被發現。" } }
+  },
+  "cruciblePage": {
+    "hero": { "badge": "任務執行引擎", "title": "Crucible", "subtitle": "向全球GPU提供商網絡提交AI任務，獲得可驗證結果。" },
+    "jobTypes": { "inference": "推理", "training": "訓練", "fineTuning": "微調", "embedding": "嵌入" },
+    "mining": { "title": "GPU挖礦池整合", "subtitle": "Stream B GPU礦工可選擇接收AI計算任務。", "howItWorks": "任務如何到達您的GPU", "step1": { "title": "任務提交", "description": "用戶向Crucible提交AI任務。" }, "step2": { "title": "匹配", "description": "Crucible將任務匹配到GPU提供商。" }, "step3": { "title": "執行", "description": "您的GPU執行任務。" }, "step4": { "title": "支付", "description": "支付自動釋放。" }, "diagram": { "title": "任務流程架構", "jobQueue": "任務隊列", "matchmaker": "匹配服務", "gpuPool": "GPU提供商池", "verification": "結果驗證" } },
+    "execution": { "title": "任務執行生命週期", "subtitle": "從提交到結算的5個步驟。" },
+    "workflow": { "step1": { "title": "提交", "description": "用戶提交任務請求", "details": "任務進入隊列" }, "step2": { "title": "匹配", "description": "找到最佳提供商", "details": "基於硬體" }, "step3": { "title": "執行", "description": "GPU運行任務", "details": "模型推理" }, "step4": { "title": "驗證", "description": "驗證結果", "details": "多節點驗證" }, "step5": { "title": "結算", "description": "釋放支付", "details": "自動託管釋放" } },
+    "verification": { "title": "驗證方法", "subtitle": "多種驗證策略。", "consensus": { "title": "多節點共識", "description": "同一任務由多個提供商執行。", "detail1": "3/5節點同意", "detail2": "異常檢測" }, "zkproof": { "title": "ZK證明驗證", "description": "零知識證明驗證計算。", "detail1": "STARK/SNARK證明", "detail2": "鏈上驗證" }, "dispute": { "title": "爭議解決", "description": "質押加權仲裁。", "detail1": "7天挑戰期", "detail2": "惡意行為懲罰" } }
+  },
+  "downloadsPage": {
+    "hero": { "badge": "桌面應用程式", "title": "PYRAX Desktop", "subtitle": "用於錢包管理、節點操作和GPU挖礦的一體化桌面應用。", "downloadWindows": "下載Windows版", "downloadMac": "下載macOS版", "downloadLinux": "下載Linux版", "version": "版本1.0.0 • 2026年1月發布" },
+    "features": { "title": "一體化桌面應用", "subtitle": "參與PYRAX網絡所需的一切。", "wallet": { "title": "錢包管理", "description": "完全控制您代幣的安全錢包。", "detail1": "HD錢包派生", "detail2": "多帳戶支持", "detail3": "交易歷史", "detail4": "地址簿" }, "mining": { "title": "GPU挖礦", "description": "內置KAWPOW礦機。", "detail1": "CUDA和OpenCL支持", "detail2": "礦池整合", "detail3": "算力監控", "detail4": "收益儀表板" }, "node": { "title": "節點操作", "description": "運行完整節點。", "detail1": "完整節點同步", "detail2": "節點管理", "detail3": "區塊瀏覽器", "detail4": "RPC服務器" }, "dashboard": { "title": "儀表板和分析", "description": "實時監控。", "detail1": "即時統計", "detail2": "收益圖表", "detail3": "網絡狀態", "detail4": "性能指標" } },
+    "preview": { "title": "應用預覽", "subtitle": "現代直觀的界面。", "placeholder": "應用截圖即將推出" },
+    "requirements": { "title": "系統要求", "os": "操作系統", "ram": "記憶體", "storage": "存儲", "gpu": "GPU（用於挖礦）" }
+  },
+  "bdagPage": {
+    "hero": { "badge": "BDAG社群", "title": "BDAG社群計劃", "subtitle": "BDAG社群分配計劃獎勵遷移到PYRAX網絡的現有BlockDAG代幣持有者。100億PYRAX代幣（佔供應量的10%）分配給經驗證的BDAG社群成員。" },
+    "stats": { "poolSize": "池規模", "poolSizeSub": "佔總供應量10%", "allocationRate": "有效分配率", "allocationRateSub": "原始投資的", "cliff": "鎖定期", "cliffSub": "釋放開始前", "vesting": "總歸屬期", "vestingSub": "完整歸屬期" },
+    "formula": { "title": "分配公式", "base": "基礎分配", "baseDesc": "BDAG購買額（美元）的", "bonus": "獎金", "bonusDesc": "基礎分配的", "total": "總比率", "totalDesc": "原始投資的", "example": "示例：", "exampleText": "如果您購買了1,000美元的BDAG，您將獲得250美元基礎 + 62.50美元獎金 = 312.50美元等值的PYRAX（按當前預售價格）" },
+    "examples": { "title": "分配示例", "subtitle": "按第一階段價格（每代幣0.0062美元）", "colPurchase": "BDAG購買額", "colBase": "基礎（25%）", "colBonus": "獎金（25%）", "colTotal": "總美元", "colTokens": "PYRAX代幣" },
+    "eligibility": { "title": "資格要求", "req1": "在PYRAX預售公告前擁有購買的BDAG代幣", "req2": "提供可驗證的購買證明（交易哈希）", "req3": "完成KYC身份驗證", "req4": "在截止日期前提交申領（待定）" },
+    "vesting": { "title": "歸屬時間表", "cliffPeriod": "鎖定期", "cliffDesc": "鎖定期內釋放0%", "vestingPeriod": "歸屬期", "vestingDesc": "每月釋放8.33%" },
+    "timeline": { "title": "重要時間線", "claimOpens": "申領窗口開放", "deadline": "申領截止", "tge": "代幣生成", "cliffEnds": "鎖定期結束", "fullyVested": "完全歸屬" },
+    "burn": { "title": "未申領代幣銷毀", "subtitle": "截止日期前未申領的所有代幣將被永久銷毀。沒有延期或寬限期。", "benefit1": "通縮機制", "benefit2": "獎勵活躍參與者", "benefit3": "防止濫用", "benefit4": "明確的截止日期促進行動" },
+    "claimEarly": { "title": "提前申領獲得更多代幣", "subtitle": "更早申領（第一階段）可獲得更多代幣，因為價格更低。在第四階段申領將以相同的美元分配獲得更少的代幣。" },
+    "cta": { "title": "提交您的申領", "submit": "驗證您的BDAG持有量並申領PYRAX", "viewVesting": "查看歸屬詳情", "portalDisclaimer": "申領門戶尚未開放。關注我們的社交媒體，以便在門戶開放時收到通知。" }
+  }
+}

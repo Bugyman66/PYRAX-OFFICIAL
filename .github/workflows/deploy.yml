@@ -1,0 +1,172 @@
+# PYRAX Auto-Deploy Workflow
+# Automatically deploys to Digital Ocean droplet on push to main
+
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'pyrax-website/**'
+      - 'pyrax-faucet/**'
+      - 'pyrax-docs/**'
+      - 'pyrax-explorer/**'
+      - 'docker-compose.yml'
+      - 'deployment/**'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy (all, website, faucet, docs, explorer)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - website
+          - faucet
+          - docs
+          - explorer
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      website: ${{ steps.filter.outputs.website }}
+      faucet: ${{ steps.filter.outputs.faucet }}
+      docs: ${{ steps.filter.outputs.docs }}
+      explorer: ${{ steps.filter.outputs.explorer }}
+      deployment: ${{ steps.filter.outputs.deployment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            website:
+              - 'pyrax-website/**'
+            faucet:
+              - 'pyrax-faucet/**'
+            docs:
+              - 'pyrax-docs/**'
+            explorer:
+              - 'pyrax-explorer/**'
+            deployment:
+              - 'docker-compose.yml'
+              - 'deployment/**'
+
+  deploy:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DROPLET_SSH_KEY }}
+
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
+
+      - name: Sync repository to server
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude 'target' \
+            --exclude 'build' \
+            ./ root@${{ secrets.DROPLET_IP }}:/opt/pyrax/
+
+      - name: Create .env file on server
+        run: |
+          ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
+          cat > /opt/pyrax/.env << 'ENVFILE'
+          NETWORK=${{ vars.NETWORK || 'mainnet' }}
+          NEXT_PUBLIC_RPC_URL=${{ vars.NEXT_PUBLIC_RPC_URL || 'https://rpc.pyrax.org' }}
+          NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://api.pyrax.org' }}
+          FAUCET_PRIVATE_KEY=${{ secrets.FAUCET_PRIVATE_KEY }}
+          FAUCET_AMOUNT=${{ vars.FAUCET_AMOUNT || '10' }}
+          RATE_LIMIT_HOURS=${{ vars.RATE_LIMIT_HOURS || '24' }}
+          RPC_URL=${{ vars.RPC_URL || 'http://localhost:8545' }}
+          ENVFILE
+          EOF
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
+          cd /opt/pyrax
+          
+          # Determine which services to rebuild
+          SERVICES=""
+          
+          if [ "${{ github.event.inputs.service }}" = "all" ] || [ -z "${{ github.event.inputs.service }}" ]; then
+            if [ "${{ needs.detect-changes.outputs.website }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
+              SERVICES="$SERVICES website"
+            fi
+            if [ "${{ needs.detect-changes.outputs.faucet }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
+              SERVICES="$SERVICES faucet"
+            fi
+            if [ "${{ needs.detect-changes.outputs.docs }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
+              SERVICES="$SERVICES docs"
+            fi
+            if [ "${{ needs.detect-changes.outputs.explorer }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
+              SERVICES="$SERVICES explorer"
+            fi
+          else
+            SERVICES="${{ github.event.inputs.service }}"
+          fi
+          
+          # If no specific changes detected, rebuild all
+          if [ -z "$SERVICES" ]; then
+            SERVICES="website faucet docs explorer"
+          fi
+          
+          echo "Rebuilding services: $SERVICES"
+          
+          # Build and deploy
+          docker compose build $SERVICES
+          docker compose up -d --no-deps $SERVICES nginx
+          
+          # Cleanup old images
+          docker image prune -f
+          
+          # Health check
+          sleep 10
+          docker compose ps
+          EOF
+
+      - name: Health Check
+        run: |
+          sleep 15
+          echo "Checking website..."
+          curl -f https://pyrax.org || echo "Website check failed"
+          echo "Checking docs..."
+          curl -f https://docs.pyrax.org || echo "Docs check failed"
+          echo "Checking explorer..."
+          curl -f https://explorer.pyrax.org || echo "Explorer check failed"
+          echo "Checking faucet..."
+          curl -f https://faucet.pyrax.org || echo "Faucet check failed"
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Notify on success
+        if: ${{ needs.deploy.result == 'success' }}
+        run: echo "✅ Deployment successful!"
+
+      - name: Notify on failure
+        if: ${{ needs.deploy.result == 'failure' }}
+        run: |
+          echo "❌ Deployment failed!"
+          exit 1

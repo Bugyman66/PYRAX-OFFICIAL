@@ -1,0 +1,17 @@
+# Cargo configuration for PYRAX
+# Enables reproducible builds
+
+[build]
+# Use incremental compilation for faster dev builds
+incremental = true
+
+[profile.release]
+# Optimize for size and speed
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[env]
+# Set SOURCE_DATE_EPOCH for reproducible builds
+# This removes timestamps from the build
+SOURCE_DATE_EPOCH = "0"

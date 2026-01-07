@@ -1,0 +1,16 @@
+{
+  "network": "mainnet",
+  "chain_id": 1,
+  "timestamp": 1735689600,
+  "timestamp_human": "2025-01-01T00:00:00Z",
+  "difficulty": 1000000,
+  "block_reward": 5000000000,
+  "block_reward_human": "50 PYRAX",
+  "stream": 0,
+  "version": 1,
+  "beneficiary": "0x0000000000000000000000000000000000000000",
+  "extra_data": "PYRAX Genesis - TriStream DAG Blockchain",
+  "allocations": [],
+  "expected_hash": null,
+  "notes": "Mainnet genesis - hash will be computed on first run"
+}

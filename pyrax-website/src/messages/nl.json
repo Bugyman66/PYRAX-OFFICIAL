@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "Home",
+    "blockchain": "Blockchain",
+    "technology": "Technologie",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "Tokendistributie en economie",
+    "miningDesc": "GPU- en ASIC-miningstreams",
+    "roadmapDesc": "Ontwikkelingstijdlijn",
+    "resources": "Bronnen",
+    "downloads": "Downloads",
+    "downloadsDesc": "Desktop-app voor alle platforms",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "Community",
+    "discord": "Discord",
+    "discordDesc": "Join onze Discord server",
+    "twitter": "Twitter",
+    "twitterDesc": "Volg ons op Twitter",
+    "telegram": "Telegram",
+    "telegramDesc": "Join de Telegram groep",
+    "reddit": "Reddit",
+    "redditDesc": "Join de Reddit community",
+    "facebook": "Facebook",
+    "facebookDesc": "Volg onze Facebook pagina",
+    "instagram": "Instagram",
+    "instagramDesc": "Volg ons op Instagram",
+    "facebookGroup": "Facebook Groep",
+    "facebookGroupDesc": "Join onze Facebook community",
+    "roadmap": "Roadmap",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "App starten",
+    "launchExplorer": "Explorer starten",
+    "featured": "Uitgelicht",
+    "explore": "Verkennen",
+    "viewAll": "Alles bekijken",
+    "aiCompute": "AI Computing",
+    "developerTools": "Ontwikkelaarstools",
+    "openSource": "Open Source",
+    "buildOnPyrax": "Bouw op PYRAX met onze uitgebreide SDK en documentatie.",
+    "joinMovement": "Word deel van de beweging",
+    "growingFast": "Snelgroeiend",
+    "connectCommunity": "Verbind met miners, ontwikkelaars en enthousiastelingen van over de hele wereld.",
+    "language": "Taal",
+    "aiSystems": "AI Systemen",
+    "aiSystemsDesc": "Gedecentraliseerd AI-rekenplatform met modelregister en taakvervulling.",
+    "dao": "PYRAX DAO",
+    "daoDesc": "Gedecentraliseerd bestuur voor het PYRAX-netwerk",
+    "bdagCommunity": "BDAG Gemeenschap",
+    "bdagCommunityDesc": "Tokentoewijzing voor BlockDAG-houders"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "Gedecentraliseerde Autonome Organisatie",
+    "comingSoon": "DAO Structuur Binnenkort",
+    "description": "We bouwen een uitgebreid gedecentraliseerd bestuursysteem dat de PYRAX-gemeenschap in staat zal stellen deel te nemen aan belangrijke beslissingen over de toekomst van het netwerk."
+  },
+  "hero": {
+    "badge": "Mainnet Q3 2026",
+    "title": "De Toekomst van",
+    "titleHighlight": "Gedecentraliseerde AI",
+    "subtitle": "PYRAX combineert een revolutionaire TriStream DAG-consensus met een gedecentraliseerde AI-compute marktplaats. GPU-miners beveiligen het netwerk EN leveren AI-rekenkracht.",
+    "cta": {
+      "primary": "Technologie Verkennen",
+      "secondary": "Whitepaper Lezen"
+    },
+    "stats": {
+      "tps": "500K+ TPS",
+      "tpsLabel": "L2 Doorvoer",
+      "blockTime": "2s",
+      "blockTimeLabel": "EVM Bloktijd",
+      "supply": "100 Mrd",
+      "supplyLabel": "Totale Voorraad",
+      "streams": "3",
+      "streamsLabel": "Mining Streams"
+    }
+  },
+  "features": {
+    "title": "Waarom PYRAX?",
+    "subtitle": "Een blockchain gebouwd voor het AI-tijdperk met ongekende beveiliging, schaalbaarheid en native AI-compute integratie.",
+    "tristream": {
+      "title": "TriStream DAG Consensus",
+      "description": "Drie parallelle mining streams (ASIC, GPU, ZK) bieden maximale beveiliging en decentralisatie. GHOSTDAG-ordening zorgt voor snelle finaliteit.",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "AI Compute Platform",
+    "subtitle": "'s Werelds eerste blockchain-native AI-marktplaats met verifieerbare compute en automatische afwikkeling.",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "Modelregister",
+      "description": "Registreer, versiebeheer en ontdek AI-modellen. Volg benchmarks, beoordelingen en hardwarevereisten.",
+      "features": {
+        "registration": "Modelregistratie",
+        "registrationDesc": "Registreer je modellen met metadata, benchmarks en prijzen",
+        "versioning": "Semantische Versiebeheer",
+        "versioningDesc": "Volg modelversies met volledige geschiedenis en vergelijkingen",
+        "discovery": "Modelontdekking",
+        "discoveryDesc": "Zoek en filter modellen op type, tags en beoordelingen"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "Taakuitvoeringsmotor",
+      "description": "Dien AI-taken in en laat ze uitvoeren door een wereldwijd netwerk van GPU-providers met verifieerbare resultaten.",
+      "features": {
+        "submission": "Taakindiening",
+        "submissionDesc": "Dien inferentie-, trainings- of fine-tuning taken in",
+        "execution": "Gedistribueerde Uitvoering",
+        "executionDesc": "Taken automatisch gekoppeld aan optimale providers",
+        "verification": "Resultaatverificatie",
+        "verificationDesc": "Multi-node consensus of ZK-bewijsverificatie"
+      }
+    },
+    "jobTypes": {
+      "title": "Ondersteunde Taaktypes",
+      "inference": "Inferentie",
+      "inferenceDesc": "Realtime modelvoorspellingen en -generatie",
+      "training": "Training",
+      "trainingDesc": "Volledige modeltraining vanaf nul",
+      "fineTuning": "Fine-Tuning",
+      "fineTuningDesc": "Pas bestaande modellen aan op jouw data",
+      "embedding": "Embedding",
+      "embeddingDesc": "Genereer vector embeddings voor zoeken",
+      "imageGen": "Afbeeldingsgeneratie",
+      "imageGenDesc": "Creëer afbeeldingen met diffusiemodellen",
+      "batch": "Batchverwerking",
+      "batchDesc": "Dataverwerking op grote schaal"
+    },
+    "providerTiers": {
+      "title": "Provider Niveaus",
+      "hobbyist": "Hobbyist",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1.000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/maand",
+      "professional": "Professioneel",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5.000 PYRAX stake",
+      "professionalRevenue": "1.500-3.000 PYRAX/maand",
+      "enterprise": "Enterprise",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25.000 PYRAX stake",
+      "enterpriseRevenue": "5.000-15.000 PYRAX/maand"
+    }
+  },
+  "tokenomics": {
+    "title": "Token Economie",
+    "subtitle": "Een zorgvuldig ontworpen economisch model dat duurzaamheid op lange termijn en eerlijke distributie garandeert.",
+    "overview": {
+      "name": "Token Naam",
+      "nameValue": "PYRAX",
+      "symbol": "Symbool",
+      "symbolValue": "$PYRAX",
+      "supply": "Totale Voorraad",
+      "supplyValue": "100.000.000.000",
+      "decimals": "Decimalen",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "Token Distributie",
+      "presale": "Voorverkoop",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE, 1 maand cliff, 12 maanden vesting",
+      "bdagCommunity": "BDAG Community",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 maanden cliff, 12 maanden vesting",
+      "mining": "Mining Beloningen",
+      "miningPercent": "35%",
+      "miningDesc": "Per gemined blok (halving ~4 jaar)",
+      "zkProver": "ZK Prover Beloningen",
+      "zkPercent": "5%",
+      "zkDesc": "Per attestatie (10% verbrand)",
+      "team": "Team & Oprichters",
+      "teamPercent": "4%",
+      "teamDesc": "12 maanden cliff, 48 maanden vesting",
+      "advisors": "Adviseurs",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 maanden cliff, 48 maanden vesting",
+      "ecosystem": "Ecosysteem",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "Mijlpaalgebaseerd, DAO-goedkeuring",
+      "marketing": "Marketing",
+      "marketingPercent": "5%",
+      "marketingDesc": "Multi-sig goedkeuring",
+      "liquidity": "Liquiditeit",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "100% bij TGE",
+      "treasury": "Schatkist",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "75% DAO-goedkeuring vereist",
+      "reserve": "Reserve",
+      "reservePercent": "1%",
+      "reserveDesc": "Protocolbuffer"
+    },
+    "feeDistribution": {
+      "title": "Gas Fee Distributie",
+      "streamA": "Stream A Miners",
+      "streamAPercent": "20%",
+      "streamB": "Stream B Miners",
+      "streamBPercent": "40%",
+      "streamC": "Stream C Validators",
+      "streamCPercent": "30%",
+      "treasury": "Protocol Schatkist",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "Staking Parameters",
+      "validatorStake": "Validator Stake",
+      "validatorStakeValue": "100.000 PYRAX",
+      "minDelegation": "Min. Delegatie",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "Provider Stake",
+      "providerStakeValue": "1.000 PYRAX",
+      "unbonding": "Ontgrendelingsperiode",
+      "unbondingValue": "7 dagen",
+      "doubleSign": "Dubbele-Handtekening Straf",
+      "doubleSignValue": "5%",
+      "downtime": "Downtime Straf",
+      "downtimeValue": "0,1%"
+    }
+  },
+  "roadmap": {
+    "title": "Roadmap",
+    "subtitle": "Onze reis om gedecentraliseerde AI-compute te revolutioneren.",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "Fundament",
+      "status": "completed",
+      "items": [
+        "Core node met BLAKE3 PoW mining",
+        "P2P netwerk (libp2p, GossipSub)",
+        "RocksDB opslaglaag",
+        "JSON-RPC API server",
+        "Desktop wallet applicatie",
+        "GPU miner (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "Platform Uitbreiding",
+      "status": "in-progress",
+      "items": [
+        "Publieke testnet lancering",
+        "EVM sidechain activering",
+        "Rust/WASM contract runtime",
+        "AI marktplaats beta",
+        "Mobiele wallet ontwikkeling",
+        "Exchange listing voorbereidingen"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "Mainnet Lancering",
+      "status": "upcoming",
+      "items": [
+        "Security audits voltooiing",
+        "Genesis blok generatie",
+        "Seed node deployment",
+        "CEX/DEX listings",
+        "AI platform productie lancering",
+        "Bridge activeringen"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "Schaal",
+      "status": "upcoming",
+      "items": [
+        "Enterprise partnerships",
+        "Cross-chain bridges (ETH, BSC)",
+        "Geavanceerde AI functies",
+        "Wereldwijde node uitbreiding",
+        "Prestatie optimalisaties",
+        "DAO governance lancering"
+      ]
+    }
+  },
+  "technology": {
+    "title": "Technologie Diepgaand",
+    "subtitle": "Ontdek de innovatieve technologie achter PYRAX.",
+    "architecture": {
+      "title": "Architectuur Overzicht",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "500K+ TPS voor AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x, Rust/WASM, L1 Bridge",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "GHOSTDAG ordening, 3 mining streams"
+    },
+    "consensus": {
+      "title": "TriStream Consensus",
+      "description": "Drie parallelle streams werken samen om ongekende veiligheid en decentralisatie te bieden.",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "ASIC Mining",
+        "blockTime": "10 seconden",
+        "reward": "50 PYRAX/blok",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "GPU Mining",
+        "blockTime": "60 seconden",
+        "reward": "100 PYRAX/blok",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "Proof of Stake",
+        "blockTime": "Variabel",
+        "reward": "10 PYRAX/checkpoint",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "Cryptografische Primitieven",
+      "addressDerivation": "Adres Afleiding",
+      "addressValue": "Keccak-256 (EVM-compatibel)",
+      "blockHash": "Blok Header Hash",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "Transactie Hash",
+      "txHashValue": "Keccak-256",
+      "signatures": "Handtekeningen",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "ZK Bewijzen",
+      "zkProofsValue": "STARK, SNARK, Plonk, Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "Ecosysteem",
+    "subtitle": "Een complete suite van tools en applicaties voor het PYRAX netwerk.",
+    "products": {
+      "node": {
+        "title": "PYRAX Node",
+        "description": "Core blockchain node met consensus, P2P netwerk en RPC server.",
+        "language": "Rust",
+        "status": "Voltooid"
+      },
+      "miner": {
+        "title": "GPU Miner",
+        "description": "Hoogwaardige KAWPOW miner met CUDA en OpenCL ondersteuning.",
+        "language": "C++/CUDA",
+        "status": "Voltooid"
+      },
+      "desktop": {
+        "title": "Desktop Wallet",
+        "description": "Volledig uitgeruste desktop applicatie met wallet, node beheer en mining.",
+        "language": "Tauri/Rust",
+        "status": "Voltooid"
+      },
+      "explorer": {
+        "title": "Block Explorer",
+        "description": "Realtime blockchain explorer met AI dashboard en analytics.",
+        "language": "Next.js",
+        "status": "Voltooid"
+      },
+      "wallet": {
+        "title": "Wallet Bibliotheek",
+        "description": "Core wallet bibliotheek met HD afleiding, ondertekening en sleutelbeheer.",
+        "language": "Rust",
+        "status": "Voltooid"
+      },
+      "ai": {
+        "title": "AI Platform",
+        "description": "Gedecentraliseerde AI marktplaats met modelregister en taakuitvoering.",
+        "language": "Rust",
+        "status": "Voltooid"
+      }
+    }
+  },
+  "cta": {
+    "title": "Klaar om de Toekomst te Bouwen?",
+    "subtitle": "Sluit je aan bij de PYRAX community en maak deel uit van de gedecentraliseerde AI revolutie.",
+    "buttons": {
+      "explorer": "Open Explorer",
+      "docs": "Lees Documentatie",
+      "discord": "Join Discord"
+    }
+  },
+  "footer": {
+    "description": "PYRAX is een next-generation Layer 1 blockchain die TriStream DAG consensus combineert met een gedecentraliseerde AI compute marktplaats.",
+    "technology": "Technologie",
+    "resources": "Bronnen",
+    "community": "Community",
+    "legal": "Juridisch",
+    "whitepaper": "Whitepaper",
+    "documentation": "Documentatie",
+    "github": "GitHub",
+    "brandKit": "Brand Kit",
+    "privacyPolicy": "Privacybeleid",
+    "termsOfService": "Gebruiksvoorwaarden",
+    "copyright": "© 2026 PYRAX. Alle rechten voorbehouden."
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "Technologie",
+      "subtitle": "Ontdek de innovatieve architectuur achter de PYRAX blockchain."
+    },
+    "tristream": {
+      "title": "TriStream DAG Consensus",
+      "description": "Drie parallelle mining streams bieden ongekende veiligheid, decentralisatie en doorvoer."
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "ASIC Mining",
+        "description": "Hoge doorvoer BLAKE3 mining geoptimaliseerd voor gespecialiseerde hardware. Biedt basislaag beveiliging.",
+        "feature1": "BLAKE3 hash functie",
+        "feature2": "10 seconden bloktijd",
+        "feature3": "50% van blokbeloningen",
+        "feature4": "Optimaal voor ASIC miners"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "GPU Mining",
+        "description": "KAWPOW algoritme garandeert ASIC-resistentie voor eerlijke GPU mining participatie.",
+        "feature1": "KAWPOW algoritme",
+        "feature2": "60 seconden bloktijd",
+        "feature3": "30% van blokbeloningen",
+        "feature4": "ASIC-resistent ontwerp"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "Proof of Stake",
+        "description": "ZK-STARK validators bieden finaliteit checkpoints en verdienen staking beloningen.",
+        "feature1": "ZK-STARK bewijzen",
+        "feature2": "Checkpoint finaliteit",
+        "feature3": "20% van blokbeloningen",
+        "feature4": "100.000 PYRAX stake"
+      }
+    },
+    "labels": {
+      "algorithm": "Algoritme",
+      "type": "Type",
+      "blockTime": "Bloktijd",
+      "reward": "Beloningsaandeel",
+      "features": "Kernfuncties"
+    },
+    "architecture": {
+      "title": "Gelaagde Architectuur",
+      "description": "PYRAX gebruikt een meerlaagse architectuur voor maximale schaalbaarheid.",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "Applicatie-specifieke rollups voor AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x & Rust/WASM smart contracts",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "GHOSTDAG consensus met 3 mining streams"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Volledige Ethereum Virtual Machine compatibiliteit maakt naadloze deployment van bestaande smart contracts mogelijk.",
+      "feature1": "Solidity 0.8.x ondersteuning",
+      "feature2": "2 seconden bloktijd",
+      "feature3": "1.000-5.000 TPS doorvoer",
+      "feature4": "Native L1 bridge",
+      "feature5": "EVM ↔ WASM interoperabiliteit",
+      "specs": "Technische Specificaties",
+      "specBlockTime": "Bloktijd",
+      "specTps": "Doorvoer",
+      "specSolidity": "Solidity Versie",
+      "specChainId": "Chain ID",
+      "specGasUnit": "Gas Eenheid"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "Zero-knowledge rollups bieden massale schaalbaarheid terwijl L1 veiligheid behouden blijft.",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "Massale doorvoer voor AI en DeFi applicaties",
+      "feature2Title": "Multi-Proof Ondersteuning",
+      "feature2Desc": "STARK, SNARK, Plonk en Groth16 schema's",
+      "feature3Title": "Gedecentraliseerde Sequencer",
+      "feature3Desc": "Geen enkel punt van falen of censuur"
+    },
+    "crypto": {
+      "title": "Cryptografische Primitieven",
+      "description": "Industrie-standaard cryptografische primitieven garanderen veiligheid en interoperabiliteit.",
+      "addressLabel": "Adres Afleiding",
+      "blockHashLabel": "Blok Hash",
+      "txHashLabel": "Transactie Hash",
+      "signaturesLabel": "Handtekeningen",
+      "zkProofsLabel": "ZK Bewijzen",
+      "merkleLabel": "Merkle Boom"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "Tokenomics",
+      "subtitle": "Een zorgvuldig ontworpen economisch model dat duurzaamheid op lange termijn en eerlijke distributie garandeert."
+    },
+    "overview": {
+      "name": "Token Naam",
+      "symbol": "Symbool",
+      "supply": "Totale Voorraad",
+      "decimals": "Decimalen"
+    },
+    "distribution": {
+      "title": "Token Distributie",
+      "subtitle": "100 miljard PYRAX verdeeld over mining, community, team en ecosysteem.",
+      "presale": "Voorverkoop",
+      "presaleDesc": "30% TGE, 1 maand cliff, 12 maanden vesting",
+      "bdagCommunity": "BDAG Community",
+      "bdagDesc": "12 maanden cliff, 12 maanden vesting",
+      "mining": "Mining Beloningen",
+      "miningDesc": "Per gemined blok (halving ~4 jaar)",
+      "zkProver": "ZK Prover Beloningen",
+      "zkDesc": "Per attestatie (10% verbrand)",
+      "team": "Team & Oprichters",
+      "teamDesc": "12 maanden cliff, 48 maanden vesting",
+      "advisors": "Adviseurs",
+      "advisorsDesc": "12 maanden cliff, 48 maanden vesting",
+      "ecosystem": "Ecosysteem Fonds",
+      "ecosystemDesc": "Mijlpaalgebaseerd, DAO-goedkeuring",
+      "marketing": "Marketing",
+      "marketingDesc": "Multi-sig goedkeuring vereist",
+      "liquidity": "Liquiditeit",
+      "liquidityDesc": "100% beschikbaar bij TGE",
+      "treasury": "Schatkist",
+      "treasuryDesc": "75% DAO-goedkeuring vereist",
+      "reserve": "Reserve",
+      "reserveDesc": "Protocol noodbuffer"
+    },
+    "fees": {
+      "title": "Fee Distributie",
+      "description": "Transactiekosten worden verdeeld over alle drie mining streams en de protocol schatkist.",
+      "streamA": "Stream A Miners",
+      "streamB": "Stream B Miners",
+      "streamC": "Stream C Validators",
+      "treasury": "Protocol Schatkist"
+    },
+    "staking": {
+      "title": "Staking Parameters",
+      "validatorStake": "Validator Minimum",
+      "minDelegation": "Delegatie Minimum",
+      "providerStake": "AI Provider Stake",
+      "unbonding": "Ontgrendelingsperiode",
+      "doubleSign": "Dubbele-Handtekening Straf",
+      "downtime": "Downtime Straf"
+    },
+    "emission": {
+      "title": "Emissie Schema",
+      "description": "Mining beloningen nemen af in de tijd volgens een halving schema.",
+      "year1": "Jaar 1",
+      "year2": "Jaar 2",
+      "year3": "Jaar 3",
+      "year4": "Jaar 4+",
+      "miningRate": "van totale mining",
+      "cumulative": "Cumulatief Gemined"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "Mining & Staking",
+      "subtitle": "Meerdere manieren om beloningen te verdienen en het PYRAX netwerk te beveiligen."
+    },
+    "overview": {
+      "title": "Drie Mining Streams",
+      "description": "PYRAX heeft drie parallelle mining streams met unieke algoritmes en hardwarevereisten."
+    },
+    "labels": {
+      "reward": "Beloningsaandeel",
+      "mining": "Mining",
+      "requirements": "Hardwarevereisten",
+      "howToStart": "Hoe te Beginnen"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "ASIC Mining met BLAKE3",
+      "hardware": "Geoptimaliseerd voor gespecialiseerde ASIC hardware voor maximale efficiëntie.",
+      "req1Label": "Algoritme",
+      "req1Value": "BLAKE3",
+      "req2Label": "Hardware",
+      "req2Value": "ASIC Miners",
+      "req3Label": "Bloktijd",
+      "req3Value": "10 seconden",
+      "req4Label": "Beloningsaandeel",
+      "req4Value": "50%",
+      "step1": "Koop of bouw een BLAKE3-compatibele ASIC miner",
+      "step2": "Download en configureer de PYRAX mining software",
+      "step3": "Verbind met een mining pool of draai solo mining",
+      "step4": "Start met minen en verdien PYRAX beloningen"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "GPU Mining met KAWPOW",
+      "hardware": "ASIC-resistent algoritme ontworpen voor consumer GPU hardware.",
+      "req1Label": "Algoritme",
+      "req1Value": "KAWPOW",
+      "req2Label": "Hardware",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "Bloktijd",
+      "req3Value": "60 seconden",
+      "req4Label": "Beloningsaandeel",
+      "req4Value": "30%",
+      "step1": "Zorg dat je een compatibele GPU hebt (RTX 20 serie of nieuwer aanbevolen)",
+      "step2": "Download de PYRAX GPU miner met CUDA of OpenCL ondersteuning",
+      "step3": "Configureer je wallet adres en pool instellingen",
+      "step4": "Start met minen en monitor je hashrate"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "Proof of Stake met ZK-STARK",
+      "hardware": "Stake PYRAX tokens om validator te worden en beloningen te verdienen.",
+      "req1Label": "Algoritme",
+      "req1Value": "ZK-STARK",
+      "req2Label": "Minimale Stake",
+      "req2Value": "100.000 PYRAX",
+      "req3Label": "Hardware",
+      "req3Value": "Standaard server",
+      "req4Label": "Beloningsaandeel",
+      "req4Value": "20%",
+      "step1": "Verkrijg minimaal 100.000 PYRAX tokens",
+      "step2": "Stel een validator node in met vereiste specificaties",
+      "step3": "Registreer als validator en stake je tokens",
+      "step4": "Behoud uptime om beloningen te maximaliseren en slashing te vermijden"
+    },
+    "staking": {
+      "title": "Staking Opties",
+      "description": "Meerdere manieren om staking beloningen te verdienen op het PYRAX netwerk.",
+      "validatorTitle": "Draai een Validator",
+      "validatorDesc": "Beheer een validator node om het netwerk te beveiligen en maximale beloningen te verdienen.",
+      "delegationTitle": "Delegeer Je Tokens",
+      "delegationDesc": "Delegeer aan bestaande validators en verdien beloningen zonder infrastructuur te beheren.",
+      "minStake": "Minimale Stake",
+      "apy": "Verwachte APY",
+      "unbonding": "Ontgrendelingsperiode",
+      "slashing": "Slashing Risico",
+      "minDelegation": "Minimale Delegatie",
+      "delegatorApy": "Delegeerder APY",
+      "commission": "Validator Commissie",
+      "rewards": "Beloningsdistributie",
+      "rewardsValue": "Elke epoch"
+    },
+    "cta": {
+      "title": "Klaar om te Beginnen met Minen?",
+      "description": "Download de miner software en word vandaag lid van het netwerk.",
+      "downloadMiner": "Download Miner",
+      "readDocs": "Lees Documentatie"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "Devnet-implementatie", "item8": "Testnet-implementatie" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "BDAG Gemeenschap", "title": "BDAG Community Initiatief", "subtitle": "Het BDAG Community Allocatie Programma beloont bestaande BlockDAG tokenhouders die migreren naar het PYRAX Netwerk. 10 miljard PYRAX tokens (10% van de voorraad) toegewezen aan geverifieerde BDAG gemeenschapsleden." },
+    "stats": { "poolSize": "Pool Grootte", "poolSizeSub": "10% van de voorraad", "allocationRate": "Effectief Allocatiepercentage", "allocationRateSub": "van de oorspronkelijke investering", "cliff": "Cliff Periode", "cliffSub": "voor vrijgave begint", "vesting": "Totale Vesting", "vestingSub": "volledige vesting periode" },
+    "formula": { "title": "Allocatie Formule", "base": "Basis Allocatie", "baseDesc": "van BDAG aankoop (USD)", "bonus": "Bonus", "bonusDesc": "van basis allocatie", "total": "Totaal Percentage", "totalDesc": "van oorspronkelijke investering", "example": "Voorbeeld:", "exampleText": "Als u $1.000 aan BDAG kocht, ontvangt u $250 basis + $62,50 bonus = $312,50 USD aan PYRAX tegen de huidige presale prijs" },
+    "examples": { "title": "Allocatie Voorbeelden", "subtitle": "Bij Fase 1 prijs ($0,0062 per token)", "colPurchase": "BDAG Aankoop", "colBase": "Basis (25%)", "colBonus": "Bonus (25%)", "colTotal": "Totaal USD", "colTokens": "PYRAX Tokens" },
+    "eligibility": { "title": "Geschiktheidsvereisten", "req1": "BDAG tokens bezitten gekocht vóór PYRAX presale aankondiging", "req2": "Verifieerbaar aankoopbewijs leveren (transactie hash)", "req3": "KYC identiteitsverificatie voltooien", "req4": "Claim indienen voor deadline (Wordt bepaald)" },
+    "vesting": { "title": "Vesting Schema", "cliffPeriod": "Cliff Periode", "cliffDesc": "0% vrijgegeven tijdens cliff", "vestingPeriod": "Vesting Periode", "vestingDesc": "8,33% maandelijks vrijgegeven" },
+    "timeline": { "title": "Belangrijke Tijdlijn", "claimOpens": "Claim Venster Opent", "deadline": "Claim Deadline", "tge": "Token Generatie", "cliffEnds": "Cliff Eindigt", "fullyVested": "Volledig Verworven" },
+    "burn": { "title": "Niet-geclaimde Tokens Verbrand", "subtitle": "Alle tokens die niet voor de deadline zijn geclaimd worden permanent verbrand. Er is geen verlenging of uitstelperiode.", "benefit1": "Deflationair mechanisme", "benefit2": "Beloont actieve deelnemers", "benefit3": "Voorkomt misbruik", "benefit4": "Duidelijke deadline motiveert actie" },
+    "claimEarly": { "title": "Claim Vroeg voor Meer Tokens", "subtitle": "Eerder claimen (Fase 1) geeft meer tokens omdat de prijs lager is. Claimen in Fase 4 resulteert in minder tokens voor dezelfde USD allocatie." },
+    "cta": { "title": "Dien Uw Claim In", "submit": "Verifieer uw BDAG bezit en claim PYRAX", "viewVesting": "Bekijk Vesting Details", "portalDisclaimer": "Het claimportaal is nog niet open. Volg ons op social media om op de hoogte te worden gebracht wanneer het portaal opent." }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "network": "devnet",
+  "chain_id": 3,
+  "timestamp": 1735689600,
+  "timestamp_human": "2025-01-01T00:00:00Z",
+  "difficulty": 1,
+  "block_reward": 5000000000,
+  "block_reward_human": "50 PYRAX",
+  "stream": 0,
+  "version": 1,
+  "beneficiary": "0x0000000000000000000000000000000000000000",
+  "extra_data": "PYRAX Devnet Genesis",
+  "allocations": [],
+  "expected_hash": null,
+  "notes": "Devnet genesis - minimal difficulty for development"
+}

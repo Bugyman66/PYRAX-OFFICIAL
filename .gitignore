@@ -1,0 +1,74 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# C++/Miner
+pyrax-miner/build/
+pyrax-miner/cmake-build-*/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Node modules (Explorer/Desktop frontend)
+node_modules/
+dist/
+.next/
+.nuxt/
+
+# Tauri
+pyrax-desktop/src-tauri/target/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# SSL Certificates (deployment)
+deployment/ssl/
+
+# Data directories
+data/
+chaindata/
+*.db
+*.log
+
+# Test artifacts
+*.tmp
+coverage/
+.nyc_output/
+
+# Build artifacts
+*.wasm
+*.wat
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# CUDA/OpenCL build
+*.ptx
+*.cubin
+*.fatbin
+
+# DAG files (large)
+*.dag
+*.cache
+
+# Other Docs
+/EXECUTIVE_STRATEGY.md

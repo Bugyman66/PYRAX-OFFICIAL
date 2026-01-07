@@ -1,0 +1,56 @@
+[package]
+name = "pyrax-ai"
+version = "0.1.0"
+edition = "2021"
+authors = ["PYRAX Team"]
+license = "MIT"
+description = "PYRAX AI Marketplace - Foundry and Crucible services"
+
+[lib]
+name = "pyrax_ai"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pyrax-ai-worker"
+path = "src/bin/worker.rs"
+
+[dependencies]
+# Async
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3"
+
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "postgres"] }
+
+# IPFS/Storage
+ipfs-api-backend-hyper = "0.6"
+reqwest = { version = "0.11", features = ["json"] }
+
+# Crypto
+sha2 = "0.10"
+hex = "0.4"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Config
+config = "0.14"
+dotenvy = "0.15"
+
+[dev-dependencies]
+tempfile = "3.9"

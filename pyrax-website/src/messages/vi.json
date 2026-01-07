@@ -1,0 +1,748 @@
+{
+  "metadata": {
+    "title": "PYRAX - The Future of Decentralized AI Compute",
+    "description": "PYRAX is a next-generation Layer 1 blockchain combining TriStream DAG consensus with a decentralized AI compute marketplace. GPU miners secure the network AND provide AI compute power."
+  },
+  "nav": {
+    "home": "Trang chủ",
+    "blockchain": "Blockchain",
+    "technology": "Công nghệ",
+    "technologyDesc": "TriStream DAG, EVM, ZK-Rollups",
+    "tokenomicsDesc": "Phân phối và kinh tế token",
+    "miningDesc": "Luồng đào GPU và ASIC",
+    "roadmapDesc": "Lộ trình phát triển",
+    "resources": "Tài nguyên",
+    "downloads": "Tải xuống",
+    "downloadsDesc": "Ứng dụng desktop cho mọi nền tảng",
+    "tristream": "TriStream DAG",
+    "tristreamDesc": "Three-stream DAG consensus",
+    "evmSidechain": "EVM Sidechain",
+    "evmDesc": "Solidity smart contracts",
+    "zkRollups": "ZK-Rollups",
+    "zkDesc": "Layer 2 scaling solution",
+    "wasmContracts": "WASM Contracts",
+    "wasmDesc": "Rust smart contracts",
+    "cryptography": "Cryptography",
+    "cryptoDesc": "Security primitives",
+    "aiPlatform": "AI Platform",
+    "foundry": "Foundry",
+    "foundryDesc": "Model registry & versioning",
+    "crucible": "Crucible",
+    "crucibleDesc": "Job execution engine",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Buy & sell compute",
+    "providers": "Providers",
+    "providersDesc": "GPU compute providers",
+    "ecosystem": "Ecosystem",
+    "explorer": "Block Explorer",
+    "explorerDesc": "Explore blocks & transactions",
+    "wallet": "Desktop Wallet",
+    "walletDesc": "Secure desktop application",
+    "miner": "GPU Miner",
+    "minerDesc": "KAWPOW mining software",
+    "docs": "Documentation",
+    "docsDesc": "Developer guides & API",
+    "github": "GitHub",
+    "githubDesc": "Open source repositories",
+    "tokenomics": "Tokenomics",
+    "distribution": "Distribution",
+    "distributionDesc": "Token allocation details",
+    "staking": "Staking",
+    "stakingDesc": "Validator & delegation",
+    "feeStructure": "Fee Structure",
+    "feesDesc": "Gas fee distribution",
+    "emission": "Emission Schedule",
+    "emissionDesc": "Mining reward timeline",
+    "mining": "Mining",
+    "streamAMining": "Stream A (BLAKE3)",
+    "streamADesc": "ASIC mining stream",
+    "streamBMining": "Stream B (KAWPOW)",
+    "streamBDesc": "GPU mining stream",
+    "streamCStaking": "Stream C (ZK-STARK)",
+    "streamCDesc": "Proof of stake stream",
+    "validatorStaking": "Validator Staking",
+    "validatorDesc": "Run a validator node",
+    "community": "Cộng đồng",
+    "discord": "Discord",
+    "discordDesc": "Tham gia máy chủ Discord",
+    "twitter": "Twitter",
+    "twitterDesc": "Theo dõi trên Twitter",
+    "telegram": "Telegram",
+    "telegramDesc": "Tham gia nhóm Telegram",
+    "reddit": "Reddit",
+    "redditDesc": "Tham gia cộng đồng Reddit",
+    "facebook": "Facebook",
+    "facebookDesc": "Theo dõi trang Facebook",
+    "instagram": "Instagram",
+    "instagramDesc": "Theo dõi trên Instagram",
+    "facebookGroup": "Nhóm Facebook",
+    "facebookGroupDesc": "Tham gia cộng đồng Facebook",
+    "roadmap": "Lộ trình",
+    "whitepaper": "Whitepaper",
+    "getStarted": "Get Started",
+    "launchApp": "Khởi chạy ứng dụng",
+    "launchExplorer": "Khởi chạy Explorer",
+    "featured": "Nổi bật",
+    "explore": "Khám phá",
+    "viewAll": "Xem tất cả",
+    "aiCompute": "Tính toán AI",
+    "developerTools": "Công cụ phát triển",
+    "openSource": "Mã nguồn mở",
+    "buildOnPyrax": "Xây dựng trên PYRAX với SDK và tài liệu toàn diện của chúng tôi.",
+    "joinMovement": "Tham gia phong trào",
+    "growingFast": "Phát triển nhanh",
+    "connectCommunity": "Kết nối với thợ đào, nhà phát triển và người đam mê từ khắp nơi trên thế giới.",
+    "language": "Ngôn ngữ",
+    "aiSystems": "Hệ thống AI",
+    "aiSystemsDesc": "Nền tảng tính toán AI phi tập trung với đăng ký mô hình và thực thi công việc.",
+    "dao": "PYRAX DAO",
+    "daoDesc": "Quản trị phi tập trung cho mạng PYRAX",
+    "bdagCommunity": "Cộng đồng BDAG",
+    "bdagCommunityDesc": "Phân bổ token cho người nắm giữ BlockDAG"
+  },
+  "daoPage": {
+    "title": "PYRAX DAO",
+    "subtitle": "Tổ chức Tự trị Phi tập trung",
+    "comingSoon": "Cấu trúc DAO sắp ra mắt",
+    "description": "Chúng tôi đang xây dựng một hệ thống quản trị phi tập trung toàn diện sẽ trao quyền cho cộng đồng PYRAX tham gia vào các quyết định quan trọng về tương lai của mạng."
+  },
+  "hero": {
+    "badge": "Mainnet Q3 2026",
+    "title": "Tương lai của",
+    "titleHighlight": "AI Phi tập trung",
+    "subtitle": "PYRAX kết hợp đồng thuận TriStream DAG cách mạng với thị trường tính toán AI phi tập trung. Thợ đào GPU bảo vệ mạng lưới VÀ cung cấp sức mạnh tính toán AI.",
+    "cta": {
+      "primary": "Khám phá Công nghệ",
+      "secondary": "Đọc Whitepaper"
+    },
+    "stats": {
+      "tps": "500K+ TPS",
+      "tpsLabel": "Thông lượng L2",
+      "blockTime": "2 giây",
+      "blockTimeLabel": "Thời gian khối EVM",
+      "supply": "100 tỷ",
+      "supplyLabel": "Tổng cung",
+      "streams": "3",
+      "streamsLabel": "Luồng đào"
+    }
+  },
+  "features": {
+    "title": "Tại sao chọn PYRAX?",
+    "subtitle": "Một blockchain được xây dựng cho kỷ nguyên AI với bảo mật, khả năng mở rộng và tích hợp tính toán AI native chưa từng có.",
+    "tristream": {
+      "title": "Đồng thuận TriStream DAG",
+      "description": "Ba luồng đào song song (ASIC, GPU, ZK) cung cấp bảo mật và phi tập trung tối đa. Sắp xếp GHOSTDAG đảm bảo tính cuối cùng nhanh chóng.",
+      "streamA": "Stream A: BLAKE3 (ASIC) - 10s blocks",
+      "streamB": "Stream B: KAWPOW (GPU) - 60s blocks",
+      "streamC": "Stream C: ZK-STARK - Checkpoint finality"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Full Solidity 0.8.x compatibility with 2-second blocks and 1,000-5,000 TPS. Deploy your existing smart contracts seamlessly.",
+      "feature1": "Full Ethereum compatibility",
+      "feature2": "2-second block time",
+      "feature3": "Native L1 bridge"
+    },
+    "zkrollup": {
+      "title": "ZK-Rollups",
+      "description": "Layer 2 scaling to 500,000+ TPS with STARK, SNARK, Plonk, and Groth16 proof support. Decentralized sequencer network.",
+      "feature1": "500K+ transactions per second",
+      "feature2": "Multi-proof scheme support",
+      "feature3": "7-day challenge period"
+    },
+    "ai": {
+      "title": "Native AI Marketplace",
+      "description": "Decentralized AI compute marketplace with on-chain job settlement. Run inference, training, and fine-tuning jobs on a global GPU network.",
+      "feature1": "Model registry with versioning",
+      "feature2": "Multi-node verification",
+      "feature3": "Automatic payment settlement"
+    },
+    "wasm": {
+      "title": "Rust/WASM Contracts",
+      "description": "Write high-performance smart contracts in Rust. Cross-VM interoperability allows EVM and WASM contracts to call each other.",
+      "feature1": "Wasmtime runtime",
+      "feature2": "EVM ↔ WASM interop",
+      "feature3": "Fuel-based gas metering"
+    },
+    "mining": {
+      "title": "Dual-Purpose Mining",
+      "description": "GPU miners earn rewards for securing the network AND can provide AI compute power. Maximize your hardware ROI.",
+      "feature1": "KAWPOW ASIC-resistant mining",
+      "feature2": "AI job execution rewards",
+      "feature3": "Staking validator rewards"
+    }
+  },
+  "aiPlatform": {
+    "title": "Nền Tảng Tính Toán AI",
+    "subtitle": "Sàn giao dịch AI blockchain-native đầu tiên trên thế giới với tính toán có thể xác minh và thanh toán tự động.",
+    "foundry": {
+      "title": "Foundry",
+      "subtitle": "Sổ Đăng Ký Mô Hình",
+      "description": "Đăng ký, quản lý phiên bản và khám phá các mô hình AI. Theo dõi benchmark, đánh giá và yêu cầu phần cứng.",
+      "features": {
+        "registration": "Đăng Ký Mô Hình",
+        "registrationDesc": "Đăng ký mô hình với metadata, benchmark và giá cả",
+        "versioning": "Quản Lý Phiên Bản",
+        "versioningDesc": "Theo dõi phiên bản mô hình với lịch sử đầy đủ và so sánh",
+        "discovery": "Khám Phá Mô Hình",
+        "discoveryDesc": "Tìm kiếm và lọc mô hình theo loại, thẻ và đánh giá"
+      }
+    },
+    "crucible": {
+      "title": "Crucible",
+      "subtitle": "Công Cụ Thực Thi Công Việc",
+      "description": "Gửi công việc AI và được thực thi bởi mạng lưới nhà cung cấp GPU toàn cầu với kết quả có thể xác minh.",
+      "features": {
+        "submission": "Gửi Công Việc",
+        "submissionDesc": "Gửi công việc suy luận, huấn luyện hoặc tinh chỉnh",
+        "execution": "Thực Thi Phân Tán",
+        "executionDesc": "Công việc được tự động khớp với nhà cung cấp tối ưu",
+        "verification": "Xác Minh Kết Quả",
+        "verificationDesc": "Đồng thuận đa nút hoặc xác minh bằng chứng ZK"
+      }
+    },
+    "jobTypes": {
+      "title": "Loại Công Việc Được Hỗ Trợ",
+      "inference": "Suy Luận",
+      "inferenceDesc": "Dự đoán và tạo mô hình thời gian thực",
+      "training": "Huấn Luyện",
+      "trainingDesc": "Huấn luyện mô hình đầy đủ từ đầu",
+      "fineTuning": "Tinh Chỉnh",
+      "fineTuningDesc": "Điều chỉnh mô hình hiện có cho dữ liệu của bạn",
+      "embedding": "Nhúng",
+      "embeddingDesc": "Tạo nhúng vector cho tìm kiếm",
+      "imageGen": "Tạo Hình Ảnh",
+      "imageGenDesc": "Tạo hình ảnh với mô hình khuếch tán",
+      "batch": "Xử Lý Hàng Loạt",
+      "batchDesc": "Xử lý dữ liệu khối lượng lớn"
+    },
+    "providerTiers": {
+      "title": "Cấp Nhà Cung Cấp",
+      "hobbyist": "Nghiệp Dư",
+      "hobbyistGpu": "1x RTX 3080+",
+      "hobbyistStake": "1.000 PYRAX stake",
+      "hobbyistRevenue": "200-500 PYRAX/tháng",
+      "professional": "Chuyên Nghiệp",
+      "professionalGpu": "4x RTX 4090",
+      "professionalStake": "5.000 PYRAX stake",
+      "professionalRevenue": "1.500-3.000 PYRAX/tháng",
+      "enterprise": "Doanh Nghiệp",
+      "enterpriseGpu": "8x A100/H100",
+      "enterpriseStake": "25.000 PYRAX stake",
+      "enterpriseRevenue": "5.000-15.000 PYRAX/tháng"
+    }
+  },
+  "tokenomics": {
+    "title": "Kinh Tế Token",
+    "subtitle": "Mô hình kinh tế được thiết kế cẩn thận đảm bảo tính bền vững dài hạn và phân phối công bằng.",
+    "overview": {
+      "name": "Tên Token",
+      "nameValue": "PYRAX",
+      "symbol": "Ký Hiệu",
+      "symbolValue": "$PYRAX",
+      "supply": "Tổng Cung",
+      "supplyValue": "100.000.000.000",
+      "decimals": "Số Thập Phân",
+      "decimalsValue": "8"
+    },
+    "distribution": {
+      "title": "Phân Phối Token",
+      "presale": "Bán Trước",
+      "presalePercent": "15%",
+      "presaleDesc": "30% TGE, 1 tháng cliff, 12 tháng vesting",
+      "bdagCommunity": "Cộng Đồng BDAG",
+      "bdagPercent": "10%",
+      "bdagDesc": "12 tháng cliff, 12 tháng vesting",
+      "mining": "Phần Thưởng Đào",
+      "miningPercent": "35%",
+      "miningDesc": "Mỗi block đào (halving ~4 năm)",
+      "zkProver": "Phần Thưởng ZK Prover",
+      "zkPercent": "5%",
+      "zkDesc": "Mỗi chứng thực (10% đốt)",
+      "team": "Đội Ngũ & Nhà Sáng Lập",
+      "teamPercent": "4%",
+      "teamDesc": "12 tháng cliff, 48 tháng vesting",
+      "advisors": "Cố Vấn",
+      "advisorsPercent": "3%",
+      "advisorsDesc": "12 tháng cliff, 48 tháng vesting",
+      "ecosystem": "Hệ Sinh Thái",
+      "ecosystemPercent": "10%",
+      "ecosystemDesc": "Dựa trên mốc, phê duyệt DAO",
+      "marketing": "Tiếp Thị",
+      "marketingPercent": "5%",
+      "marketingDesc": "Phê duyệt multi-sig",
+      "liquidity": "Thanh Khoản",
+      "liquidityPercent": "10%",
+      "liquidityDesc": "100% tại TGE",
+      "treasury": "Ngân Quỹ",
+      "treasuryPercent": "2%",
+      "treasuryDesc": "Yêu cầu 75% phê duyệt DAO",
+      "reserve": "Dự Trữ",
+      "reservePercent": "1%",
+      "reserveDesc": "Bộ đệm giao thức"
+    },
+    "feeDistribution": {
+      "title": "Phân Phối Phí Gas",
+      "streamA": "Thợ Đào Stream A",
+      "streamAPercent": "20%",
+      "streamB": "Thợ Đào Stream B",
+      "streamBPercent": "40%",
+      "streamC": "Người Xác Thực Stream C",
+      "streamCPercent": "30%",
+      "treasury": "Ngân Quỹ Giao Thức",
+      "treasuryPercent": "10%"
+    },
+    "staking": {
+      "title": "Tham Số Staking",
+      "validatorStake": "Stake Người Xác Thực",
+      "validatorStakeValue": "100.000 PYRAX",
+      "minDelegation": "Ủy Quyền Tối Thiểu",
+      "minDelegationValue": "100 PYRAX",
+      "providerStake": "Stake Nhà Cung Cấp",
+      "providerStakeValue": "1.000 PYRAX",
+      "unbonding": "Thời Gian Mở Khóa",
+      "unbondingValue": "7 ngày",
+      "doubleSign": "Phạt Ký Đôi",
+      "doubleSignValue": "5%",
+      "downtime": "Phạt Ngừng Hoạt Động",
+      "downtimeValue": "0,1%"
+    }
+  },
+  "roadmap": {
+    "title": "Lộ Trình",
+    "subtitle": "Hành trình cách mạng hóa tính toán AI phi tập trung.",
+    "q1_2026": {
+      "title": "Q1 2026",
+      "subtitle": "Nền Tảng",
+      "status": "completed",
+      "items": [
+        "Node lõi với đào BLAKE3 PoW",
+        "Mạng P2P (libp2p, GossipSub)",
+        "Lớp lưu trữ RocksDB",
+        "Server API JSON-RPC",
+        "Ứng dụng ví desktop",
+        "Công cụ đào GPU (CUDA/OpenCL)"
+      ]
+    },
+    "q2_2026": {
+      "title": "Q2 2026",
+      "subtitle": "Mở Rộng Nền Tảng",
+      "status": "in-progress",
+      "items": [
+        "Ra mắt testnet công khai",
+        "Kích hoạt EVM sidechain",
+        "Runtime hợp đồng Rust/WASM",
+        "Beta sàn AI",
+        "Phát triển ví di động",
+        "Chuẩn bị niêm yết sàn"
+      ]
+    },
+    "q3_2026": {
+      "title": "Q3 2026",
+      "subtitle": "Ra Mắt Mainnet",
+      "status": "upcoming",
+      "items": [
+        "Hoàn thành kiểm toán bảo mật",
+        "Tạo block genesis",
+        "Triển khai node seed",
+        "Niêm yết CEX/DEX",
+        "Ra mắt nền tảng AI",
+        "Kích hoạt cầu nối"
+      ]
+    },
+    "q4_2026": {
+      "title": "Q4 2026",
+      "subtitle": "Mở Rộng Quy Mô",
+      "status": "upcoming",
+      "items": [
+        "Đối tác doanh nghiệp",
+        "Cầu cross-chain (ETH, BSC)",
+        "Tính năng AI nâng cao",
+        "Mở rộng node toàn cầu",
+        "Tối ưu hóa hiệu suất",
+        "Ra mắt quản trị DAO"
+      ]
+    }
+  },
+  "technology": {
+    "title": "Chi Tiết Công Nghệ",
+    "subtitle": "Khám phá công nghệ đổi mới đằng sau PYRAX.",
+    "architecture": {
+      "title": "Tổng Quan Kiến Trúc",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "500K+ TPS cho AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Solidity 0.8.x, Rust/WASM, Cầu L1",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "Sắp xếp GHOSTDAG, 3 luồng đào"
+    },
+    "consensus": {
+      "title": "Đồng Thuận TriStream",
+      "description": "Ba luồng song song phối hợp để cung cấp bảo mật và phi tập trung chưa từng có.",
+      "streamA": {
+        "name": "Stream A",
+        "algorithm": "BLAKE3",
+        "type": "Đào ASIC",
+        "blockTime": "10 giây",
+        "reward": "50 PYRAX/block",
+        "feeShare": "20%"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "algorithm": "KAWPOW",
+        "type": "Đào GPU",
+        "blockTime": "60 giây",
+        "reward": "100 PYRAX/block",
+        "feeShare": "40%"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "algorithm": "ZK-STARK",
+        "type": "Proof of Stake",
+        "blockTime": "Thay đổi",
+        "reward": "10 PYRAX/checkpoint",
+        "feeShare": "30%"
+      }
+    },
+    "cryptography": {
+      "title": "Nguyên Hàm Mật Mã",
+      "addressDerivation": "Dẫn Xuất Địa Chỉ",
+      "addressValue": "Keccak-256 (tương thích EVM)",
+      "blockHash": "Hash Tiêu Đề Block",
+      "blockHashValue": "BLAKE3 / KAWPOW",
+      "txHash": "Hash Giao Dịch",
+      "txHashValue": "Keccak-256",
+      "signatures": "Chữ Ký",
+      "signaturesValue": "ECDSA secp256k1",
+      "zkProofs": "Bằng Chứng ZK",
+      "zkProofsValue": "STARK, SNARK, Plonk, Groth16"
+    }
+  },
+  "ecosystem": {
+    "title": "Hệ Sinh Thái",
+    "subtitle": "Bộ công cụ và ứng dụng hoàn chỉnh cho mạng PYRAX.",
+    "products": {
+      "node": {
+        "title": "Node PYRAX",
+        "description": "Node blockchain lõi với đồng thuận, mạng P2P và server RPC.",
+        "language": "Rust",
+        "status": "Hoàn Thành"
+      },
+      "miner": {
+        "title": "Công Cụ Đào GPU",
+        "description": "Công cụ đào KAWPOW hiệu suất cao với hỗ trợ CUDA và OpenCL.",
+        "language": "C++/CUDA",
+        "status": "Hoàn Thành"
+      },
+      "desktop": {
+        "title": "Ví Desktop",
+        "description": "Ứng dụng desktop đầy đủ tính năng với ví, quản lý node và đào.",
+        "language": "Tauri/Rust",
+        "status": "Hoàn Thành"
+      },
+      "explorer": {
+        "title": "Trình Duyệt Block",
+        "description": "Trình duyệt blockchain thời gian thực với bảng điều khiển AI và phân tích.",
+        "language": "Next.js",
+        "status": "Hoàn Thành"
+      },
+      "wallet": {
+        "title": "Thư Viện Ví",
+        "description": "Thư viện ví lõi với dẫn xuất HD, ký và quản lý khóa.",
+        "language": "Rust",
+        "status": "Hoàn Thành"
+      },
+      "ai": {
+        "title": "Nền Tảng AI",
+        "description": "Sàn AI phi tập trung với sổ đăng ký mô hình và thực thi công việc.",
+        "language": "Rust",
+        "status": "Hoàn Thành"
+      }
+    }
+  },
+  "cta": {
+    "title": "Sẵn Sàng Xây Dựng Tương Lai?",
+    "subtitle": "Tham gia cộng đồng PYRAX và trở thành một phần của cuộc cách mạng AI phi tập trung.",
+    "buttons": {
+      "explorer": "Mở Trình Duyệt",
+      "docs": "Đọc Tài Liệu",
+      "discord": "Tham Gia Discord"
+    }
+  },
+  "footer": {
+    "description": "PYRAX là blockchain Layer 1 thế hệ mới kết hợp đồng thuận TriStream DAG với sàn tính toán AI phi tập trung.",
+    "technology": "Công Nghệ",
+    "resources": "Tài Nguyên",
+    "community": "Cộng Đồng",
+    "legal": "Pháp Lý",
+    "whitepaper": "Whitepaper",
+    "documentation": "Tài Liệu",
+    "github": "GitHub",
+    "brandKit": "Bộ Thương Hiệu",
+    "privacyPolicy": "Chính Sách Bảo Mật",
+    "termsOfService": "Điều Khoản Dịch Vụ",
+    "copyright": "© 2026 PYRAX. Bảo lưu mọi quyền."
+  },
+  "technologyPage": {
+    "hero": {
+      "title": "Công Nghệ",
+      "subtitle": "Khám phá kiến trúc đổi mới đằng sau blockchain PYRAX."
+    },
+    "tristream": {
+      "title": "Đồng Thuận TriStream DAG",
+      "description": "Ba luồng đào song song cung cấp bảo mật, phi tập trung và thông lượng chưa từng có."
+    },
+    "streams": {
+      "streamA": {
+        "name": "Stream A",
+        "type": "Đào ASIC",
+        "description": "Đào BLAKE3 thông lượng cao được tối ưu hóa cho phần cứng chuyên dụng. Cung cấp bảo mật lớp cơ sở.",
+        "feature1": "Hàm hash BLAKE3",
+        "feature2": "Thời gian block 10 giây",
+        "feature3": "50% phần thưởng block",
+        "feature4": "Tối ưu cho thợ đào ASIC"
+      },
+      "streamB": {
+        "name": "Stream B",
+        "type": "Đào GPU",
+        "description": "Thuật toán KAWPOW đảm bảo khả năng chống ASIC, cho phép tham gia đào GPU công bằng.",
+        "feature1": "Thuật toán KAWPOW",
+        "feature2": "Thời gian block 60 giây",
+        "feature3": "30% phần thưởng block",
+        "feature4": "Thiết kế chống ASIC"
+      },
+      "streamC": {
+        "name": "Stream C",
+        "type": "Proof of Stake",
+        "description": "Người xác thực ZK-STARK cung cấp checkpoint finalit và nhận phần thưởng staking.",
+        "feature1": "Bằng chứng ZK-STARK",
+        "feature2": "Finality checkpoint",
+        "feature3": "20% phần thưởng block",
+        "feature4": "100.000 PYRAX stake"
+      }
+    },
+    "labels": {
+      "algorithm": "Thuật Toán",
+      "type": "Loại",
+      "blockTime": "Thời Gian Block",
+      "reward": "Phần Thưởng",
+      "features": "Tính Năng Chính"
+    },
+    "architecture": {
+      "title": "Kiến Trúc Phân Lớp",
+      "description": "PYRAX sử dụng kiến trúc đa lớp để đạt khả năng mở rộng tối đa.",
+      "layer3": "Layer 3: ZK-Rollups",
+      "layer3Desc": "Rollup ứng dụng cụ thể cho AI, DeFi, Gaming",
+      "layer2": "Layer 2: EVM Sidechain",
+      "layer2Desc": "Hợp đồng thông minh Solidity 0.8.x & Rust/WASM",
+      "layer1": "Layer 1: TriStream DAG",
+      "layer1Desc": "Đồng thuận GHOSTDAG với 3 luồng đào"
+    },
+    "evm": {
+      "title": "EVM Sidechain",
+      "description": "Tương thích đầy đủ Ethereum Virtual Machine cho phép triển khai liền mạch các hợp đồng thông minh hiện có.",
+      "feature1": "Hỗ trợ Solidity 0.8.x",
+      "feature2": "Thời gian block 2 giây",
+      "feature3": "Thông lượng 1.000-5.000 TPS",
+      "feature4": "Cầu L1 native",
+      "feature5": "Tương tác EVM ↔ WASM",
+      "specs": "Thông Số Kỹ Thuật",
+      "specBlockTime": "Thời Gian Block",
+      "specTps": "Thông Lượng",
+      "specSolidity": "Phiên Bản Solidity",
+      "specChainId": "Chain ID",
+      "specGasUnit": "Đơn Vị Gas"
+    },
+    "zkrollups": {
+      "title": "ZK-Rollups Layer 2",
+      "description": "Zero-knowledge rollup cung cấp khả năng mở rộng lớn trong khi kế thừa bảo mật L1.",
+      "feature1Title": "500K+ TPS",
+      "feature1Desc": "Thông lượng lớn cho ứng dụng AI và DeFi",
+      "feature2Title": "Hỗ Trợ Đa Bằng Chứng",
+      "feature2Desc": "Các schema STARK, SNARK, Plonk và Groth16",
+      "feature3Title": "Sequencer Phi Tập Trung",
+      "feature3Desc": "Không có điểm thất bại hoặc kiểm duyệt đơn lẻ"
+    },
+    "crypto": {
+      "title": "Nguyên Hàm Mật Mã",
+      "description": "Nguyên hàm mật mã tiêu chuẩn ngành đảm bảo bảo mật và khả năng tương tác.",
+      "addressLabel": "Dẫn Xuất Địa Chỉ",
+      "blockHashLabel": "Hash Block",
+      "txHashLabel": "Hash Giao Dịch",
+      "signaturesLabel": "Chữ Ký",
+      "zkProofsLabel": "Bằng Chứng ZK",
+      "merkleLabel": "Cây Merkle"
+    }
+  },
+  "tokenomicsPage": {
+    "hero": {
+      "title": "Kinh Tế Token",
+      "subtitle": "Mô hình kinh tế được thiết kế cẩn thận đảm bảo tính bền vững dài hạn và phân phối công bằng."
+    },
+    "overview": {
+      "name": "Tên Token",
+      "symbol": "Ký Hiệu",
+      "supply": "Tổng Cung",
+      "decimals": "Số Thập Phân"
+    },
+    "distribution": {
+      "title": "Phân Phối Token",
+      "subtitle": "100 tỷ PYRAX được phân bổ cho đào, cộng đồng, đội ngũ và hệ sinh thái.",
+      "presale": "Bán Trước",
+      "presaleDesc": "30% TGE, 1 tháng cliff, 12 tháng vesting",
+      "bdagCommunity": "Cộng Đồng BDAG",
+      "bdagDesc": "12 tháng cliff, 12 tháng vesting",
+      "mining": "Phần Thưởng Đào",
+      "miningDesc": "Mỗi block đào (halving ~4 năm)",
+      "zkProver": "Phần Thưởng ZK Prover",
+      "zkDesc": "Mỗi chứng thực (10% đốt)",
+      "team": "Đội Ngũ & Nhà Sáng Lập",
+      "teamDesc": "12 tháng cliff, 48 tháng vesting",
+      "advisors": "Cố Vấn",
+      "advisorsDesc": "12 tháng cliff, 48 tháng vesting",
+      "ecosystem": "Quỹ Hệ Sinh Thái",
+      "ecosystemDesc": "Dựa trên mốc, phê duyệt DAO",
+      "marketing": "Tiếp Thị",
+      "marketingDesc": "Yêu cầu phê duyệt multi-sig",
+      "liquidity": "Thanh Khoản",
+      "liquidityDesc": "100% có sẵn tại TGE",
+      "treasury": "Ngân Quỹ",
+      "treasuryDesc": "Yêu cầu 75% phê duyệt DAO",
+      "reserve": "Dự Trữ",
+      "reserveDesc": "Bộ đệm khẩn cấp giao thức"
+    },
+    "fees": {
+      "title": "Phân Phối Phí",
+      "description": "Phí giao dịch được phân phối cho cả ba luồng đào và ngân quỹ giao thức.",
+      "streamA": "Thợ Đào Stream A",
+      "streamB": "Thợ Đào Stream B",
+      "streamC": "Người Xác Thực Stream C",
+      "treasury": "Ngân Quỹ Giao Thức"
+    },
+    "staking": {
+      "title": "Tham Số Staking",
+      "validatorStake": "Tối Thiểu Người Xác Thực",
+      "minDelegation": "Tối Thiểu Ủy Quyền",
+      "providerStake": "Stake Nhà Cung Cấp AI",
+      "unbonding": "Thời Gian Mở Khóa",
+      "doubleSign": "Phạt Ký Đôi",
+      "downtime": "Phạt Ngừng Hoạt Động"
+    },
+    "emission": {
+      "title": "Lịch Phát Hành",
+      "description": "Phần thưởng đào giảm theo thời gian theo lịch halving.",
+      "year1": "Năm 1",
+      "year2": "Năm 2",
+      "year3": "Năm 3",
+      "year4": "Năm 4+",
+      "miningRate": "tổng đào",
+      "cumulative": "Tổng Đào Tích Lũy"
+    }
+  },
+  "miningPage": {
+    "hero": {
+      "title": "Đào & Staking",
+      "subtitle": "Nhiều cách để kiếm phần thưởng và bảo mật mạng PYRAX."
+    },
+    "overview": {
+      "title": "Ba Luồng Đào",
+      "description": "PYRAX có ba luồng đào song song, mỗi luồng có thuật toán và yêu cầu phần cứng riêng."
+    },
+    "labels": {
+      "reward": "Phần Thưởng",
+      "mining": "Đào",
+      "requirements": "Yêu Cầu Phần Cứng",
+      "howToStart": "Cách Bắt Đầu"
+    },
+    "streamA": {
+      "name": "Stream A",
+      "type": "Đào ASIC với BLAKE3",
+      "hardware": "Tối ưu hóa cho phần cứng ASIC chuyên dụng để đạt hiệu quả tối đa.",
+      "req1Label": "Thuật Toán",
+      "req1Value": "BLAKE3",
+      "req2Label": "Phần Cứng",
+      "req2Value": "Máy Đào ASIC",
+      "req3Label": "Thời Gian Block",
+      "req3Value": "10 giây",
+      "req4Label": "Phần Thưởng",
+      "req4Value": "50%",
+      "step1": "Mua hoặc xây dựng máy đào ASIC tương thích BLAKE3",
+      "step2": "Tải và cấu hình phần mềm đào PYRAX",
+      "step3": "Kết nối với pool đào hoặc đào solo",
+      "step4": "Bắt đầu đào và nhận phần thưởng PYRAX"
+    },
+    "streamB": {
+      "name": "Stream B",
+      "type": "Đào GPU với KAWPOW",
+      "hardware": "Thuật toán chống ASIC được thiết kế cho phần cứng GPU tiêu dùng.",
+      "req1Label": "Thuật Toán",
+      "req1Value": "KAWPOW",
+      "req2Label": "Phần Cứng",
+      "req2Value": "NVIDIA/AMD GPUs",
+      "req3Label": "Thời Gian Block",
+      "req3Value": "60 giây",
+      "req4Label": "Phần Thưởng",
+      "req4Value": "30%",
+      "step1": "Đảm bảo bạn có GPU tương thích (khuyến nghị RTX 20 series trở lên)",
+      "step2": "Tải công cụ đào GPU PYRAX với hỗ trợ CUDA hoặc OpenCL",
+      "step3": "Cấu hình địa chỉ ví và cài đặt pool",
+      "step4": "Bắt đầu đào và theo dõi hashrate"
+    },
+    "streamC": {
+      "name": "Stream C",
+      "type": "Proof of Stake với ZK-STARK",
+      "hardware": "Stake token PYRAX để trở thành người xác thực và nhận phần thưởng.",
+      "req1Label": "Thuật Toán",
+      "req1Value": "ZK-STARK",
+      "req2Label": "Stake Tối Thiểu",
+      "req2Value": "100.000 PYRAX",
+      "req3Label": "Phần Cứng",
+      "req3Value": "Server tiêu chuẩn",
+      "req4Label": "Phần Thưởng",
+      "req4Value": "20%",
+      "step1": "Có ít nhất 100.000 token PYRAX",
+      "step2": "Thiết lập node xác thực với thông số yêu cầu",
+      "step3": "Đăng ký làm người xác thực và stake token",
+      "step4": "Duy trì uptime để tối đa hóa phần thưởng và tránh slashing"
+    },
+    "staking": {
+      "title": "Tùy Chọn Staking",
+      "description": "Nhiều cách để kiếm phần thưởng staking trên mạng PYRAX.",
+      "validatorTitle": "Chạy Người Xác Thực",
+      "validatorDesc": "Vận hành node xác thực để bảo mật mạng và nhận phần thưởng tối đa.",
+      "delegationTitle": "Ủy Quyền Token",
+      "delegationDesc": "Ủy quyền cho người xác thực hiện có và nhận phần thưởng mà không cần vận hành hạ tầng.",
+      "minStake": "Stake Tối Thiểu",
+      "apy": "APY Dự Kiến",
+      "unbonding": "Thời Gian Mở Khóa",
+      "slashing": "Rủi Ro Slashing",
+      "minDelegation": "Ủy Quyền Tối Thiểu",
+      "delegatorApy": "APY Người Ủy Quyền",
+      "commission": "Hoa Hồng Người Xác Thực",
+      "rewards": "Phân Phối Phần Thưởng",
+      "rewardsValue": "Mỗi epoch"
+    },
+    "cta": {
+      "title": "Sẵn Sàng Bắt Đầu Đào?",
+      "description": "Tải phần mềm đào và tham gia mạng ngay hôm nay.",
+      "downloadMiner": "Tải Công Cụ Đào",
+      "readDocs": "Đọc Tài Liệu"
+    }
+  },
+  "roadmapPage": { "hero": { "title": "Roadmap", "subtitle": "Our journey to revolutionize decentralized AI compute." }, "status": { "completed": "Completed", "inProgress": "In Progress", "upcoming": "Upcoming", "future": "Future" }, "q1": { "subtitle": "Foundation", "item1": "Core node", "item2": "P2P networking", "item3": "RocksDB storage", "item4": "JSON-RPC API", "item5": "Desktop wallet", "item6": "GPU miner" }, "q2": { "subtitle": "Platform Expansion", "item1": "Public testnet", "item2": "Block explorer", "item3": "EVM sidechain", "item4": "Rust/WASM runtime", "item5": "AI marketplace beta", "item6": "Mobile wallet", "item7": "Triển khai Devnet", "item8": "Triển khai Testnet" }, "q3": { "subtitle": "Mainnet Launch", "item1": "Security audits", "item2": "Genesis block", "item3": "Seed nodes", "item4": "CEX/DEX listings", "item5": "AI platform launch", "item6": "Bridge activations" }, "q4": { "subtitle": "Scale & Growth", "item1": "Enterprise partnerships", "item2": "Cross-chain bridges", "item3": "Advanced AI", "item4": "Global expansion", "item5": "Performance optimizations", "item6": "DAO governance" }, "future": { "subtitle": "Long-term Vision", "item1": "L3 app chains", "item2": "Hardware wallets", "item3": "Enterprise AI", "item4": "Global expansion" }, "progress": { "title": "Development Progress", "subtitle": "Track progress.", "coreNode": "Core Node", "evmSidechain": "EVM Sidechain", "aiPlatform": "AI Platform", "desktop": "Desktop App" } },
+  "foundryPage": { "hero": { "badge": "AI Model Registry", "title": "Foundry", "subtitle": "Decentralized model registry.", "cta1": "How It Works", "cta2": "View Features" }, "onchain": { "title": "How Foundry Works", "subtitle": "Model metadata on blockchain.", "registry": { "title": "Model Registry", "description": "Smart contract for metadata.", "item1": "Immutable records", "item2": "Version history", "item3": "Ownership verification" }, "storage": { "title": "Decentralized Storage", "description": "IPFS/Filecoin storage.", "item1": "IPFS addressing", "item2": "Filecoin persistence", "item3": "Hash verification" }, "verification": { "title": "Model Verification", "description": "Cryptographic proofs.", "item1": "SHA-256 checksums", "item2": "Signature verification", "item3": "Benchmark attestations" } }, "features": { "title": "Core Features", "subtitle": "AI model management.", "registration": { "title": "Model Registration", "description": "Register with metadata.", "detail1": "Name & description", "detail2": "Hardware requirements", "detail3": "Pricing", "detail4": "License info" }, "versioning": { "title": "Semantic Versioning", "description": "Track versions.", "detail1": "Major/minor/patch", "detail2": "Change logs", "detail3": "Version comparison", "detail4": "Deprecation" }, "discovery": { "title": "Model Discovery", "description": "Search and filter.", "detail1": "Category filtering", "detail2": "Performance search", "detail3": "Community ratings", "detail4": "Popularity ranking" }, "benchmarks": { "title": "Benchmarks & Ratings", "description": "Standardized benchmarks.", "detail1": "Speed benchmarks", "detail2": "Quality metrics", "detail3": "User reviews", "detail4": "Provider reputation" } }, "workflow": { "title": "Registration Workflow", "subtitle": "Four steps.", "step1": { "title": "Prepare Model", "description": "Package with metadata." }, "step2": { "title": "Submit Transaction", "description": "Send registration tx." }, "step3": { "title": "Verification", "description": "Network verifies." }, "step4": { "title": "Go Live", "description": "Model discoverable." } } },
+  "cruciblePage": { "hero": { "badge": "Job Execution Engine", "title": "Crucible", "subtitle": "Submit AI jobs with verifiable results." }, "jobTypes": { "inference": "Inference", "training": "Training", "fineTuning": "Fine-Tuning", "embedding": "Embedding" }, "mining": { "title": "GPU Mining Integration", "subtitle": "GPU miners receive AI jobs.", "howItWorks": "How Jobs Reach Your GPU", "step1": { "title": "Job Submission", "description": "Users submit AI jobs." }, "step2": { "title": "Matchmaking", "description": "Jobs matched to providers." }, "step3": { "title": "Execution", "description": "GPU executes task." }, "step4": { "title": "Payment", "description": "Payment released." }, "diagram": { "title": "Job Flow", "jobQueue": "Job Queue", "matchmaker": "Matchmaker", "gpuPool": "GPU Pool", "verification": "Verification" } }, "execution": { "title": "Job Execution Lifecycle", "subtitle": "From submission to settlement." }, "workflow": { "step1": { "title": "Submit", "description": "User submits job", "details": "Job enters queue" }, "step2": { "title": "Match", "description": "Find provider", "details": "Based on hardware" }, "step3": { "title": "Execute", "description": "GPU runs job", "details": "Model inference" }, "step4": { "title": "Verify", "description": "Validate results", "details": "Multi-node verification" }, "step5": { "title": "Settle", "description": "Release payment", "details": "Auto escrow release" } }, "verification": { "title": "Verification Methods", "subtitle": "Multiple strategies.", "consensus": { "title": "Multi-Node Consensus", "description": "Same job by multiple providers.", "detail1": "3-of-5 agreement", "detail2": "Outlier detection" }, "zkproof": { "title": "ZK Proof Verification", "description": "Zero-knowledge proofs.", "detail1": "STARK/SNARK proofs", "detail2": "On-chain verification" }, "dispute": { "title": "Dispute Resolution", "description": "Stake-weighted arbitration.", "detail1": "7-day challenge period", "detail2": "Slashing for bad actors" } } },
+  "downloadsPage": { "hero": { "badge": "Desktop Application", "title": "PYRAX Desktop", "subtitle": "All-in-one desktop app.", "downloadWindows": "Download for Windows", "downloadMac": "Download for macOS", "downloadLinux": "Download for Linux", "version": "Version 1.0.0 • January 2026" }, "features": { "title": "All-in-One Desktop App", "subtitle": "Everything for PYRAX network.", "wallet": { "title": "Wallet Management", "description": "Secure wallet.", "detail1": "HD wallet", "detail2": "Multi-account", "detail3": "Transaction history", "detail4": "Address book" }, "mining": { "title": "GPU Mining", "description": "Built-in KAWPOW miner.", "detail1": "CUDA & OpenCL", "detail2": "Pool mining", "detail3": "Hashrate monitoring", "detail4": "Earnings dashboard" }, "node": { "title": "Node Operations", "description": "Run a full node.", "detail1": "Full node sync", "detail2": "Peer management", "detail3": "Block explorer", "detail4": "RPC server" }, "dashboard": { "title": "Dashboard & Analytics", "description": "Real-time monitoring.", "detail1": "Live statistics", "detail2": "Earnings charts", "detail3": "Network status", "detail4": "Performance metrics" } }, "preview": { "title": "Application Preview", "subtitle": "Modern interface.", "placeholder": "Screenshot coming soon" }, "requirements": { "title": "System Requirements", "os": "Operating System", "ram": "Memory", "storage": "Storage", "gpu": "GPU (for mining)" } },
+  "bdagPage": {
+    "hero": { "badge": "Cộng đồng BDAG", "title": "Sáng kiến Cộng đồng BDAG", "subtitle": "Chương trình Phân bổ Cộng đồng BDAG thưởng cho những người nắm giữ token BlockDAG hiện tại chuyển sang Mạng PYRAX. 10 tỷ token PYRAX (10% nguồn cung) được phân bổ cho các thành viên cộng đồng BDAG đã xác minh." },
+    "stats": { "poolSize": "Quy mô Pool", "poolSizeSub": "10% nguồn cung", "allocationRate": "Tỷ lệ Phân bổ Hiệu quả", "allocationRateSub": "của khoản đầu tư ban đầu", "cliff": "Kỳ Cliff", "cliffSub": "trước khi bắt đầu mở khóa", "vesting": "Tổng Vesting", "vestingSub": "kỳ vesting đầy đủ" },
+    "formula": { "title": "Công thức Phân bổ", "base": "Phân bổ Cơ bản", "baseDesc": "của mua BDAG (USD)", "bonus": "Thưởng", "bonusDesc": "của phân bổ cơ bản", "total": "Tỷ lệ Tổng", "totalDesc": "của khoản đầu tư ban đầu", "example": "Ví dụ:", "exampleText": "Nếu bạn mua $1,000 BDAG, bạn nhận $250 cơ bản + $62,50 thưởng = $312,50 USD giá trị PYRAX theo giá presale hiện tại" },
+    "examples": { "title": "Ví dụ Phân bổ", "subtitle": "Tại giá Giai đoạn 1 ($0,0062 mỗi token)", "colPurchase": "Mua BDAG", "colBase": "Cơ bản (25%)", "colBonus": "Thưởng (25%)", "colTotal": "Tổng USD", "colTokens": "Token PYRAX" },
+    "eligibility": { "title": "Yêu cầu Đủ điều kiện", "req1": "Sở hữu token BDAG đã mua trước thông báo presale PYRAX", "req2": "Cung cấp bằng chứng mua có thể xác minh (hash giao dịch)", "req3": "Hoàn thành xác minh danh tính KYC", "req4": "Gửi yêu cầu trước hạn (Sẽ được xác định)" },
+    "vesting": { "title": "Lịch trình Vesting", "cliffPeriod": "Kỳ Cliff", "cliffDesc": "0% được mở khóa trong kỳ cliff", "vestingPeriod": "Kỳ Vesting", "vestingDesc": "8,33% được mở khóa hàng tháng" },
+    "timeline": { "title": "Mốc thời gian Quan trọng", "claimOpens": "Cửa sổ Yêu cầu Mở", "deadline": "Hạn Yêu cầu", "tge": "Tạo Token", "cliffEnds": "Kết thúc Cliff", "fullyVested": "Hoàn toàn Vest" },
+    "burn": { "title": "Token Không Yêu cầu Bị Đốt", "subtitle": "Tất cả token không được yêu cầu trước hạn sẽ bị đốt vĩnh viễn. Không có gia hạn hoặc thời gian ân hạn.", "benefit1": "Cơ chế giảm phát", "benefit2": "Thưởng người tham gia tích cực", "benefit3": "Ngăn chặn lạm dụng", "benefit4": "Hạn rõ ràng thúc đẩy hành động" },
+    "claimEarly": { "title": "Yêu cầu Sớm để Nhận Nhiều Token Hơn", "subtitle": "Yêu cầu sớm hơn (Giai đoạn 1) cho nhiều token hơn vì giá thấp hơn. Yêu cầu ở Giai đoạn 4 dẫn đến ít token hơn cho cùng phân bổ USD." },
+    "cta": { "title": "Nộp Yêu cầu của Bạn", "submit": "Xác minh BDAG của bạn và yêu cầu PYRAX", "viewVesting": "Xem Chi tiết Vesting", "portalDisclaimer": "Cổng yêu cầu chưa mở. Theo dõi chúng tôi trên mạng xã hội để nhận thông báo khi cổng mở." }
+  }
+}
