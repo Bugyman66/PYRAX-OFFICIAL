@@ -104,7 +104,17 @@
     "dao": "PYRAX DAO",
     "daoDesc": "Decentralized governance for the PYRAX network",
     "bdagCommunity": "BDAG Community",
-    "bdagCommunityDesc": "Token allocation for BlockDAG holders"
+    "bdagCommunityDesc": "Token allocation for BlockDAG holders",
+    "releases": "Releases",
+    "communityReleases": "Community Releases",
+    "communityReleasesDesc": "Updates and announcements for the community",
+    "mediaReleases": "Media Releases",
+    "mediaReleasesDesc": "Press releases and media coverage",
+    "devReleases": "DEV Releases",
+    "devReleasesDesc": "Technical updates and changelog",
+    "latestNews": "Latest News",
+    "stayUpdated": "Stay Updated",
+    "releasesDesc": "Stay informed with the latest updates from the PYRAX team."
   },
   "daoPage": {
     "title": "PYRAX DAO",
@@ -1500,5 +1510,28 @@
       "joinDiscord": "Join Discord",
       "contactUs": "Contact Us"
     }
+  },
+  "releasesPage": {
+    "community": {
+      "badge": "Community Releases",
+      "title": "Community Releases",
+      "subtitle": "Important updates and announcements for the PYRAX community."
+    },
+    "media": {
+      "badge": "Media Releases",
+      "title": "Media Releases",
+      "subtitle": "Press releases, media coverage, and official statements.",
+      "comingSoonDesc": "Media releases will be published here as they become available."
+    },
+    "dev": {
+      "badge": "DEV Releases",
+      "title": "DEV Releases",
+      "subtitle": "Technical updates, changelogs, and development progress.",
+      "comingSoonDesc": "Development releases and changelogs will be published here."
+    },
+    "readMore": "Read more",
+    "backToReleases": "Back to releases",
+    "share": "Share",
+    "comingSoon": "Coming Soon"
   }
 }

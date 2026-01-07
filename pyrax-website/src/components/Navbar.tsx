@@ -26,6 +26,9 @@ import {
   CommandLineIcon,
   BuildingLibraryIcon,
   GiftIcon,
+  MegaphoneIcon,
+  FilmIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { locales, localeNames, localeCountryCodes, type Locale } from '@/i18n/config';
 import Link from 'next/link';
@@ -91,6 +94,13 @@ export default function Navbar() {
 
   // Team page item
   const teamItem: NavItem = { name: t('team'), href: `/${locale}/team`, icon: UserGroupIcon, description: t('teamDesc') };
+
+  // Releases dropdown items
+  const releasesItems: NavItem[] = [
+    { name: t('communityReleases'), href: `/${locale}/releases/community`, icon: MegaphoneIcon, description: t('communityReleasesDesc') },
+    { name: t('mediaReleases'), href: `/${locale}/releases/media`, icon: FilmIcon, description: t('mediaReleasesDesc') },
+    { name: t('devReleases'), href: `/${locale}/releases/dev`, icon: WrenchScrewdriverIcon, description: t('devReleasesDesc') },
+  ];
 
   const communityItems: SocialNavItem[] = [
     { name: 'Discord', href: 'https://discord.gg/z9kjrE9q', iconSrc: '/icons/discord.svg', description: t('discordDesc') },
@@ -296,6 +306,36 @@ export default function Navbar() {
                 </div>
               </PopoverPanel>
             </Popover>
+
+            {/* Releases Dropdown */}
+            <Popover className="relative">
+              <PopoverButton className="inline-flex items-center gap-x-1 px-4 py-2 text-sm font-semibold text-stone-300 hover:text-white transition-colors rounded-lg hover:bg-stone-800/50 outline-none">
+                <span>{t('releases')}</span>
+                <ChevronDownIcon aria-hidden="true" className="size-5" />
+              </PopoverButton>
+
+              <PopoverPanel
+                transition
+                className="absolute left-1/2 z-10 mt-5 flex w-screen max-w-max -translate-x-1/2 px-4 transition data-[closed]:translate-y-1 data-[closed]:opacity-0 data-[enter]:duration-200 data-[enter]:ease-out data-[leave]:duration-150 data-[leave]:ease-in"
+              >
+                <div className="w-screen max-w-sm flex-auto overflow-hidden rounded-3xl bg-stone-900 text-sm/6 shadow-lg ring-1 ring-stone-800">
+                  <div className="p-4">
+                    {releasesItems.map((item) => renderNavItem(item))}
+                  </div>
+                  <div className="bg-stone-800/50 px-8 py-6">
+                    <div className="flex items-center gap-x-3">
+                      <h3 className="text-sm/6 font-semibold text-white">{t('latestNews')}</h3>
+                      <p className="rounded-full bg-pyrax-500/10 px-2.5 py-1.5 text-xs font-semibold text-pyrax-400">
+                        {t('stayUpdated')}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm/6 text-stone-400">
+                      {t('releasesDesc')}
+                    </p>
+                  </div>
+                </div>
+              </PopoverPanel>
+            </Popover>
           </div>
 
           {/* Right side - Language & CTA */}
@@ -489,6 +529,22 @@ export default function Navbar() {
                     <Image src={item.iconSrc} alt={item.name} width={20} height={20} className="opacity-80" />
                     {item.name}
                   </a>
+                ))}
+              </div>
+
+              {/* Releases */}
+              <div className="py-6">
+                <p className="px-3 py-2 text-xs font-semibold text-stone-500 uppercase">{t('releases')}</p>
+                {releasesItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium text-stone-300 hover:bg-stone-800 hover:text-white"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <item.icon className="h-5 w-5 text-pyrax-400" />
+                    {item.name}
+                  </Link>
                 ))}
               </div>
 
