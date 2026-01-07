@@ -425,7 +425,7 @@ export default function BDAGCommunityPage() {
                   <img src="/icons/telegram.svg" alt="Telegram" className="w-6 h-6" />
                 </a>
                 <a
-                  href="https://discord.gg/sS7kaacRwU"
+                  href="https://discord.gg/z9kjrE9q"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-12 h-12 rounded-full bg-stone-800 hover:bg-blue-500/20 flex items-center justify-center transition-colors"

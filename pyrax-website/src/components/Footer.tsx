@@ -23,7 +23,7 @@ export default function Footer() {
       { name: t('brandKit'), href: '/brand' },
     ],
     community: [
-      { name: navT('discord'), href: 'https://discord.gg/pyrax' },
+      { name: navT('discord'), href: 'https://discord.gg/z9kjrE9q' },
       { name: navT('twitter'), href: 'https://twitter.com/pyrax_org' },
       { name: navT('telegram'), href: 'https://t.me/pyrax_official' },
       { name: navT('github'), href: 'https://github.com/pyrax-official' },
@@ -144,7 +144,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://discord.gg/pyrax"
+              href="https://discord.gg/z9kjrE9q"
               target="_blank"
               rel="noopener noreferrer"
               className="text-stone-400 hover:text-white transition-colors"

@@ -90,7 +90,7 @@ export default function Navbar() {
   const bdagItem: NavItem = { name: t('bdagCommunity'), href: `/${locale}/tokenomics/bdag`, icon: GiftIcon, description: t('bdagCommunityDesc') };
 
   const communityItems: SocialNavItem[] = [
-    { name: 'Discord', href: 'https://discord.gg/sS7kaacRwU', iconSrc: '/icons/discord.svg', description: t('discordDesc') },
+    { name: 'Discord', href: 'https://discord.gg/z9kjrE9q', iconSrc: '/icons/discord.svg', description: t('discordDesc') },
     { name: 'Telegram', href: 'https://t.me/+TmDvlOc8TxxmNzAx', iconSrc: '/icons/telegram.svg', description: t('telegramDesc') },
     { name: 'Reddit', href: 'https://www.reddit.com/r/PyraxNetwork/', iconSrc: '/icons/reddit.svg', description: t('redditDesc') },
     { name: 'Twitter', href: 'https://twitter.com/pyrax_org', iconSrc: '/icons/twitter.svg', description: t('twitterDesc') },

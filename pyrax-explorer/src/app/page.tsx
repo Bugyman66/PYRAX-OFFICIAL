@@ -70,7 +70,7 @@ export default function HomePage() {
               <a href="https://pyrax.org" className="hover:text-pyrax-500 transition-colors">Website</a>
               <a href="https://github.com/pyrax-official/pyrax" className="hover:text-pyrax-500 transition-colors">GitHub</a>
               <a href="https://docs.pyrax.org" className="hover:text-pyrax-500 transition-colors">Docs</a>
-              <a href="https://discord.gg/pyrax" className="hover:text-pyrax-500 transition-colors">Discord</a>
+              <a href="https://discord.gg/z9kjrE9q" className="hover:text-pyrax-500 transition-colors">Discord</a>
             </div>
           </div>
           <div className="mt-8 text-center text-stone-600 text-sm">

@@ -185,7 +185,7 @@ export default function Home() {
 
           {/* Additional Info */}
           <div className="mt-6 text-center text-sm text-stone-500">
-            <p>Need help? Join our <a href="https://discord.gg/sS7kaacRwU" className="text-[#ff8c42] hover:underline">Discord</a></p>
+            <p>Need help? Join our <a href="https://discord.gg/z9kjrE9q" className="text-[#ff8c42] hover:underline">Discord</a></p>
           </div>
         </div>
       </main>

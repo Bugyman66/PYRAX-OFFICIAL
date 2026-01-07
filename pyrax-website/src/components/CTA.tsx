@@ -53,7 +53,7 @@ export default function CTA() {
             </a>
             
             <a
-              href="https://discord.gg/pyrax"
+              href="https://discord.gg/z9kjrE9q"
               className="inline-flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900/50 px-8 py-4 text-lg font-semibold text-white hover:bg-stone-800 transition-all"
             >
               <ChatBubbleLeftRightIcon className="h-5 w-5" />

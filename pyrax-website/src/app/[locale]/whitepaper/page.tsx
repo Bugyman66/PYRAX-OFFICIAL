@@ -548,7 +548,7 @@ export default function WhitepaperPage() {
                 {t('sections.conclusion.readTechnical')}
               </Link>
               <a 
-                href="https://discord.gg/sS7kaacRwU"
+                href="https://discord.gg/z9kjrE9q"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-6 py-3 bg-gradient-to-r from-pyrax-500 to-pyrax-600 text-white font-semibold rounded-xl hover:shadow-lg hover:shadow-pyrax-500/25 transition-all"
