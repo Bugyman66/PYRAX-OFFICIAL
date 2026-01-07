@@ -89,6 +89,9 @@ export default function Navbar() {
   // BDAG Community Initiative item
   const bdagItem: NavItem = { name: t('bdagCommunity'), href: `/${locale}/tokenomics/bdag`, icon: GiftIcon, description: t('bdagCommunityDesc') };
 
+  // Team page item
+  const teamItem: NavItem = { name: t('team'), href: `/${locale}/team`, icon: UserGroupIcon, description: t('teamDesc') };
+
   const communityItems: SocialNavItem[] = [
     { name: 'Discord', href: 'https://discord.gg/z9kjrE9q', iconSrc: '/icons/discord.svg', description: t('discordDesc') },
     { name: 'Telegram', href: 'https://t.me/+TmDvlOc8TxxmNzAx', iconSrc: '/icons/telegram.svg', description: t('telegramDesc') },
@@ -247,6 +250,7 @@ export default function Navbar() {
               >
                 <div className="w-screen max-w-md flex-auto overflow-hidden rounded-3xl bg-stone-900 text-sm/6 shadow-lg ring-1 ring-stone-800 lg:max-w-3xl">
                   <div className="p-4 border-b border-stone-800">
+                    {renderNavItem(teamItem)}
                     {renderNavItem(daoItem)}
                     {renderNavItem(bdagItem)}
                   </div>
@@ -449,6 +453,14 @@ export default function Navbar() {
               {/* Community */}
               <div className="py-6">
                 <p className="px-3 py-2 text-xs font-semibold text-stone-500 uppercase">{t('community')}</p>
+                <Link
+                  href={teamItem.href}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium text-stone-300 hover:bg-stone-800 hover:text-white"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <teamItem.icon className="h-5 w-5 text-pyrax-400" />
+                  {teamItem.name}
+                </Link>
                 <Link
                   href={daoItem.href}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-base font-medium text-stone-300 hover:bg-stone-800 hover:text-white"

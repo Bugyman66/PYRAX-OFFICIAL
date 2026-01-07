@@ -63,6 +63,8 @@
     "validatorStaking": "Validator Staking",
     "validatorDesc": "Run a validator node",
     "community": "Communauté",
+    "team": "Équipe",
+    "teamDesc": "Rencontrez les personnes derrière PYRAX",
     "discord": "Discord",
     "discordDesc": "Rejoignez notre serveur Discord",
     "twitter": "Twitter",
@@ -941,6 +943,49 @@
         "verification": { "title": "Vérification des Tâches IA" }
       },
       "references": { "label": "Section 11", "title": "Références" }
+    }
+  },
+  "teamPage": {
+    "hero": {
+      "title": "Rencontrez l'Équipe",
+      "subtitle": "Les personnes passionnées qui construisent l'avenir de la technologie blockchain chez PYRAX Network."
+    },
+    "sections": {
+      "founding": {
+        "badge": "Équipe Fondatrice",
+        "title": "Équipe Fondatrice",
+        "subtitle": "Les visionnaires qui ont tout commencé et continuent de diriger PYRAX Network."
+      },
+      "core": {
+        "badge": "Équipe Principale",
+        "title": "Équipe Principale",
+        "subtitle": "Les développeurs et ingénieurs dévoués qui construisent l'avenir de PYRAX."
+      },
+      "community": {
+        "badge": "Équipe Communautaire",
+        "title": "Équipe Communautaire",
+        "subtitle": "Les personnes passionnées qui connectent et développent la communauté PYRAX dans le monde entier."
+      }
+    },
+    "roles": {
+      "coFounder": "Co-Fondateur, Président, CTO & Développeur Principal",
+      "svp": "Vice-Président Senior",
+      "cfo": "Directeur Financier",
+      "coreDev": "Développeur Principal",
+      "communityManager": "Community Manager"
+    },
+    "bios": {
+      "shawn": "Bio à venir",
+      "gabriel": "Bio à venir",
+      "tekky": "Bio à venir",
+      "comingSoon": "Bio à venir"
+    },
+    "comingSoon": "Bientôt Disponible",
+    "cta": {
+      "title": "Rejoignez Notre Équipe",
+      "subtitle": "Nous recherchons toujours des personnes talentueuses qui partagent notre vision pour l'avenir de la blockchain.",
+      "joinDiscord": "Rejoindre Discord",
+      "contactUs": "Nous Contacter"
     }
   }
 }
