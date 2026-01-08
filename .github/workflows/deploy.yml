@@ -99,34 +99,27 @@ jobs:
           ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
           cd /opt/pyrax
           
-          echo "=== BUILDING NEW IMAGES (site stays up) ==="
-          docker compose build --no-cache website faucet docs explorer
+          # Use testnet compose file for testnet deployment
+          COMPOSE_FILE="docker-compose.testnet.yml"
           
-          echo "=== ROLLING UPDATE: Website ==="
-          docker compose up -d --no-deps --build website
-          sleep 5
+          echo "=== STOPPING OLD CONTAINERS ==="
+          docker compose -f $COMPOSE_FILE down --remove-orphans || true
           
-          echo "=== ROLLING UPDATE: Faucet ==="
-          docker compose up -d --no-deps --build faucet
-          sleep 3
+          echo "=== BUILDING NEW IMAGES ==="
+          docker compose -f $COMPOSE_FILE build --no-cache
           
-          echo "=== ROLLING UPDATE: Docs ==="
-          docker compose up -d --no-deps --build docs
-          sleep 3
+          echo "=== STARTING ALL SERVICES ==="
+          docker compose -f $COMPOSE_FILE up -d
           
-          echo "=== ROLLING UPDATE: Explorer ==="
-          docker compose up -d --no-deps --build explorer
-          sleep 3
-          
-          echo "=== RELOAD NGINX (graceful) ==="
-          docker compose exec -T nginx nginx -s reload || docker compose up -d --no-deps nginx
+          echo "=== WAITING FOR SERVICES ==="
+          sleep 10
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
           
           echo "=== HEALTH CHECK ==="
-          docker compose ps
-          docker compose logs --tail=10
+          docker compose -f $COMPOSE_FILE ps
+          docker compose -f $COMPOSE_FILE logs --tail=20
           EOF
 
       - name: Health Check
