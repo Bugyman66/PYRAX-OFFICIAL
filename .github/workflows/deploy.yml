@@ -94,48 +94,30 @@ jobs:
           ENVFILE
           EOF
 
-      - name: Deploy with Docker Compose
+      - name: Clean and Deploy Fresh
         run: |
           ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
           cd /opt/pyrax
           
-          # Determine which services to rebuild
-          SERVICES=""
+          echo "=== STOPPING ALL CONTAINERS ==="
+          docker compose down --remove-orphans || true
+          docker stop $(docker ps -aq) 2>/dev/null || true
+          docker rm $(docker ps -aq) 2>/dev/null || true
           
-          if [ "${{ github.event.inputs.service }}" = "all" ] || [ -z "${{ github.event.inputs.service }}" ]; then
-            if [ "${{ needs.detect-changes.outputs.website }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
-              SERVICES="$SERVICES website"
-            fi
-            if [ "${{ needs.detect-changes.outputs.faucet }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
-              SERVICES="$SERVICES faucet"
-            fi
-            if [ "${{ needs.detect-changes.outputs.docs }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
-              SERVICES="$SERVICES docs"
-            fi
-            if [ "${{ needs.detect-changes.outputs.explorer }}" = "true" ] || [ "${{ needs.detect-changes.outputs.deployment }}" = "true" ]; then
-              SERVICES="$SERVICES explorer"
-            fi
-          else
-            SERVICES="${{ github.event.inputs.service }}"
-          fi
+          echo "=== REMOVING OLD IMAGES ==="
+          docker image prune -af
+          docker system prune -af --volumes
           
-          # If no specific changes detected, rebuild all
-          if [ -z "$SERVICES" ]; then
-            SERVICES="website faucet docs explorer"
-          fi
+          echo "=== BUILDING FRESH ==="
+          docker compose build --no-cache website faucet docs explorer nginx
           
-          echo "Rebuilding services: $SERVICES"
+          echo "=== STARTING ALL SERVICES ==="
+          docker compose up -d
           
-          # Build and deploy
-          docker compose build $SERVICES
-          docker compose up -d --no-deps $SERVICES nginx
-          
-          # Cleanup old images
-          docker image prune -f
-          
-          # Health check
-          sleep 10
+          echo "=== HEALTH CHECK ==="
+          sleep 15
           docker compose ps
+          docker compose logs --tail=20
           EOF
 
       - name: Health Check
