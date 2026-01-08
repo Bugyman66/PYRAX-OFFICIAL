@@ -18,7 +18,7 @@ export default function Footer() {
     ],
     resources: [
       { name: t('whitepaper'), href: '/whitepaper.pdf' },
-      { name: t('documentation'), href: 'https://testnet.pyrax.org/docs' },
+      { name: t('documentation'), href: 'https://docs.testnet.pyrax.org' },
       { name: t('github'), href: 'https://github.com/pyrax-official' },
       { name: t('brandKit'), href: '/brand' },
     ],

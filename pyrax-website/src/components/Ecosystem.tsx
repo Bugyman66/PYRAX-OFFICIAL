@@ -49,7 +49,7 @@ export default function Ecosystem() {
       language: t('products.explorer.language'),
       status: t('products.explorer.status'),
       color: 'from-purple-500 to-pink-500',
-      href: 'https://explorer.pyrax.org',
+      href: 'https://explorer.testnet.pyrax.org',
     },
     {
       icon: WalletIcon,

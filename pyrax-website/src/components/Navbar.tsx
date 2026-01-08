@@ -78,11 +78,12 @@ export default function Navbar() {
 
   // Resources dropdown
   const resourceItems: NavItem[] = [
+    { name: t('executiveSummary'), href: `/${locale}/executive-summary`, icon: DocumentTextIcon, description: t('executiveSummaryDesc') },
     { name: t('whitepaperNav'), href: `/${locale}/whitepaper`, icon: DocumentTextIcon, description: t('whitepaperDesc') },
     { name: t('technicalWhitepaperNav'), href: `/${locale}/technical-whitepaper`, icon: DocumentTextIcon, description: t('technicalWhitepaperDesc') },
     { name: t('downloads'), href: `/${locale}/downloads`, icon: ArrowDownTrayIcon, description: t('downloadsDesc') },
-    { name: t('explorer'), href: 'https://explorer.pyrax.org', icon: ChartBarIcon, description: t('explorerDesc'), external: true },
-    { name: t('docs'), href: 'https://testnet.pyrax.org/docs', icon: BookOpenIcon, description: t('docsDesc'), external: true },
+    { name: t('explorer'), href: 'https://explorer.testnet.pyrax.org', icon: ChartBarIcon, description: t('explorerDesc'), external: true },
+    { name: t('docs'), href: 'https://docs.testnet.pyrax.org', icon: BookOpenIcon, description: t('docsDesc'), external: true },
     { name: 'GitHub', href: 'https://github.com/PYRAX-Chain', icon: CodeBracketIcon, description: t('githubDesc'), external: true },
   ];
 
@@ -394,7 +395,7 @@ export default function Navbar() {
 
             {/* CTA Button */}
             <a
-              href="https://explorer.pyrax.org"
+              href="https://explorer.testnet.pyrax.org"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pyrax-500 to-pyrax-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-pyrax-500/25 hover:shadow-pyrax-500/40 transition-all hover:scale-105"
@@ -611,7 +612,7 @@ export default function Navbar() {
               {/* CTA */}
               <div className="py-6">
                 <a
-                  href="https://explorer.pyrax.org"
+                  href="https://explorer.testnet.pyrax.org"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-pyrax-500 to-pyrax-600 px-4 py-3 text-sm font-semibold text-white"

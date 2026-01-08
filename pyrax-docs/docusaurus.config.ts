@@ -11,7 +11,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://docs.pyrax.org',
+  url: process.env.DOCUSAURUS_URL || 'https://docs.testnet.pyrax.org',
   baseUrl: '/',
 
   organizationName: 'PYRAX-Chain',

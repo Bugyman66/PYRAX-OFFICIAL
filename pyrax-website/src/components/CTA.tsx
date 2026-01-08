@@ -37,7 +37,7 @@ export default function CTA() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
-              href="https://explorer.pyrax.org"
+              href="https://explorer.testnet.pyrax.org"
               className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-pyrax-500 to-pyrax-600 px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-pyrax-500/25 hover:shadow-pyrax-500/40 transition-all hover:scale-105"
             >
               <RocketLaunchIcon className="h-5 w-5" />
@@ -45,7 +45,7 @@ export default function CTA() {
             </a>
             
             <a
-              href="https://testnet.pyrax.org/docs"
+              href="https://docs.testnet.pyrax.org"
               className="inline-flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900/50 px-8 py-4 text-lg font-semibold text-white hover:bg-stone-800 transition-all"
             >
               <BookOpenIcon className="h-5 w-5" />

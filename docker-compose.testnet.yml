@@ -1,0 +1,115 @@
+# PYRAX Docker Compose - Testnet Deployment
+# Usage: docker compose -f docker-compose.testnet.yml up -d
+
+services:
+  # Main Website - pyrax.org (also serves testnet.pyrax.org)
+  website:
+    build:
+      context: ./pyrax-website
+      dockerfile: Dockerfile
+    container_name: pyrax-website
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Faucet - faucet.testnet.pyrax.org
+  faucet:
+    build:
+      context: ./pyrax-faucet
+      dockerfile: Dockerfile
+    container_name: pyrax-faucet
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PYRAX_NETWORK=testnet
+      - FAUCET_PRIVATE_KEY=${FAUCET_PRIVATE_KEY}
+      - TESTNET_RPC_URL=${TESTNET_RPC_URL:-http://node:8545}
+      - FAUCET_AMOUNT=${FAUCET_AMOUNT:-100}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Documentation - docs.testnet.pyrax.org
+  docs:
+    build:
+      context: ./pyrax-docs
+      dockerfile: Dockerfile
+      args:
+        - DOCUSAURUS_URL=https://docs.testnet.pyrax.org
+    container_name: pyrax-docs
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Block Explorer - explorer.testnet.pyrax.org
+  explorer:
+    build:
+      context: ./pyrax-explorer
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_NETWORK=testnet
+        - NEXT_PUBLIC_RPC_URL=${NEXT_PUBLIC_RPC_URL:-https://rpc.testnet.pyrax.org}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://api.testnet.pyrax.org}
+        - NEXT_PUBLIC_EXPLORER_URL=https://explorer.testnet.pyrax.org
+    container_name: pyrax-explorer
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_NETWORK=testnet
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3003"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: pyrax-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx/testnet.conf:/etc/nginx/nginx.conf:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - website
+      - faucet
+      - docs
+      - explorer
+    networks:
+      - pyrax-network
+
+networks:
+  pyrax-network:
+    driver: bridge
+
+volumes:
+  nginx-cache:

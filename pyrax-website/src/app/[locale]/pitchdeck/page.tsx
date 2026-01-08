@@ -1512,7 +1512,7 @@ function Slide({ id, t, locale }: { id: string; t: any; locale: string }) {
         className="text-stone-500 text-sm"
       >
         <p>📧 Contact: investors@pyrax.org</p>
-        <p className="mt-2">🌐 pyrax.org • testnet.pyrax.org • explorer.pyrax.org</p>
+        <p className="mt-2">🌐 pyrax.org • testnet.pyrax.org • explorer.testnet.pyrax.org</p>
       </motion.div>
     </div>
   );
