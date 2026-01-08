@@ -63,6 +63,8 @@
     "validatorStaking": "验证者质押",
     "validatorDesc": "运行验证节点",
     "community": "社区",
+    "team": "团队",
+    "teamDesc": "认识PYRAX背后的人",
     "discord": "Discord",
     "discordDesc": "加入Discord服务器",
     "twitter": "Twitter",
@@ -79,6 +81,10 @@
     "facebookGroupDesc": "加入Facebook社区",
     "roadmap": "路线图",
     "whitepaper": "白皮书",
+    "whitepaperNav": "白皮书",
+    "whitepaperDesc": "简单易懂的概述",
+    "technicalWhitepaperNav": "技术白皮书",
+    "technicalWhitepaperDesc": "详细技术规格",
     "getStarted": "开始使用",
     "launchApp": "启动应用",
     "launchExplorer": "启动浏览器",
@@ -108,13 +114,7 @@
     "devReleasesDesc": "技术更新和更新日志",
     "latestNews": "最新消息",
     "stayUpdated": "保持更新",
-    "releasesDesc": "了解PYRAX团队的最新动态。",
-    "team": "团队",
-    "teamDesc": "认识PYRAX背后的人",
-    "whitepaperNav": "白皮书",
-    "whitepaperDesc": "简单易懂的概述",
-    "technicalWhitepaperNav": "技术白皮书",
-    "technicalWhitepaperDesc": "详细技术规格"
+    "releasesDesc": "了解PYRAX团队的最新动态。"
   },
   "daoPage": {
     "title": "PYRAX DAO",
@@ -740,45 +740,798 @@
     }
   },
   "roadmapPage": {
-    "hero": { "title": "路线图", "subtitle": "我们革新去中心化AI计算和区块链技术的旅程。" },
-    "status": { "completed": "已完成", "inProgress": "进行中", "upcoming": "即将推出", "future": "未来" },
-    "q1": { "subtitle": "基础建设", "item1": "BLAKE3 PoW核心节点", "item2": "P2P网络", "item3": "RocksDB存储层", "item4": "JSON-RPC API服务器", "item5": "桌面钱包", "item6": "GPU矿机" },
-    "q2": { "subtitle": "平台扩展", "item1": "公共测试网", "item2": "区块浏览器", "item3": "EVM侧链开发", "item4": "Rust/WASM运行时", "item5": "AI市场测试版", "item6": "移动钱包", "item7": "Devnet部署", "item8": "Testnet部署" },
-    "q3": { "subtitle": "主网启动", "item1": "安全审计完成", "item2": "创世区块", "item3": "种子节点部署", "item4": "CEX/DEX上市", "item5": "AI平台上线", "item6": "跨链桥激活" },
-    "q4": { "subtitle": "规模与增长", "item1": "企业合作", "item2": "跨链桥", "item3": "高级AI功能", "item4": "全球节点扩展", "item5": "性能优化", "item6": "DAO治理" },
-    "future": { "subtitle": "长期愿景", "item1": "L3应用链", "item2": "硬件钱包", "item3": "企业AI", "item4": "全球扩展" },
-    "progress": { "title": "开发进度", "subtitle": "追踪进展。", "coreNode": "核心节点", "evmSidechain": "EVM侧链", "aiPlatform": "AI平台", "desktop": "桌面应用" }
+    "hero": {
+      "title": "路线图",
+      "subtitle": "我们革新去中心化AI计算和区块链技术的旅程。"
+    },
+    "status": {
+      "completed": "已完成",
+      "inProgress": "进行中",
+      "upcoming": "即将推出",
+      "future": "未来"
+    },
+    "q1": {
+      "subtitle": "基础建设",
+      "item1": "BLAKE3 PoW核心节点",
+      "item2": "P2P网络",
+      "item3": "RocksDB存储层",
+      "item4": "JSON-RPC API服务器",
+      "item5": "桌面钱包",
+      "item6": "GPU矿机"
+    },
+    "q2": {
+      "subtitle": "平台扩展",
+      "item1": "公共测试网",
+      "item2": "区块浏览器",
+      "item3": "EVM侧链开发",
+      "item4": "Rust/WASM运行时",
+      "item5": "AI市场测试版",
+      "item6": "移动钱包",
+      "item7": "Devnet部署",
+      "item8": "Testnet部署"
+    },
+    "q3": {
+      "subtitle": "主网启动",
+      "item1": "安全审计完成",
+      "item2": "创世区块",
+      "item3": "种子节点部署",
+      "item4": "CEX/DEX上市",
+      "item5": "AI平台上线",
+      "item6": "跨链桥激活"
+    },
+    "q4": {
+      "subtitle": "规模与增长",
+      "item1": "企业合作",
+      "item2": "跨链桥",
+      "item3": "高级AI功能",
+      "item4": "全球节点扩展",
+      "item5": "性能优化",
+      "item6": "DAO治理"
+    },
+    "future": {
+      "subtitle": "长期愿景",
+      "item1": "L3应用链",
+      "item2": "硬件钱包",
+      "item3": "企业AI",
+      "item4": "全球扩展"
+    },
+    "progress": {
+      "title": "开发进度",
+      "subtitle": "追踪进展。",
+      "coreNode": "核心节点",
+      "evmSidechain": "EVM侧链",
+      "aiPlatform": "AI平台",
+      "desktop": "桌面应用"
+    }
   },
   "foundryPage": {
-    "hero": { "badge": "AI模型注册中心", "title": "Foundry", "subtitle": "PYRAX上的去中心化AI模型注册中心。", "cta1": "了解运作", "cta2": "查看功能" },
-    "onchain": { "title": "Foundry链上运作", "subtitle": "所有模型元数据存储在PYRAX区块链上。", "registry": { "title": "模型注册合约", "description": "存储元数据的智能合约。", "item1": "不可变记录", "item2": "版本历史", "item3": "所有权验证" }, "storage": { "title": "去中心化存储", "description": "IPFS/Filecoin上的模型权重。", "item1": "IPFS寻址", "item2": "Filecoin持久化", "item3": "哈希验证" }, "verification": { "title": "模型验证", "description": "密码学证明。", "item1": "SHA-256校验", "item2": "签名验证", "item3": "基准测试证明" } },
-    "features": { "title": "核心功能", "subtitle": "链上AI模型管理所需一切。", "registration": { "title": "模型注册", "description": "带元数据注册模型。", "detail1": "名称和描述", "detail2": "硬件要求", "detail3": "定价", "detail4": "许可证信息" }, "versioning": { "title": "语义版本控制", "description": "追踪模型版本。", "detail1": "主/次/补丁", "detail2": "变更日志", "detail3": "版本比较", "detail4": "弃用支持" }, "discovery": { "title": "模型发现", "description": "搜索和筛选模型。", "detail1": "分类筛选", "detail2": "性能搜索", "detail3": "社区评分", "detail4": "热门排名" }, "benchmarks": { "title": "基准测试和评分", "description": "标准化基准测试。", "detail1": "速度基准", "detail2": "质量指标", "detail3": "用户评价", "detail4": "提供商声誉" } },
-    "workflow": { "title": "注册流程", "subtitle": "四个简单步骤。", "step1": { "title": "准备模型", "description": "打包元数据。" }, "step2": { "title": "提交交易", "description": "发送注册交易。" }, "step3": { "title": "验证", "description": "网络验证。" }, "step4": { "title": "上线", "description": "模型可发现。" } }
+    "hero": {
+      "badge": "AI模型注册中心",
+      "title": "Foundry",
+      "subtitle": "PYRAX上的去中心化AI模型注册中心。",
+      "cta1": "了解运作",
+      "cta2": "查看功能"
+    },
+    "onchain": {
+      "title": "Foundry链上运作",
+      "subtitle": "所有模型元数据存储在PYRAX区块链上。",
+      "registry": {
+        "title": "模型注册合约",
+        "description": "存储元数据的智能合约。",
+        "item1": "不可变记录",
+        "item2": "版本历史",
+        "item3": "所有权验证"
+      },
+      "storage": {
+        "title": "去中心化存储",
+        "description": "IPFS/Filecoin上的模型权重。",
+        "item1": "IPFS寻址",
+        "item2": "Filecoin持久化",
+        "item3": "哈希验证"
+      },
+      "verification": {
+        "title": "模型验证",
+        "description": "密码学证明。",
+        "item1": "SHA-256校验",
+        "item2": "签名验证",
+        "item3": "基准测试证明"
+      }
+    },
+    "features": {
+      "title": "核心功能",
+      "subtitle": "链上AI模型管理所需一切。",
+      "registration": {
+        "title": "模型注册",
+        "description": "带元数据注册模型。",
+        "detail1": "名称和描述",
+        "detail2": "硬件要求",
+        "detail3": "定价",
+        "detail4": "许可证信息"
+      },
+      "versioning": {
+        "title": "语义版本控制",
+        "description": "追踪模型版本。",
+        "detail1": "主/次/补丁",
+        "detail2": "变更日志",
+        "detail3": "版本比较",
+        "detail4": "弃用支持"
+      },
+      "discovery": {
+        "title": "模型发现",
+        "description": "搜索和筛选模型。",
+        "detail1": "分类筛选",
+        "detail2": "性能搜索",
+        "detail3": "社区评分",
+        "detail4": "热门排名"
+      },
+      "benchmarks": {
+        "title": "基准测试和评分",
+        "description": "标准化基准测试。",
+        "detail1": "速度基准",
+        "detail2": "质量指标",
+        "detail3": "用户评价",
+        "detail4": "提供商声誉"
+      }
+    },
+    "workflow": {
+      "title": "注册流程",
+      "subtitle": "四个简单步骤。",
+      "step1": {
+        "title": "准备模型",
+        "description": "打包元数据。"
+      },
+      "step2": {
+        "title": "提交交易",
+        "description": "发送注册交易。"
+      },
+      "step3": {
+        "title": "验证",
+        "description": "网络验证。"
+      },
+      "step4": {
+        "title": "上线",
+        "description": "模型可发现。"
+      }
+    }
   },
   "cruciblePage": {
-    "hero": { "badge": "任务执行引擎", "title": "Crucible", "subtitle": "向GPU提供商提交可验证结果的AI任务。" },
-    "jobTypes": { "inference": "推理", "training": "训练", "fineTuning": "微调", "embedding": "嵌入" },
-    "mining": { "title": "GPU矿池集成", "subtitle": "Stream B GPU矿工可接收AI计算任务。", "howItWorks": "任务如何到达GPU", "step1": { "title": "任务提交", "description": "用户提交AI任务。" }, "step2": { "title": "匹配", "description": "任务匹配提供商。" }, "step3": { "title": "执行", "description": "GPU执行任务。" }, "step4": { "title": "支付", "description": "支付释放。" }, "diagram": { "title": "任务流程", "jobQueue": "任务队列", "matchmaker": "匹配器", "gpuPool": "GPU池", "verification": "验证" } },
-    "execution": { "title": "任务执行生命周期", "subtitle": "从提交到结算。" },
-    "workflow": { "step1": { "title": "提交", "description": "用户提交任务", "details": "进入队列" }, "step2": { "title": "匹配", "description": "找到提供商", "details": "基于硬件" }, "step3": { "title": "执行", "description": "GPU运行任务", "details": "模型推理" }, "step4": { "title": "验证", "description": "验证结果", "details": "多节点验证" }, "step5": { "title": "结算", "description": "释放支付", "details": "自动托管释放" } },
-    "verification": { "title": "验证方法", "subtitle": "多种策略。", "consensus": { "title": "多节点共识", "description": "多个提供商执行相同任务。", "detail1": "3/5共识", "detail2": "异常检测" }, "zkproof": { "title": "ZK证明验证", "description": "零知识证明。", "detail1": "STARK/SNARK证明", "detail2": "链上验证" }, "dispute": { "title": "争议解决", "description": "质押加权仲裁。", "detail1": "7天挑战期", "detail2": "恶意行为惩罚" } }
+    "hero": {
+      "badge": "任务执行引擎",
+      "title": "Crucible",
+      "subtitle": "向GPU提供商提交可验证结果的AI任务。"
+    },
+    "jobTypes": {
+      "inference": "推理",
+      "training": "训练",
+      "fineTuning": "微调",
+      "embedding": "嵌入"
+    },
+    "mining": {
+      "title": "GPU矿池集成",
+      "subtitle": "Stream B GPU矿工可接收AI计算任务。",
+      "howItWorks": "任务如何到达GPU",
+      "step1": {
+        "title": "任务提交",
+        "description": "用户提交AI任务。"
+      },
+      "step2": {
+        "title": "匹配",
+        "description": "任务匹配提供商。"
+      },
+      "step3": {
+        "title": "执行",
+        "description": "GPU执行任务。"
+      },
+      "step4": {
+        "title": "支付",
+        "description": "支付释放。"
+      },
+      "diagram": {
+        "title": "任务流程",
+        "jobQueue": "任务队列",
+        "matchmaker": "匹配器",
+        "gpuPool": "GPU池",
+        "verification": "验证"
+      }
+    },
+    "execution": {
+      "title": "任务执行生命周期",
+      "subtitle": "从提交到结算。"
+    },
+    "workflow": {
+      "step1": {
+        "title": "提交",
+        "description": "用户提交任务",
+        "details": "进入队列"
+      },
+      "step2": {
+        "title": "匹配",
+        "description": "找到提供商",
+        "details": "基于硬件"
+      },
+      "step3": {
+        "title": "执行",
+        "description": "GPU运行任务",
+        "details": "模型推理"
+      },
+      "step4": {
+        "title": "验证",
+        "description": "验证结果",
+        "details": "多节点验证"
+      },
+      "step5": {
+        "title": "结算",
+        "description": "释放支付",
+        "details": "自动托管释放"
+      }
+    },
+    "verification": {
+      "title": "验证方法",
+      "subtitle": "多种策略。",
+      "consensus": {
+        "title": "多节点共识",
+        "description": "多个提供商执行相同任务。",
+        "detail1": "3/5共识",
+        "detail2": "异常检测"
+      },
+      "zkproof": {
+        "title": "ZK证明验证",
+        "description": "零知识证明。",
+        "detail1": "STARK/SNARK证明",
+        "detail2": "链上验证"
+      },
+      "dispute": {
+        "title": "争议解决",
+        "description": "质押加权仲裁。",
+        "detail1": "7天挑战期",
+        "detail2": "恶意行为惩罚"
+      }
+    }
   },
   "downloadsPage": {
-    "hero": { "badge": "桌面应用", "title": "PYRAX Desktop", "subtitle": "钱包、节点和GPU挖矿一体化桌面应用。", "downloadWindows": "下载Windows版", "downloadMac": "下载macOS版", "downloadLinux": "下载Linux版", "version": "版本1.0.0 • 2026年1月" },
-    "features": { "title": "一体化桌面应用", "subtitle": "参与PYRAX网络所需一切。", "wallet": { "title": "钱包管理", "description": "完全控制的安全钱包。", "detail1": "HD钱包", "detail2": "多账户", "detail3": "交易历史", "detail4": "地址簿" }, "mining": { "title": "GPU挖矿", "description": "内置KAWPOW矿机。", "detail1": "CUDA和OpenCL", "detail2": "矿池挖矿", "detail3": "算力监控", "detail4": "收益仪表板" }, "node": { "title": "节点运营", "description": "运行全节点。", "detail1": "全节点同步", "detail2": "节点管理", "detail3": "区块浏览器", "detail4": "RPC服务器" }, "dashboard": { "title": "仪表板和分析", "description": "实时监控。", "detail1": "实时统计", "detail2": "收益图表", "detail3": "网络状态", "detail4": "性能指标" } },
-    "preview": { "title": "应用预览", "subtitle": "现代直观界面。", "placeholder": "截图即将推出" },
-    "requirements": { "title": "系统要求", "os": "操作系统", "ram": "内存", "storage": "存储", "gpu": "GPU（挖矿用）" }
+    "hero": {
+      "badge": "桌面应用",
+      "title": "PYRAX Desktop",
+      "subtitle": "钱包、节点和GPU挖矿一体化桌面应用。",
+      "downloadWindows": "下载Windows版",
+      "downloadMac": "下载macOS版",
+      "downloadLinux": "下载Linux版",
+      "version": "版本1.0.0 • 2026年1月"
+    },
+    "features": {
+      "title": "一体化桌面应用",
+      "subtitle": "参与PYRAX网络所需一切。",
+      "wallet": {
+        "title": "钱包管理",
+        "description": "完全控制的安全钱包。",
+        "detail1": "HD钱包",
+        "detail2": "多账户",
+        "detail3": "交易历史",
+        "detail4": "地址簿"
+      },
+      "mining": {
+        "title": "GPU挖矿",
+        "description": "内置KAWPOW矿机。",
+        "detail1": "CUDA和OpenCL",
+        "detail2": "矿池挖矿",
+        "detail3": "算力监控",
+        "detail4": "收益仪表板"
+      },
+      "node": {
+        "title": "节点运营",
+        "description": "运行全节点。",
+        "detail1": "全节点同步",
+        "detail2": "节点管理",
+        "detail3": "区块浏览器",
+        "detail4": "RPC服务器"
+      },
+      "dashboard": {
+        "title": "仪表板和分析",
+        "description": "实时监控。",
+        "detail1": "实时统计",
+        "detail2": "收益图表",
+        "detail3": "网络状态",
+        "detail4": "性能指标"
+      }
+    },
+    "preview": {
+      "title": "应用预览",
+      "subtitle": "现代直观界面。",
+      "placeholder": "截图即将推出"
+    },
+    "requirements": {
+      "title": "系统要求",
+      "os": "操作系统",
+      "ram": "内存",
+      "storage": "存储",
+      "gpu": "GPU（挖矿用）"
+    }
   },
   "bdagPage": {
-    "hero": { "badge": "BDAG社区", "title": "BDAG社区计划", "subtitle": "BDAG社区分配计划奖励迁移到PYRAX网络的现有BlockDAG代币持有者。100亿PYRAX代币（占供应量的10%）分配给经验证的BDAG社区成员。" },
-    "stats": { "poolSize": "池规模", "poolSizeSub": "占总供应量10%", "allocationRate": "有效分配率", "allocationRateSub": "原始投资的", "cliff": "锁定期", "cliffSub": "释放开始前", "vesting": "总归属期", "vestingSub": "完整归属期" },
-    "formula": { "title": "分配公式", "base": "基础分配", "baseDesc": "BDAG购买额（美元）的", "bonus": "奖金", "bonusDesc": "基础分配的", "total": "总比率", "totalDesc": "原始投资的", "example": "示例：", "exampleText": "如果您购买了1,000美元的BDAG，您将获得250美元基础 + 62.50美元奖金 = 312.50美元等值的PYRAX（按当前预售价格）" },
-    "examples": { "title": "分配示例", "subtitle": "按第一阶段价格（每代币0.0062美元）", "colPurchase": "BDAG购买额", "colBase": "基础（25%）", "colBonus": "奖金（25%）", "colTotal": "总美元", "colTokens": "PYRAX代币" },
-    "eligibility": { "title": "资格要求", "req1": "在PYRAX预售公告前拥有购买的BDAG代币", "req2": "提供可验证的购买证明（交易哈希）", "req3": "完成KYC身份验证", "req4": "在截止日期前提交申领（待定）" },
-    "vesting": { "title": "归属时间表", "cliffPeriod": "锁定期", "cliffDesc": "锁定期内释放0%", "vestingPeriod": "归属期", "vestingDesc": "每月释放8.33%" },
-    "timeline": { "title": "重要时间线", "claimOpens": "申领窗口开放", "deadline": "申领截止", "tge": "代币生成", "cliffEnds": "锁定期结束", "fullyVested": "完全归属" },
-    "burn": { "title": "未申领代币销毁", "subtitle": "截止日期前未申领的所有代币将被永久销毁。没有延期或宽限期。", "benefit1": "通缩机制", "benefit2": "奖励活跃参与者", "benefit3": "防止滥用", "benefit4": "明确的截止日期促进行动" },
-    "claimEarly": { "title": "提前申领获得更多代币", "subtitle": "更早申领（第一阶段）可获得更多代币，因为价格更低。在第四阶段申领将以相同的美元分配获得更少的代币。" },
-    "cta": { "title": "提交您的申领", "submit": "验证您的BDAG持有量并申领PYRAX", "viewVesting": "查看归属详情", "portalDisclaimer": "申领门户尚未开放。关注我们的社交媒体，以便在门户开放时收到通知。" }
+    "hero": {
+      "badge": "BDAG社区",
+      "title": "BDAG社区计划",
+      "subtitle": "BDAG社区分配计划奖励迁移到PYRAX网络的现有BlockDAG代币持有者。100亿PYRAX代币（占供应量的10%）分配给经验证的BDAG社区成员。"
+    },
+    "stats": {
+      "poolSize": "池规模",
+      "poolSizeSub": "占总供应量10%",
+      "allocationRate": "有效分配率",
+      "allocationRateSub": "原始投资的",
+      "cliff": "锁定期",
+      "cliffSub": "释放开始前",
+      "vesting": "总归属期",
+      "vestingSub": "完整归属期"
+    },
+    "formula": {
+      "title": "分配公式",
+      "base": "基础分配",
+      "baseDesc": "BDAG购买额（美元）的",
+      "bonus": "奖金",
+      "bonusDesc": "基础分配的",
+      "total": "总比率",
+      "totalDesc": "原始投资的",
+      "example": "示例：",
+      "exampleText": "如果您购买了1,000美元的BDAG，您将获得250美元基础 + 62.50美元奖金 = 312.50美元等值的PYRAX（按当前预售价格）"
+    },
+    "examples": {
+      "title": "分配示例",
+      "subtitle": "按第一阶段价格（每代币0.0062美元）",
+      "colPurchase": "BDAG购买额",
+      "colBase": "基础（25%）",
+      "colBonus": "奖金（25%）",
+      "colTotal": "总美元",
+      "colTokens": "PYRAX代币"
+    },
+    "eligibility": {
+      "title": "资格要求",
+      "req1": "在PYRAX预售公告前拥有购买的BDAG代币",
+      "req2": "提供可验证的购买证明（交易哈希）",
+      "req3": "完成KYC身份验证",
+      "req4": "在截止日期前提交申领（待定）"
+    },
+    "vesting": {
+      "title": "归属时间表",
+      "cliffPeriod": "锁定期",
+      "cliffDesc": "锁定期内释放0%",
+      "vestingPeriod": "归属期",
+      "vestingDesc": "每月释放8.33%"
+    },
+    "timeline": {
+      "title": "重要时间线",
+      "claimOpens": "申领窗口开放",
+      "deadline": "申领截止",
+      "tge": "代币生成",
+      "cliffEnds": "锁定期结束",
+      "fullyVested": "完全归属"
+    },
+    "burn": {
+      "title": "未申领代币销毁",
+      "subtitle": "截止日期前未申领的所有代币将被永久销毁。没有延期或宽限期。",
+      "benefit1": "通缩机制",
+      "benefit2": "奖励活跃参与者",
+      "benefit3": "防止滥用",
+      "benefit4": "明确的截止日期促进行动"
+    },
+    "claimEarly": {
+      "title": "提前申领获得更多代币",
+      "subtitle": "更早申领（第一阶段）可获得更多代币，因为价格更低。在第四阶段申领将以相同的美元分配获得更少的代币。"
+    },
+    "cta": {
+      "title": "提交您的申领",
+      "submit": "验证您的BDAG持有量并申领PYRAX",
+      "viewVesting": "查看归属详情",
+      "portalDisclaimer": "申领门户尚未开放。关注我们的社交媒体，以便在门户开放时收到通知。"
+    }
+  },
+  "whitepaper": {
+    "badge": "Simple Guide",
+    "title": "Understanding PYRAX",
+    "subtitle": "A beginner-friendly explanation of what PYRAX is, how it works, and why it matters. No technical jargon required.",
+    "startReading": "Start Reading",
+    "technicalVersion": "Read Technical Version",
+    "toc": {
+      "title": "Contents",
+      "whatIsPyrax": "What is PYRAX?",
+      "problem": "The Problem",
+      "solution": "Our Solution",
+      "howItWorks": "How It Works",
+      "mining": "Mining & Earning",
+      "aiPlatform": "AI Platform",
+      "tokenomics": "Token Economics",
+      "roadmap": "Roadmap",
+      "conclusion": "Conclusion"
+    },
+    "sections": {
+      "whatIs": {
+        "label": "Introduction",
+        "title": "What is PYRAX?",
+        "p1": "PYRAX is a new type of blockchain designed for the AI era. Think of it as a decentralized computer network where anyone with a graphics card (GPU) can participate in securing the network while also providing computing power for artificial intelligence tasks.",
+        "p2": "Unlike traditional blockchains that only process financial transactions, PYRAX creates a marketplace where AI developers can rent computing power from GPU owners around the world. This makes AI more accessible and affordable for everyone.",
+        "keyPoints": "Key Takeaways",
+        "point1": "A blockchain built specifically for AI computing",
+        "point2": "GPU miners earn rewards for securing the network AND running AI jobs",
+        "point3": "Supports smart contracts compatible with Ethereum",
+        "point4": "Can process over 500,000 transactions per second"
+      },
+      "problem": {
+        "label": "The Challenge",
+        "title": "Why Do We Need PYRAX?",
+        "intro": "The current landscape has several problems that PYRAX aims to solve:",
+        "issue1": {
+          "title": "AI Computing is Expensive",
+          "desc": "Training and running AI models requires expensive cloud services from big tech companies. Small developers and researchers are priced out."
+        },
+        "issue2": {
+          "title": "Centralized Control",
+          "desc": "A few large companies control most AI computing resources, creating bottlenecks and single points of failure."
+        },
+        "issue3": {
+          "title": "Wasted GPU Power",
+          "desc": "Millions of powerful gaming GPUs sit idle when not gaming. This computing power could be put to productive use."
+        },
+        "issue4": {
+          "title": "Limited Blockchain Scalability",
+          "desc": "Most blockchains are too slow for AI applications, processing only 15-50 transactions per second."
+        }
+      },
+      "solution": {
+        "label": "The Answer",
+        "title": "How PYRAX Solves These Problems",
+        "intro": "PYRAX brings together three innovations to create a faster, more inclusive blockchain ecosystem:",
+        "benefit1": {
+          "title": "TriStream Consensus",
+          "desc": "Three parallel mining streams work together - ASIC miners, GPU miners, and validators - providing unprecedented security and decentralization."
+        },
+        "benefit2": {
+          "title": "Dual-Purpose Mining",
+          "desc": "GPU miners don't just secure the network - they can also earn extra rewards by running AI compute jobs when their hardware is available."
+        },
+        "benefit3": {
+          "title": "Layer 2 Scaling",
+          "desc": "Built-in ZK-Rollup support enables 500,000+ transactions per second, making PYRAX fast enough for any application."
+        }
+      },
+      "howItWorks": {
+        "label": "The Technology",
+        "title": "How Does PYRAX Work?",
+        "intro": "PYRAX uses a unique three-layer architecture that separates concerns for maximum efficiency:",
+        "tristream": {
+          "title": "TriStream Consensus",
+          "desc": "Instead of relying on a single type of miner, PYRAX uses three parallel streams that work together:",
+          "streamA": {
+            "name": "Stream A (ASIC)",
+            "desc": "High-speed transaction processing using specialized mining hardware. Produces blocks every 10 seconds."
+          },
+          "streamB": {
+            "name": "Stream B (GPU)",
+            "desc": "GPU mining that also enables AI compute. Uses the KAWPOW algorithm to stay ASIC-resistant."
+          },
+          "streamC": {
+            "name": "Stream C (Validators)",
+            "desc": "Proof of stake validators provide ZK-STARK finality proofs, making transactions irreversible."
+          }
+        },
+        "layers": {
+          "title": "Three Layers of PYRAX",
+          "l3": {
+            "title": "ZK-Rollups",
+            "desc": "The top layer handles high-volume applications like AI, DeFi, and gaming with 500,000+ TPS."
+          },
+          "l2": {
+            "title": "EVM Sidechain",
+            "desc": "A fully Ethereum-compatible layer for smart contracts. Deploy Solidity code seamlessly."
+          },
+          "l1": {
+            "title": "TriStream DAG",
+            "desc": "The foundation layer using GHOSTDAG ordering to unify all three mining streams into one secure ledger."
+          }
+        }
+      },
+      "mining": {
+        "label": "Participation",
+        "title": "Mining & Earning PYRAX",
+        "intro": "There are multiple ways to participate in the PYRAX network and earn rewards:",
+        "ways": {
+          "title": "Ways to Participate",
+          "way1": {
+            "title": "ASIC Mining (Stream A)",
+            "desc": "Use BLAKE3 ASIC miners for high-speed block production. Best for dedicated mining operations."
+          },
+          "way2": {
+            "title": "GPU Mining (Stream B)",
+            "desc": "Mine using your graphics card with KAWPOW algorithm. Can also run AI jobs for extra income."
+          },
+          "way3": {
+            "title": "Staking (Stream C)",
+            "desc": "Stake 100,000 PYRAX to become a validator and earn rewards for providing finality proofs."
+          }
+        }
+      },
+      "ai": {
+        "label": "AI Marketplace",
+        "title": "The AI Compute Platform",
+        "intro": "PYRAX includes a built-in marketplace where AI developers can rent GPU power from miners around the world:",
+        "foundry": {
+          "title": "Foundry - Model Registry",
+          "desc": "A place to register, version, and discover AI models.",
+          "feature1": "Register your AI models",
+          "feature2": "Track versions and benchmarks",
+          "feature3": "Set your own pricing"
+        },
+        "crucible": {
+          "title": "Crucible - Job Execution",
+          "desc": "Submit AI jobs and have them executed by GPU providers.",
+          "feature1": "Run inference, training, fine-tuning",
+          "feature2": "Automatic provider matching",
+          "feature3": "Verified results with escrow"
+        }
+      },
+      "tokenomics": {
+        "label": "Economics",
+        "title": "PYRAX Token Economics",
+        "intro": "The PYRAX token powers the entire ecosystem, from paying transaction fees to rewarding miners and AI providers.",
+        "symbol": "Token Symbol",
+        "supply": "Total Supply",
+        "decimals": "Decimals",
+        "halving": "Halving Cycle",
+        "distribution": {
+          "title": "Token Distribution",
+          "mining": "Mining Rewards",
+          "presale": "Presale",
+          "ecosystem": "Ecosystem",
+          "liquidity": "Liquidity",
+          "bdag": "BDAG Community",
+          "other": "Team, Advisors, Treasury"
+        }
+      },
+      "roadmap": {
+        "label": "Timeline",
+        "title": "Development Roadmap",
+        "q4_2025": {
+          "title": "Foundation",
+          "desc": "Core node, P2P networking, wallet, and GPU miner development."
+        },
+        "q1q2_2026": {
+          "title": "Platform Expansion",
+          "desc": "Public testnet, block explorer, EVM sidechain, and AI marketplace beta."
+        },
+        "q3_2026": {
+          "title": "Mainnet Launch",
+          "desc": "Security audits, genesis block, seed nodes, and exchange listings."
+        },
+        "q4_2026": {
+          "title": "Scale & Growth",
+          "desc": "Cross-chain bridges, enterprise partnerships, and DAO governance."
+        }
+      },
+      "conclusion": {
+        "label": "Summary",
+        "title": "Join the Future of AI Computing",
+        "text": "PYRAX represents a new paradigm where blockchain technology meets artificial intelligence. By enabling GPU miners to earn from both network security and AI compute, we're creating a more decentralized and accessible AI infrastructure for everyone.",
+        "readTechnical": "Read Technical Whitepaper",
+        "joinCommunity": "Join Our Community"
+      }
+    }
+  },
+  "technicalWhitepaper": {
+    "badge": "Technical Specification",
+    "title": "PYRAX Technical Whitepaper",
+    "subtitle": "Complete technical specification of the PYRAX TriStream DAG blockchain, consensus mechanisms, and AI compute infrastructure.",
+    "simpleVersion": "Read Simple Version",
+    "version": "Version",
+    "date": "Date",
+    "status": "Status",
+    "network": "Network",
+    "toc": {
+      "title": "Table of Contents",
+      "abstract": "Abstract",
+      "architecture": "System Architecture",
+      "consensus": "TriStream Consensus",
+      "ghostdag": "GHOSTDAG Ordering",
+      "blockStructure": "Block Structure",
+      "cryptography": "Cryptography",
+      "smartContracts": "Smart Contracts",
+      "aiPlatform": "AI Platform",
+      "tokenomics": "Token Economics",
+      "security": "Security Model",
+      "references": "References"
+    },
+    "sections": {
+      "abstract": {
+        "label": "Section 1",
+        "title": "Abstract",
+        "p1": "PYRAX is a TriStream DAG Layer 1 blockchain implementing three parallel consensus streams unified via GHOSTDAG ordering. The protocol combines BLAKE3 Proof-of-Work for ASIC mining, KAWPOW Proof-of-Work for GPU mining, and ZK-STARK Proof-of-Stake for cryptographic finality.",
+        "p2": "This document specifies the complete technical architecture including consensus mechanisms, block structure, cryptographic primitives, smart contract execution environments, and the decentralized AI compute marketplace protocol."
+      },
+      "architecture": {
+        "label": "Section 2",
+        "title": "System Architecture",
+        "intro": "PYRAX implements a three-layer architecture designed for scalability, security, and AI compute integration.",
+        "l3": {
+          "title": "ZK-Rollups",
+          "desc": "Application-specific rollups for AI compute, DeFi, and gaming with validity proofs posted to L1.",
+          "specs": "500K+ TPS | STARK/SNARK/Plonk/Groth16 | 7-day challenge"
+        },
+        "l2": {
+          "title": "EVM Sidechain",
+          "desc": "Full Ethereum Virtual Machine compatibility with Solidity 0.8.x and Rust/WASM contract support.",
+          "specs": "2s blocks | 1K-5K TPS | Native L1 bridge"
+        },
+        "l1": {
+          "title": "TriStream DAG",
+          "desc": "Base layer with three parallel mining streams unified by GHOSTDAG consensus ordering.",
+          "specs": "BLAKE3 + KAWPOW + ZK-STARK | UTXO model"
+        }
+      },
+      "consensus": {
+        "label": "Section 3",
+        "title": "TriStream Consensus Mechanism",
+        "intro": "The TriStream consensus employs three parallel block production streams, each optimized for different hardware and use cases.",
+        "streamA": {
+          "type": "ASIC Mining",
+          "desc": "High-throughput UTXO transaction processing optimized for specialized mining hardware."
+        },
+        "streamB": {
+          "type": "GPU Mining",
+          "desc": "KAWPOW-based mining enabling dual-purpose GPU utilization for both mining and AI compute jobs."
+        },
+        "streamC": {
+          "type": "Proof of Stake",
+          "desc": "ZK-STARK finality checkpoints providing cryptographic proof of transaction irreversibility."
+        }
+      },
+      "ghostdag": {
+        "label": "Section 4",
+        "title": "GHOSTDAG Ordering Protocol",
+        "intro": "GHOSTDAG (Greedy Heaviest-Observed Sub-Tree DAG) orders blocks from all three streams into a single canonical history without orphaning valid blocks.",
+        "properties": {
+          "title": "Key Properties",
+          "p1": "Parallel Block Production: All streams produce blocks concurrently without conflicts.",
+          "p2": "No Orphan Blocks: Valid blocks are never discarded, maximizing miner rewards.",
+          "p3": "Hardware Diversity: Supports ASIC, GPU, and validator participation simultaneously.",
+          "p4": "Fast Finality: Stream C ZK proofs provide irreversible transaction finality."
+        }
+      },
+      "block": {
+        "label": "Section 5",
+        "title": "Block Structure Specification"
+      },
+      "crypto": {
+        "label": "Section 6",
+        "title": "Cryptographic Primitives",
+        "address": {
+          "title": "Address Derivation",
+          "desc": "EVM-compatible 20-byte addresses"
+        },
+        "blockHash": {
+          "title": "Block Header Hash",
+          "desc": "Stream-specific: BLAKE3 or KAWPOW"
+        },
+        "txHash": {
+          "title": "Transaction Hash",
+          "desc": "Standard EVM transaction hashing"
+        },
+        "signatures": {
+          "title": "Digital Signatures",
+          "desc": "65-byte ECDSA with recovery"
+        },
+        "zkProofs": {
+          "title": "Zero-Knowledge Proofs",
+          "desc": "Multiple proof systems supported"
+        },
+        "keyDerivation": {
+          "title": "HD Key Derivation",
+          "desc": "Standard Ethereum derivation path"
+        }
+      },
+      "contracts": {
+        "label": "Section 7",
+        "title": "Smart Contract Execution",
+        "evm": {
+          "title": "EVM Execution Environment",
+          "desc": "Full Ethereum Virtual Machine compatibility enabling seamless migration of existing dApps."
+        },
+        "wasm": {
+          "title": "WASM Execution Environment",
+          "desc": "High-performance Rust/WASM contracts with cross-VM interoperability."
+        }
+      },
+      "ai": {
+        "label": "Section 8",
+        "title": "AI Compute Platform Protocol",
+        "intro": "The AI platform implements a decentralized job marketplace with on-chain settlement and verification."
+      },
+      "tokenomics": {
+        "label": "Section 9",
+        "title": "Token Economic Model",
+        "distribution": {
+          "title": "Token Distribution"
+        },
+        "fees": {
+          "title": "Gas Fee Distribution"
+        }
+      },
+      "security": {
+        "label": "Section 10",
+        "title": "Security Model",
+        "slashing": {
+          "title": "Slashing Conditions"
+        },
+        "verification": {
+          "title": "AI Job Verification"
+        }
+      },
+      "references": {
+        "label": "Section 11",
+        "title": "References"
+      }
+    }
+  },
+  "teamPage": {
+    "hero": {
+      "title": "Meet the Team",
+      "subtitle": "The passionate individuals building the future of blockchain technology at PYRAX Network."
+    },
+    "sections": {
+      "founding": {
+        "badge": "Founding Team",
+        "title": "Founding Team",
+        "subtitle": "The visionaries who started it all and continue to lead PYRAX Network forward."
+      },
+      "core": {
+        "badge": "Core Team",
+        "title": "Core Team",
+        "subtitle": "The dedicated developers and engineers building the future of PYRAX."
+      },
+      "community": {
+        "badge": "Community Team",
+        "title": "Community Team",
+        "subtitle": "The passionate individuals connecting and growing the PYRAX community worldwide."
+      }
+    },
+    "roles": {
+      "coFounder": "Co-Founder, President, CTO & Lead Developer",
+      "svp": "Senior V. President",
+      "cfo": "Chief Financial Officer",
+      "coreDev": "Core Developer",
+      "communityManager": "Community Manager"
+    },
+    "bios": {
+      "shawn": "Bio coming soon",
+      "gabriel": "Bio coming soon",
+      "tekky": "Bio coming soon",
+      "comingSoon": "Bio coming soon"
+    },
+    "comingSoon": "Coming Soon",
+    "cta": {
+      "title": "Join Our Team",
+      "subtitle": "We are always looking for talented individuals who share our vision for the future of blockchain.",
+      "joinDiscord": "Join Discord",
+      "contactUs": "Contact Us"
+    }
+  },
+  "releasesPage": {
+    "community": {
+      "badge": "Community Releases",
+      "title": "Community Releases",
+      "subtitle": "Important updates and announcements for the PYRAX community."
+    },
+    "media": {
+      "badge": "Media Releases",
+      "title": "Media Releases",
+      "subtitle": "Press releases, media coverage, and official statements.",
+      "comingSoonDesc": "Media releases will be published here as they become available."
+    },
+    "dev": {
+      "badge": "DEV Releases",
+      "title": "DEV Releases",
+      "subtitle": "Technical updates, changelogs, and development progress.",
+      "comingSoonDesc": "Development releases and changelogs will be published here."
+    },
+    "readMore": "Read more",
+    "backToReleases": "Back to releases",
+    "share": "Share",
+    "comingSoon": "Coming Soon"
   }
 }
