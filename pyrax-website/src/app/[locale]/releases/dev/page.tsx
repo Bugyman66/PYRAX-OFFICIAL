@@ -4,12 +4,33 @@ import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import Link from 'next/link';
+import { useLocale } from 'next-intl';
 import {
   WrenchScrewdriverIcon,
+  CalendarIcon,
+  ArrowRightIcon,
 } from '@heroicons/react/24/outline';
+
+interface Release {
+  slug: string;
+  title: string;
+  date: string;
+  excerpt: string;
+}
 
 export default function DevReleasesPage() {
   const t = useTranslations('releasesPage');
+  const locale = useLocale();
+
+  const releases: Release[] = [
+    {
+      slug: 'development-status-january-2026',
+      title: 'Development Status Update',
+      date: 'January 7, 2026',
+      excerpt: 'A comprehensive look at where PYRAX stands today — ~85% core infrastructure complete. Learn about the TriStream consensus, PYRAX Desktop app, AI platform, and our roadmap to mainnet.',
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-stone-950">
@@ -40,21 +61,42 @@ export default function DevReleasesPage() {
         </div>
       </section>
 
-      {/* Coming Soon */}
+      {/* Releases List */}
       <section className="py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="bg-stone-900/50 border border-stone-800 rounded-2xl p-12 text-center"
-          >
-            <WrenchScrewdriverIcon className="w-16 h-16 text-stone-600 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-4">{t('comingSoon')}</h2>
-            <p className="text-stone-400 max-w-md mx-auto">
-              {t('dev.comingSoonDesc')}
-            </p>
-          </motion.div>
+          <div className="space-y-6">
+            {releases.map((release, index) => (
+              <motion.div
+                key={release.slug}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Link
+                  href={`/${locale}/releases/dev/${release.slug}`}
+                  className="block group"
+                >
+                  <div className="bg-stone-900/50 border border-stone-800 rounded-2xl p-6 hover:border-green-500/50 transition-all duration-300">
+                    <div className="flex items-center gap-2 text-sm text-stone-500 mb-3">
+                      <CalendarIcon className="w-4 h-4" />
+                      <span>{release.date}</span>
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-green-400 transition-colors">
+                      {release.title}
+                    </h2>
+                    <p className="text-stone-400 mb-4">
+                      {release.excerpt}
+                    </p>
+                    <div className="flex items-center gap-2 text-green-500 font-medium">
+                      <span>{t('readMore')}</span>
+                      <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

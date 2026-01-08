@@ -52,6 +52,13 @@ export default function Navbar() {
     icon: React.ComponentType<{ className?: string }>;
     description: string;
     external?: boolean;
+    newUntil?: Date; // Show "New" badge until this date
+  };
+
+  // Helper function to check if an item should show "New" badge
+  const isNew = (item: NavItem): boolean => {
+    if (!item.newUntil) return false;
+    return new Date() < item.newUntil;
   };
 
   // Blockchain dropdown
@@ -95,11 +102,11 @@ export default function Navbar() {
   // Team page item
   const teamItem: NavItem = { name: t('team'), href: `/${locale}/team`, icon: UserGroupIcon, description: t('teamDesc') };
 
-  // Releases dropdown items
+  // Releases dropdown items - newUntil is set to 5 days after the latest article was added
   const releasesItems: NavItem[] = [
-    { name: t('communityReleases'), href: `/${locale}/releases/community`, icon: MegaphoneIcon, description: t('communityReleasesDesc') },
-    { name: t('mediaReleases'), href: `/${locale}/releases/media`, icon: FilmIcon, description: t('mediaReleasesDesc') },
-    { name: t('devReleases'), href: `/${locale}/releases/dev`, icon: WrenchScrewdriverIcon, description: t('devReleasesDesc') },
+    { name: t('communityReleases'), href: `/${locale}/releases/community`, icon: MegaphoneIcon, description: t('communityReleasesDesc'), newUntil: new Date('2026-01-12') }, // Legal launch article added Jan 7
+    { name: t('mediaReleases'), href: `/${locale}/releases/media`, icon: FilmIcon, description: t('mediaReleasesDesc') }, // No new articles yet
+    { name: t('devReleases'), href: `/${locale}/releases/dev`, icon: WrenchScrewdriverIcon, description: t('devReleasesDesc'), newUntil: new Date('2026-01-12') }, // Dev status article added Jan 7
   ];
 
   const communityItems: SocialNavItem[] = [
@@ -122,8 +129,13 @@ export default function Navbar() {
           />
         </div>
         <div>
-          <span className="font-semibold text-white">
+          <span className="font-semibold text-white flex items-center gap-2">
             {item.name}
+            {isNew(item) && (
+              <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-pyrax-500 text-white rounded animate-pulse">
+                New
+              </span>
+            )}
             <span className="absolute inset-0" />
           </span>
           <p className="mt-1 text-stone-400">{item.description}</p>
@@ -543,7 +555,14 @@ export default function Navbar() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <item.icon className="h-5 w-5 text-pyrax-400" />
-                    {item.name}
+                    <span className="flex items-center gap-2">
+                      {item.name}
+                      {isNew(item) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-pyrax-500 text-white rounded animate-pulse">
+                          New
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 ))}
               </div>
