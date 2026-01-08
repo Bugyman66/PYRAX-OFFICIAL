@@ -91,9 +91,9 @@ jobs:
         run: |
           ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
           cat > /opt/pyrax/.env << 'ENVFILE'
-          NETWORK=${{ vars.NETWORK || 'mainnet' }}
-          NEXT_PUBLIC_RPC_URL=${{ vars.NEXT_PUBLIC_RPC_URL || 'https://rpc.pyrax.org' }}
-          NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://api.pyrax.org' }}
+          NETWORK=${{ vars.NETWORK || 'testnet' }}
+          NEXT_PUBLIC_RPC_URL=${{ vars.NEXT_PUBLIC_RPC_URL || 'https://rpc.testnet.pyrax.org' }}
+          NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'https://api.testnet.pyrax.org' }}
           FAUCET_PRIVATE_KEY=${{ secrets.FAUCET_PRIVATE_KEY }}
           FAUCET_AMOUNT=${{ vars.FAUCET_AMOUNT || '10' }}
           RATE_LIMIT_HOURS=${{ vars.RATE_LIMIT_HOURS || '24' }}
@@ -149,13 +149,13 @@ jobs:
         run: |
           sleep 15
           echo "Checking website..."
-          curl -f https://pyrax.org || echo "Website check failed"
+          curl -f https://testnet.pyrax.org || echo "Website check failed"
           echo "Checking docs..."
-          curl -f https://docs.pyrax.org || echo "Docs check failed"
+          curl -f https://docs.testnet.pyrax.org || echo "Docs check failed"
           echo "Checking explorer..."
-          curl -f https://explorer.pyrax.org || echo "Explorer check failed"
+          curl -f https://explorer.testnet.pyrax.org || echo "Explorer check failed"
           echo "Checking faucet..."
-          curl -f https://faucet.pyrax.org || echo "Faucet check failed"
+          curl -f https://faucet.testnet.pyrax.org || echo "Faucet check failed"
 
   notify:
     needs: deploy
