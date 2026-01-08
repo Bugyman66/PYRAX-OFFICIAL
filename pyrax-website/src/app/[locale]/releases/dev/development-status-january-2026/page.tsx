@@ -519,7 +519,7 @@ export default function DevelopmentStatusJanuary2026Page() {
               <div className="bg-stone-900/50 border border-stone-800 rounded-xl p-6">
                 <h3 className="font-semibold text-white mb-3">👨‍💻 Developers</h3>
                 <ul className="list-none space-y-2 text-stone-400 text-sm">
-                  <li>• Review our documentation at docs.pyrax.org</li>
+                  <li>• Review our documentation at testnet.pyrax.org/docs</li>
                   <li>• Explore the open-source code</li>
                   <li>• Start building your apps now</li>
                 </ul>

@@ -81,7 +81,7 @@ export default function Navbar() {
     { name: t('technicalWhitepaperNav'), href: `/${locale}/technical-whitepaper`, icon: DocumentTextIcon, description: t('technicalWhitepaperDesc') },
     { name: t('downloads'), href: `/${locale}/downloads`, icon: ArrowDownTrayIcon, description: t('downloadsDesc') },
     { name: t('explorer'), href: 'https://explorer.pyrax.org', icon: ChartBarIcon, description: t('explorerDesc'), external: true },
-    { name: t('docs'), href: 'https://docs.pyrax.org', icon: BookOpenIcon, description: t('docsDesc'), external: true },
+    { name: t('docs'), href: 'https://testnet.pyrax.org/docs', icon: BookOpenIcon, description: t('docsDesc'), external: true },
     { name: 'GitHub', href: 'https://github.com/PYRAX-Chain', icon: CodeBracketIcon, description: t('githubDesc'), external: true },
   ];
 
@@ -244,9 +244,12 @@ export default function Navbar() {
                   <div className="grid grid-cols-1 gap-x-6 gap-y-1 p-4 lg:grid-cols-2">
                     {resourceItems.map((item) => renderNavItem(item))}
                   </div>
-                  <div className="bg-stone-800/50 px-8 py-6">
+                  <Link 
+                    href={`/${locale}/pitchdeck`}
+                    className="block bg-stone-800/50 px-8 py-6 hover:bg-stone-700/50 transition-colors group"
+                  >
                     <div className="flex items-center gap-x-3">
-                      <h3 className="text-sm/6 font-semibold text-white">{t('developerTools')}</h3>
+                      <h3 className="text-sm/6 font-semibold text-white group-hover:text-pyrax-400 transition-colors">{t('developerTools')}</h3>
                       <p className="rounded-full bg-pyrax-500/10 px-2.5 py-1.5 text-xs font-semibold text-pyrax-400">
                         {t('openSource')}
                       </p>
@@ -254,7 +257,11 @@ export default function Navbar() {
                     <p className="mt-2 text-sm/6 text-stone-400">
                       {t('buildOnPyrax')}
                     </p>
-                  </div>
+                    <div className="mt-3 flex items-center gap-x-2 text-pyrax-400 text-sm font-semibold">
+                      <span>{t('viewPitchDeck')}</span>
+                      <span aria-hidden="true">→</span>
+                    </div>
+                  </Link>
                 </div>
               </PopoverPanel>
             </Popover>

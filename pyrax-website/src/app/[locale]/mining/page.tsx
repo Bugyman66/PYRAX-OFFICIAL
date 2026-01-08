@@ -293,7 +293,7 @@ export default function MiningPage() {
                 {t('cta.downloadMiner')}
               </a>
               <a
-                href="https://docs.pyrax.org/mining"
+                href="https://testnet.pyrax.org/docs/mining"
                 className="inline-flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900/50 px-8 py-4 text-lg font-semibold text-white hover:bg-stone-800 transition-all"
               >
                 {t('cta.readDocs')}

@@ -45,7 +45,7 @@ export default function CTA() {
             </a>
             
             <a
-              href="https://docs.pyrax.org"
+              href="https://testnet.pyrax.org/docs"
               className="inline-flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900/50 px-8 py-4 text-lg font-semibold text-white hover:bg-stone-800 transition-all"
             >
               <BookOpenIcon className="h-5 w-5" />

@@ -9,23 +9,23 @@ export default function TokenomicsPage() {
   const t = useTranslations('tokenomicsPage');
 
   const distribution = [
-    { name: t('distribution.presale'), percent: '7%', amount: '7B', desc: t('distribution.presaleDesc'), color: '#FF6B35' },
-    { name: t('distribution.bdagCommunity'), percent: '5%', amount: '5B', desc: t('distribution.bdagDesc'), color: '#3B82F6' },
-    { name: t('distribution.mining'), percent: '40%', amount: '40B', desc: t('distribution.miningDesc'), color: '#10B981' },
-    { name: t('distribution.zkProver'), percent: '10%', amount: '10B', desc: t('distribution.zkDesc'), color: '#8B5CF6' },
-    { name: t('distribution.team'), percent: '10%', amount: '10B', desc: t('distribution.teamDesc'), color: '#EC4899' },
+    { name: t('distribution.presale'), percent: '15%', amount: '15B', desc: t('distribution.presaleDesc'), color: '#FF6B35' },
+    { name: t('distribution.bdagCommunity'), percent: '10%', amount: '10B', desc: t('distribution.bdagDesc'), color: '#3B82F6' },
+    { name: t('distribution.mining'), percent: '35%', amount: '35B', desc: t('distribution.miningDesc'), color: '#10B981' },
+    { name: t('distribution.zkProver'), percent: '5%', amount: '5B', desc: t('distribution.zkDesc'), color: '#8B5CF6' },
+    { name: t('distribution.team'), percent: '4%', amount: '4B', desc: t('distribution.teamDesc'), color: '#EC4899' },
     { name: t('distribution.advisors'), percent: '3%', amount: '3B', desc: t('distribution.advisorsDesc'), color: '#F59E0B' },
     { name: t('distribution.ecosystem'), percent: '10%', amount: '10B', desc: t('distribution.ecosystemDesc'), color: '#06B6D4' },
     { name: t('distribution.marketing'), percent: '5%', amount: '5B', desc: t('distribution.marketingDesc'), color: '#EF4444' },
-    { name: t('distribution.liquidity'), percent: '5%', amount: '5B', desc: t('distribution.liquidityDesc'), color: '#84CC16' },
-    { name: t('distribution.treasury'), percent: '3%', amount: '3B', desc: t('distribution.treasuryDesc'), color: '#A855F7' },
-    { name: t('distribution.reserve'), percent: '2%', amount: '2B', desc: t('distribution.reserveDesc'), color: '#6B7280' },
+    { name: t('distribution.liquidity'), percent: '10%', amount: '10B', desc: t('distribution.liquidityDesc'), color: '#84CC16' },
+    { name: t('distribution.treasury'), percent: '2%', amount: '2B', desc: t('distribution.treasuryDesc'), color: '#A855F7' },
+    { name: t('distribution.reserve'), percent: '1%', amount: '1B', desc: t('distribution.reserveDesc'), color: '#6B7280' },
   ];
 
   const feeDistribution = [
-    { name: t('fees.streamA'), percent: '40%', color: '#FF6B35' },
-    { name: t('fees.streamB'), percent: '35%', color: '#3B82F6' },
-    { name: t('fees.streamC'), percent: '15%', color: '#8B5CF6' },
+    { name: t('fees.streamA'), percent: '20%', color: '#FF6B35' },
+    { name: t('fees.streamB'), percent: '40%', color: '#3B82F6' },
+    { name: t('fees.streamC'), percent: '30%', color: '#8B5CF6' },
     { name: t('fees.treasury'), percent: '10%', color: '#10B981' },
   ];
 
@@ -60,7 +60,7 @@ export default function TokenomicsPage() {
               { label: t('overview.name'), value: 'PYRAX' },
               { label: t('overview.symbol'), value: 'PYRAX' },
               { label: t('overview.supply'), value: '100B' },
-              { label: t('overview.decimals'), value: '18' },
+              { label: t('overview.decimals'), value: '8' },
             ].map((item, index) => (
               <motion.div
                 key={item.label}
@@ -184,10 +184,10 @@ export default function TokenomicsPage() {
                 {[
                   { label: t('staking.validatorStake'), value: '100,000 PYRAX' },
                   { label: t('staking.minDelegation'), value: '100 PYRAX' },
-                  { label: t('staking.providerStake'), value: '10,000 PYRAX' },
-                  { label: t('staking.unbonding'), value: '21 days' },
-                  { label: t('staking.doubleSign'), value: '5% slash' },
-                  { label: t('staking.downtime'), value: '0.1% slash' },
+                  { label: t('staking.providerStake'), value: '1,000 PYRAX' },
+                  { label: t('staking.unbonding'), value: '7 days' },
+                  { label: t('staking.doubleSign'), value: '5%' },
+                  { label: t('staking.downtime'), value: '0.1%' },
                 ].map((item) => (
                   <div key={item.label} className="flex justify-between items-center py-3 border-b border-stone-800 last:border-0">
                     <span className="text-stone-400">{item.label}</span>
