@@ -94,30 +94,39 @@ jobs:
           ENVFILE
           EOF
 
-      - name: Clean and Deploy Fresh
+      - name: Zero-Downtime Deploy
         run: |
           ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
           cd /opt/pyrax
           
-          echo "=== STOPPING ALL CONTAINERS ==="
-          docker compose down --remove-orphans || true
-          docker stop $(docker ps -aq) 2>/dev/null || true
-          docker rm $(docker ps -aq) 2>/dev/null || true
+          echo "=== BUILDING NEW IMAGES (site stays up) ==="
+          docker compose build --no-cache website faucet docs explorer
           
-          echo "=== REMOVING OLD IMAGES ==="
-          docker image prune -af
-          docker system prune -af --volumes
+          echo "=== ROLLING UPDATE: Website ==="
+          docker compose up -d --no-deps --build website
+          sleep 5
           
-          echo "=== BUILDING FRESH ==="
-          docker compose build --no-cache website faucet docs explorer nginx
+          echo "=== ROLLING UPDATE: Faucet ==="
+          docker compose up -d --no-deps --build faucet
+          sleep 3
           
-          echo "=== STARTING ALL SERVICES ==="
-          docker compose up -d
+          echo "=== ROLLING UPDATE: Docs ==="
+          docker compose up -d --no-deps --build docs
+          sleep 3
+          
+          echo "=== ROLLING UPDATE: Explorer ==="
+          docker compose up -d --no-deps --build explorer
+          sleep 3
+          
+          echo "=== RELOAD NGINX (graceful) ==="
+          docker compose exec -T nginx nginx -s reload || docker compose up -d --no-deps nginx
+          
+          echo "=== CLEANUP OLD IMAGES ==="
+          docker image prune -f
           
           echo "=== HEALTH CHECK ==="
-          sleep 15
           docker compose ps
-          docker compose logs --tail=20
+          docker compose logs --tail=10
           EOF
 
       - name: Health Check
