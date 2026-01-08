@@ -78,12 +78,12 @@ function AnimatedCounter({ value, suffix = '', prefix = '', duration = 2 }: { va
   return <span>{prefix}{count.toLocaleString()}{suffix}</span>;
 }
 
-function LiveDataBar({ label, value, maxValue, color, delay = 0 }: { label: string; value: number; maxValue: number; color: string; delay?: number }) {
+function LiveDataBar({ label, value, maxValue, color, delay = 0, suffix = '', prefix = '' }: { label: string; value: number; maxValue: number; color: string; delay?: number; suffix?: string; prefix?: string }) {
   return (
     <div className="mb-3">
       <div className="flex justify-between text-sm mb-1">
         <span className="text-stone-400">{label}</span>
-        <span className={`font-bold ${color}`}>{value.toLocaleString()}</span>
+        <span className={`font-bold ${color}`}>{prefix}{value.toLocaleString()}{suffix}</span>
       </div>
       <div className="h-3 bg-stone-800 rounded-full overflow-hidden">
         <motion.div
@@ -285,8 +285,8 @@ function Slide({ id, t, locale }: { id: string; t: any; locale: string }) {
               icon: CurrencyDollarIcon, 
               title: 'AI Compute is Unaffordable', 
               stat: '$100M+', 
-              statLabel: 'to train GPT-4',
-              desc: 'Cloud GPU costs $2-8/hour. Small developers and researchers are completely priced out of the AI revolution.',
+              statLabel: 'estimated cost to train GPT-4',
+              desc: 'Training large AI models costs tens of millions. Cloud GPU rates of $2-8/hour price out small developers and researchers entirely.',
               color: 'red'
             },
             { 
@@ -352,10 +352,10 @@ function Slide({ id, t, locale }: { id: string; t: any; locale: string }) {
           </h3>
           
           <div className="space-y-5">
-            <LiveDataBar label="Annual AI Compute Spend" value={50} maxValue={100} color="text-red-400" delay={0.5} />
-            <LiveDataBar label="GPU Utilization Rate" value={20} maxValue={100} color="text-amber-400" delay={0.7} />
-            <LiveDataBar label="Market Concentration (Top 3)" value={65} maxValue={100} color="text-orange-400" delay={0.9} />
-            <LiveDataBar label="Developer Access to AI" value={15} maxValue={100} color="text-yellow-400" delay={1.1} />
+            <LiveDataBar label="Annual AI Compute Spend (2024)" value={50} maxValue={100} prefix="$" suffix="B+ globally" color="text-red-400" delay={0.5} />
+            <LiveDataBar label="Average GPU Utilization in Data Centers" value={20} maxValue={100} suffix="% idle capacity" color="text-amber-400" delay={0.7} />
+            <LiveDataBar label="Cloud AI Market Share (AWS, Azure, GCP)" value={65} maxValue={100} suffix="% concentrated" color="text-orange-400" delay={0.9} />
+            <LiveDataBar label="Indie Developers with AI Access" value={15} maxValue={100} suffix="% can afford it" color="text-yellow-400" delay={1.1} />
           </div>
 
           <motion.div 

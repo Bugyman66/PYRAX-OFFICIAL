@@ -28,6 +28,7 @@ import {
   GiftIcon,
   MegaphoneIcon,
   FilmIcon,
+  PresentationChartBarIcon,
   WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { locales, localeNames, localeCountryCodes, type Locale } from '@/i18n/config';
@@ -507,6 +508,15 @@ export default function Navbar() {
                     </Link>
                   )
                 ))}
+                {/* Pitch Deck - Featured Link */}
+                <Link
+                  href={`/${locale}/pitchdeck`}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 mt-2 text-base font-medium bg-pyrax-500/10 text-pyrax-400 hover:bg-pyrax-500/20"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <PresentationChartBarIcon className="h-5 w-5" />
+                  {t('pitchDeck')}
+                </Link>
               </div>
 
               {/* Community */}

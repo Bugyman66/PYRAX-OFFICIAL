@@ -25,6 +25,12 @@ export default function CommunityReleasesPage() {
 
   const releases: Release[] = [
     {
+      slug: 'bdag-community-initiative',
+      title: 'The BDAG Community Initiative',
+      date: 'January 8, 2026',
+      excerpt: 'Our commitment to the BlockDAG community — how the 10% allocation works, and why we\'re seeing this through to the finish line.',
+    },
+    {
       slug: 'legal-launch-funding-path',
       title: 'Legal launch & funding path',
       date: 'January 7, 2026',
