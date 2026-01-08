@@ -116,8 +116,12 @@ jobs:
           docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
           docker rm -f pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx 2>/dev/null || true
           
-          echo "=== BUILDING IMAGES (with cache) ==="
-          docker compose -f $COMPOSE_FILE build
+          echo "=== REMOVING OLD IMAGES ==="
+          docker rmi pyrax-website pyrax-faucet pyrax-docs pyrax-explorer 2>/dev/null || true
+          docker image prune -af 2>/dev/null || true
+          
+          echo "=== BUILDING FRESH IMAGES ==="
+          docker compose -f $COMPOSE_FILE build --pull
           
           echo "=== STARTING ALL SERVICES ==="
           docker compose -f $COMPOSE_FILE up -d
