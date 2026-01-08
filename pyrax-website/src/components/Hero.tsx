@@ -96,13 +96,13 @@ export default function Hero() {
               {t('cta.primary')}
               <ArrowRightIcon className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <a
-              href="/whitepaper.pdf"
+            <Link
+              href={`/${locale}/whitepaper`}
               className="inline-flex items-center gap-2 rounded-xl border border-stone-700 bg-stone-900/50 px-8 py-4 text-lg font-semibold text-white hover:bg-stone-800 transition-all"
             >
               <DocumentTextIcon className="h-5 w-5" />
               {t('cta.secondary')}
-            </a>
+            </Link>
           </motion.div>
 
           {/* Stats */}
