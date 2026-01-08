@@ -1533,5 +1533,94 @@
     "backToReleases": "Back to releases",
     "share": "Share",
     "comingSoon": "Coming Soon"
+  },
+  "pitchDeck": {
+    "title": "Pitch Deck",
+    "backToHome": "Back to Home",
+    "previous": "Previous",
+    "next": "Next",
+    "slides": {
+      "title": {
+        "badge": "Mainnet Q3 2026",
+        "tagline": "The Future of Decentralized AI Compute",
+        "stats": {
+          "l1": { "value": "Layer 1", "label": "Native Blockchain" },
+          "ai": { "value": "AI Native", "label": "Compute Marketplace" },
+          "tristream": { "value": "3 Streams", "label": "TriStream Consensus" },
+          "mainnet": { "value": "Q3 2026", "label": "Mainnet Launch" }
+        }
+      },
+      "problem": {
+        "title": "The Problem We're Solving",
+        "items": {
+          "expensive": { "title": "AI Computing is Expensive", "desc": "Training GPT-4 cost $100M+. Small developers are priced out of the AI revolution." },
+          "centralized": { "title": "Centralized Control", "desc": "3 companies control 65% of cloud compute. Single points of failure, vendor lock-in." },
+          "wasted": { "title": "500M+ GPUs Sit Idle", "desc": "Gaming GPUs average <20% utilization. $100B+ in underutilized hardware globally." },
+          "slow": { "title": "Blockchains Can't Scale", "desc": "Ethereum: 15 TPS. Bitcoin: 7 TPS. AI applications need 100,000+ TPS." }
+        }
+      },
+      "solution": {
+        "title": "The PYRAX Solution",
+        "items": {
+          "tristream": { "title": "TriStream DAG Consensus", "desc": "Three parallel mining streams (ASIC + GPU + PoS) provide unprecedented security and decentralization." },
+          "dualPurpose": { "title": "Dual-Purpose GPU Mining", "desc": "Mine blocks AND execute AI jobs. 2x revenue potential for GPU owners." },
+          "marketplace": { "title": "Native AI Marketplace", "desc": "On-chain model registry, decentralized job execution, automatic escrow settlement." }
+        }
+      },
+      "market": {
+        "title": "Market Opportunity",
+        "aiCompute": "AI Cloud Computing",
+        "by2030": "Projected market size by 2030",
+        "advantage": "PYRAX Competitive Advantage",
+        "adv1": "Only L1 with native AI compute integration",
+        "adv2": "TriStream = 3x security of single-stream chains",
+        "adv3": "Full Ethereum compatibility (EVM)"
+      },
+      "technology": {
+        "title": "Three-Layer Architecture"
+      },
+      "aiPlatform": {
+        "title": "AI Platform",
+        "foundry": "Decentralized model registry with versioning, benchmarks, and community ratings.",
+        "crucible": "Submit AI jobs to global GPU network with verifiable results and auto-settlement.",
+        "modelRegistry": "Model Registration • Versioning • Discovery",
+        "jobExecution": "Inference • Training • Fine-Tuning • Embeddings"
+      },
+      "tokenomics": {
+        "title": "Token Economics",
+        "name": "Name",
+        "symbol": "Symbol",
+        "supply": "Supply",
+        "decimals": "Decimals",
+        "mining": "Mining",
+        "presale": "Presale",
+        "ecosystem": "Ecosystem",
+        "liquidity": "Liquidity",
+        "bdag": "BDAG",
+        "other": "Other"
+      },
+      "roadmap": {
+        "title": "Development Roadmap",
+        "q4_2025": "Foundation Complete",
+        "q1q2_2026": "Platform Expansion",
+        "q3_2026": "Mainnet Launch",
+        "q4_2026": "Scale & Growth"
+      },
+      "ecosystem": {
+        "title": "Complete Product Suite",
+        "node": { "name": "PYRAX Node", "tech": "Rust" },
+        "miner": { "name": "GPU Miner", "tech": "C++/CUDA" },
+        "desktop": { "name": "Desktop Wallet", "tech": "Tauri/Rust" },
+        "explorer": { "name": "Block Explorer", "tech": "Next.js" },
+        "wallet": { "name": "Wallet Library", "tech": "Rust" },
+        "ai": { "name": "AI Platform", "tech": "Rust" }
+      },
+      "cta": {
+        "title": "Ready to Build the Future?",
+        "subtitle": "Join the PYRAX community and be part of the decentralized AI revolution.",
+        "whitepaper": "Read Whitepaper",
+        "technology": "Explore Technology"
+      }
+    }
   }
 }
