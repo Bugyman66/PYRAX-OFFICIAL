@@ -102,8 +102,15 @@ jobs:
           COMPOSE_FILE="docker-compose.testnet.yml"
           
           echo "=== KILLING CONFLICTING PROCESSES ==="
-          # Kill any processes using our ports
-          fuser -k 3000/tcp 3001/tcp 3002/tcp 3003/tcp 2>/dev/null || true
+          # Stop host nginx/apache if running
+          systemctl stop nginx 2>/dev/null || true
+          systemctl stop apache2 2>/dev/null || true
+          systemctl disable nginx 2>/dev/null || true
+          systemctl disable apache2 2>/dev/null || true
+          
+          # Kill any processes using our ports (including 80 and 443)
+          fuser -k 80/tcp 443/tcp 3000/tcp 3001/tcp 3002/tcp 3003/tcp 2>/dev/null || true
+          sleep 2
           
           echo "=== STOPPING OLD CONTAINERS ==="
           docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
