@@ -261,5 +261,5 @@ Crucible continues to evolve:
 :::tip Start Using Crucible
 - **Job Submitters**: Visit [crucible.pyrax.org](https://crucible.pyrax.org)
 - **GPU Providers**: Enable in [PYRAX Desktop](https://pyrax.org/downloads)
-- **Developers**: Check [Crucible API Docs](/developers/crucible-overview)
+- **Developers**: Check [Crucible API Docs](../developers/crucible-overview)
 :::

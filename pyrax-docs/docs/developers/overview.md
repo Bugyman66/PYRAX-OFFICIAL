@@ -133,7 +133,7 @@ The PYRAX DAO funds developer projects:
 - Integration grants for bringing projects to PYRAX
 - Research grants for innovative solutions
 
-See [DAO Overview](/general/dao-overview) for grant information.
+See [DAO Overview](../general/dao-overview) for grant information.
 
 ## Support
 

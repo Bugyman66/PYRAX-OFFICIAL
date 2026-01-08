@@ -158,7 +158,7 @@ Approximately 60 seconds per block.
 Yes, PYRAX supports EVM-compatible smart contracts, allowing developers to port Ethereum applications.
 
 ### Where can I find developer documentation?
-Check our [Developer Docs](/developers/overview) for technical documentation, API references, and SDKs.
+Check our [Developer Docs](../developers/overview) for technical documentation, API references, and SDKs.
 
 ## Community & Support
 
