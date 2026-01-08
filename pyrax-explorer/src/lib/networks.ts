@@ -174,8 +174,14 @@ export function getNetworkById(id: string): Network | undefined {
 }
 
 export function getDefaultNetwork(): Network {
-  // Default to devnet for development
-  return NETWORKS.find(n => n.id === 'devnet') || NETWORKS[0];
+  // Use environment variable to determine network
+  const envNetwork = process.env.NEXT_PUBLIC_NETWORK;
+  if (envNetwork) {
+    const network = NETWORKS.find(n => n.id === envNetwork);
+    if (network) return network;
+  }
+  // Fallback to testnet
+  return NETWORKS.find(n => n.id === 'testnet') || NETWORKS[0];
 }
 
 export function getOverallStatus(state: NetworkState): ConnectionStatus {

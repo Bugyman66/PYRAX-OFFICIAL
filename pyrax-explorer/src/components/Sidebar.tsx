@@ -31,7 +31,6 @@ import {
   ShareIcon,
   CommandLineIcon,
 } from '@heroicons/react/24/outline'
-import NetworkDropdown from './NetworkDropdown'
 import NetworkStatus from './NetworkStatus'
 import FaucetModal from './FaucetModal'
 import SearchAutocomplete from './SearchAutocomplete'
@@ -264,11 +263,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
                   </ul>
 
-                  {/* Network Dropdown */}
-                  <div className="mt-4">
-                    <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Network</div>
-                    <NetworkDropdown />
-                  </div>
                 </nav>
               </div>
             </DialogPanel>
@@ -345,11 +339,6 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
               </ul>
 
-              {/* Network Dropdown */}
-              <div className="mt-4">
-                <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">Network</div>
-                <NetworkDropdown />
-              </div>
             </nav>
           </div>
         </div>
