@@ -94,32 +94,38 @@ jobs:
           ENVFILE
           EOF
 
-      - name: Zero-Downtime Deploy
+      - name: Fast Deploy with Caching
         run: |
           ssh root@${{ secrets.DROPLET_IP }} << 'EOF'
           cd /opt/pyrax
           
-          # Use testnet compose file for testnet deployment
           COMPOSE_FILE="docker-compose.testnet.yml"
           
-          echo "=== STOPPING OLD CONTAINERS ==="
-          docker compose -f $COMPOSE_FILE down --remove-orphans || true
+          echo "=== KILLING CONFLICTING PROCESSES ==="
+          # Kill any processes using our ports
+          fuser -k 3000/tcp 3001/tcp 3002/tcp 3003/tcp 2>/dev/null || true
           
-          echo "=== BUILDING NEW IMAGES ==="
-          docker compose -f $COMPOSE_FILE build --no-cache
+          echo "=== STOPPING OLD CONTAINERS ==="
+          docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+          docker rm -f pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx 2>/dev/null || true
+          
+          echo "=== BUILDING IMAGES (with cache) ==="
+          docker compose -f $COMPOSE_FILE build
           
           echo "=== STARTING ALL SERVICES ==="
           docker compose -f $COMPOSE_FILE up -d
           
-          echo "=== WAITING FOR SERVICES ==="
-          sleep 10
+          echo "=== WAITING FOR HEALTH CHECKS ==="
+          sleep 15
+          
+          echo "=== SERVICE STATUS ==="
+          docker compose -f $COMPOSE_FILE ps
+          
+          echo "=== NGINX LOGS ==="
+          docker logs pyrax-nginx --tail=10 2>&1 || echo "Nginx not running yet"
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
-          
-          echo "=== HEALTH CHECK ==="
-          docker compose -f $COMPOSE_FILE ps
-          docker compose -f $COMPOSE_FILE logs --tail=20
           EOF
 
       - name: Health Check
