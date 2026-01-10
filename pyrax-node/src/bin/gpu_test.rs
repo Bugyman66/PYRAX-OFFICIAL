@@ -196,45 +196,92 @@ fn detect_opencl_devices() -> Vec<GpuDevice> {
 }
 
 /// Estimate KAWPOW hashrate based on GPU specs
+/// Supports NVIDIA, AMD (via OpenCL), and Intel GPUs
 fn estimate_kawpow_hashrate(device: &GpuDevice) -> f64 {
-    // KAWPOW hashrate estimation based on known GPU performance
-    // These are approximate values - actual mining will measure real hashrate
-    
     let name_lower = device.name.to_lowercase();
+    let mem_gb = device.memory_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
     
-    // NVIDIA GPUs
+    // ===== NVIDIA GPUs (RTX 40 Series) =====
     if name_lower.contains("rtx 4090") { return 130.0; }
     if name_lower.contains("rtx 4080") { return 95.0; }
+    if name_lower.contains("rtx 4070 ti") { return 75.0; }
     if name_lower.contains("rtx 4070") { return 60.0; }
+    if name_lower.contains("rtx 4060 ti") { return 45.0; }
+    if name_lower.contains("rtx 4060") { return 35.0; }
+    
+    // ===== NVIDIA GPUs (RTX 30 Series) =====
     if name_lower.contains("rtx 3090") { return 60.0; }
     if name_lower.contains("rtx 3080") { return 50.0; }
     if name_lower.contains("rtx 3070") { return 35.0; }
     if name_lower.contains("rtx 3060") { return 25.0; }
-    if name_lower.contains("gtx 1660") { return 14.0; }
-    if name_lower.contains("gtx 1650") { return 10.0; }
+    if name_lower.contains("rtx 3050") { return 15.0; }
+    
+    // ===== NVIDIA GPUs (GTX Series) =====
+    if name_lower.contains("gtx 1080 ti") { return 25.0; }
     if name_lower.contains("gtx 1080") { return 22.0; }
     if name_lower.contains("gtx 1070") { return 18.0; }
+    if name_lower.contains("gtx 1660") { return 14.0; }
+    if name_lower.contains("gtx 1650") { return 10.0; }
+    if name_lower.contains("gtx 1060") { return 12.0; }
     
-    // AMD GPUs
-    if name_lower.contains("rx 7900") { return 70.0; }
-    if name_lower.contains("rx 6900") { return 55.0; }
+    // ===== AMD GPUs (RX 7000 Series - RDNA 3) =====
+    if name_lower.contains("rx 7900 xtx") { return 75.0; }
+    if name_lower.contains("rx 7900 xt") { return 70.0; }
+    if name_lower.contains("rx 7900 gre") { return 60.0; }
+    if name_lower.contains("rx 7800 xt") { return 55.0; }
+    if name_lower.contains("rx 7700 xt") { return 45.0; }
+    if name_lower.contains("rx 7600") { return 35.0; }
+    
+    // ===== AMD GPUs (RX 6000 Series - RDNA 2) =====
+    if name_lower.contains("rx 6950 xt") { return 60.0; }
+    if name_lower.contains("rx 6900 xt") { return 55.0; }
+    if name_lower.contains("rx 6800 xt") { return 52.0; }
     if name_lower.contains("rx 6800") { return 50.0; }
-    if name_lower.contains("rx 6700") { return 35.0; }
+    if name_lower.contains("rx 6750 xt") { return 40.0; }
+    if name_lower.contains("rx 6700 xt") { return 35.0; }
+    if name_lower.contains("rx 6700") { return 32.0; }
+    if name_lower.contains("rx 6650 xt") { return 28.0; }
+    if name_lower.contains("rx 6600 xt") { return 26.0; }
     if name_lower.contains("rx 6600") { return 25.0; }
+    if name_lower.contains("rx 6500 xt") { return 12.0; }
+    if name_lower.contains("rx 6400") { return 8.0; }
+    
+    // ===== AMD GPUs (RX 5000 Series - RDNA 1) =====
+    if name_lower.contains("rx 5700 xt") { return 28.0; }
+    if name_lower.contains("rx 5700") { return 25.0; }
+    if name_lower.contains("rx 5600 xt") { return 22.0; }
+    if name_lower.contains("rx 5500 xt") { return 14.0; }
+    
+    // ===== AMD GPUs (RX 500 Series - Polaris) =====
+    if name_lower.contains("rx 590") { return 17.0; }
     if name_lower.contains("rx 580") { return 15.0; }
     if name_lower.contains("rx 570") { return 12.0; }
+    if name_lower.contains("rx 560") { return 8.0; }
     
-    // Intel GPUs (generally not great for mining)
+    // ===== AMD GPUs (Vega Series) =====
+    if name_lower.contains("vega 64") { return 25.0; }
+    if name_lower.contains("vega 56") { return 22.0; }
+    if name_lower.contains("vega") { return 18.0; }
+    
+    // ===== Generic AMD detection =====
+    if name_lower.contains("radeon") || name_lower.contains("amd") {
+        return (mem_gb * 3.5).max(10.0);
+    }
+    
+    // ===== Intel Arc GPUs =====
+    if name_lower.contains("arc a770") { return 25.0; }
+    if name_lower.contains("arc a750") { return 22.0; }
+    if name_lower.contains("arc a580") { return 15.0; }
+    if name_lower.contains("arc a380") { return 8.0; }
+    if name_lower.contains("arc") { return 12.0; }
+    
+    // ===== Intel Integrated GPUs (not recommended) =====
     if name_lower.contains("intel") || name_lower.contains("uhd") || name_lower.contains("iris") {
         return 2.0;
     }
     
-    // Default estimate based on memory and compute units
-    let mem_gb = device.memory_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-    let cu_factor = device.compute_units as f64 * 0.3;
-    let mem_factor = mem_gb * 2.0;
-    
-    (cu_factor + mem_factor).max(1.0)
+    // Default estimate based on memory for unknown GPUs
+    (mem_gb * 2.5).max(5.0)
 }
 
 /// Estimate blocks per day based on hashrate and network difficulty

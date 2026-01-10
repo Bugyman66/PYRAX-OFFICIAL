@@ -204,61 +204,187 @@ pub async fn benchmark_gpu(
     })
 }
 
-/// Estimate power usage based on GPU model
+/// Estimate power usage based on GPU model (in watts)
+/// Supports NVIDIA, AMD, and Intel GPUs
 fn estimate_power_usage(name: &str) -> Option<u32> {
     let name_lower = name.to_lowercase();
     
+    // ===== NVIDIA GPUs =====
     if name_lower.contains("rtx 4090") { return Some(450); }
     if name_lower.contains("rtx 4080") { return Some(320); }
+    if name_lower.contains("rtx 4070 ti") { return Some(285); }
     if name_lower.contains("rtx 4070") { return Some(200); }
+    if name_lower.contains("rtx 4060 ti") { return Some(165); }
+    if name_lower.contains("rtx 4060") { return Some(115); }
+    if name_lower.contains("rtx 3090 ti") { return Some(450); }
     if name_lower.contains("rtx 3090") { return Some(350); }
+    if name_lower.contains("rtx 3080 ti") { return Some(350); }
     if name_lower.contains("rtx 3080") { return Some(320); }
+    if name_lower.contains("rtx 3070 ti") { return Some(290); }
     if name_lower.contains("rtx 3070") { return Some(220); }
+    if name_lower.contains("rtx 3060 ti") { return Some(200); }
     if name_lower.contains("rtx 3060") { return Some(170); }
+    if name_lower.contains("rtx 3050") { return Some(130); }
+    if name_lower.contains("gtx 1080 ti") { return Some(250); }
+    if name_lower.contains("gtx 1080") { return Some(180); }
+    if name_lower.contains("gtx 1070") { return Some(150); }
     if name_lower.contains("gtx 1660") { return Some(120); }
     if name_lower.contains("gtx 1650") { return Some(75); }
-    if name_lower.contains("rx 7900") { return Some(355); }
-    if name_lower.contains("rx 6900") { return Some(300); }
+    if name_lower.contains("gtx 1060") { return Some(120); }
+    
+    // ===== AMD GPUs (RX 7000 Series) =====
+    if name_lower.contains("rx 7900 xtx") { return Some(355); }
+    if name_lower.contains("rx 7900 xt") { return Some(315); }
+    if name_lower.contains("rx 7900 gre") { return Some(260); }
+    if name_lower.contains("rx 7800 xt") { return Some(263); }
+    if name_lower.contains("rx 7700 xt") { return Some(245); }
+    if name_lower.contains("rx 7600") { return Some(165); }
+    
+    // ===== AMD GPUs (RX 6000 Series) =====
+    if name_lower.contains("rx 6950 xt") { return Some(335); }
+    if name_lower.contains("rx 6900 xt") { return Some(300); }
+    if name_lower.contains("rx 6800 xt") { return Some(300); }
     if name_lower.contains("rx 6800") { return Some(250); }
-    if name_lower.contains("rx 6700") { return Some(230); }
+    if name_lower.contains("rx 6750 xt") { return Some(250); }
+    if name_lower.contains("rx 6700 xt") { return Some(230); }
+    if name_lower.contains("rx 6700") { return Some(175); }
+    if name_lower.contains("rx 6650 xt") { return Some(180); }
+    if name_lower.contains("rx 6600 xt") { return Some(160); }
     if name_lower.contains("rx 6600") { return Some(132); }
+    if name_lower.contains("rx 6500 xt") { return Some(107); }
+    if name_lower.contains("rx 6400") { return Some(53); }
+    
+    // ===== AMD GPUs (RX 5000 Series) =====
+    if name_lower.contains("rx 5700 xt") { return Some(225); }
+    if name_lower.contains("rx 5700") { return Some(180); }
+    if name_lower.contains("rx 5600 xt") { return Some(150); }
+    if name_lower.contains("rx 5500 xt") { return Some(130); }
+    
+    // ===== AMD GPUs (RX 500/Vega Series) =====
+    if name_lower.contains("rx 590") { return Some(225); }
+    if name_lower.contains("rx 580") { return Some(185); }
+    if name_lower.contains("rx 570") { return Some(150); }
+    if name_lower.contains("vega 64") { return Some(295); }
+    if name_lower.contains("vega 56") { return Some(210); }
+    
+    // ===== Intel Arc GPUs =====
+    if name_lower.contains("arc a770") { return Some(225); }
+    if name_lower.contains("arc a750") { return Some(225); }
+    if name_lower.contains("arc a580") { return Some(175); }
+    if name_lower.contains("arc a380") { return Some(75); }
+    
+    // ===== Generic AMD detection =====
+    if name_lower.contains("radeon") || name_lower.contains("amd") {
+        return Some(200);
+    }
+    
+    // ===== Intel Integrated =====
+    if name_lower.contains("intel") || name_lower.contains("uhd") {
+        return Some(25);
+    }
     
     Some(150) // Default
 }
 
 /// Estimate KAWPOW hashrate based on GPU model
+/// Supports NVIDIA (CUDA/OpenCL), AMD (OpenCL), and Intel (OpenCL) GPUs
 fn estimate_kawpow_hashrate(name: &str, memory_gb: f64) -> f64 {
     let name_lower = name.to_lowercase();
     
-    // NVIDIA GPUs
+    // ===== NVIDIA GPUs (RTX 40 Series) =====
     if name_lower.contains("rtx 4090") { return 130.0; }
     if name_lower.contains("rtx 4080") { return 95.0; }
+    if name_lower.contains("rtx 4070 ti") { return 75.0; }
     if name_lower.contains("rtx 4070") { return 60.0; }
-    if name_lower.contains("rtx 3090") { return 60.0; }
-    if name_lower.contains("rtx 3080") { return 50.0; }
-    if name_lower.contains("rtx 3070") { return 35.0; }
-    if name_lower.contains("rtx 3060") { return 25.0; }
-    if name_lower.contains("gtx 1660") { return 14.0; }
-    if name_lower.contains("gtx 1650") { return 10.0; }
-    if name_lower.contains("gtx 1080") { return 22.0; }
-    if name_lower.contains("gtx 1070") { return 18.0; }
+    if name_lower.contains("rtx 4060 ti") { return 45.0; }
+    if name_lower.contains("rtx 4060") { return 35.0; }
     
-    // AMD GPUs
-    if name_lower.contains("rx 7900") { return 70.0; }
-    if name_lower.contains("rx 6900") { return 55.0; }
+    // ===== NVIDIA GPUs (RTX 30 Series) =====
+    if name_lower.contains("rtx 3090 ti") { return 65.0; }
+    if name_lower.contains("rtx 3090") { return 60.0; }
+    if name_lower.contains("rtx 3080 ti") { return 55.0; }
+    if name_lower.contains("rtx 3080") { return 50.0; }
+    if name_lower.contains("rtx 3070 ti") { return 40.0; }
+    if name_lower.contains("rtx 3070") { return 35.0; }
+    if name_lower.contains("rtx 3060 ti") { return 30.0; }
+    if name_lower.contains("rtx 3060") { return 25.0; }
+    if name_lower.contains("rtx 3050") { return 15.0; }
+    
+    // ===== NVIDIA GPUs (GTX 16 Series) =====
+    if name_lower.contains("gtx 1660 super") { return 15.0; }
+    if name_lower.contains("gtx 1660 ti") { return 14.0; }
+    if name_lower.contains("gtx 1660") { return 14.0; }
+    if name_lower.contains("gtx 1650 super") { return 12.0; }
+    if name_lower.contains("gtx 1650") { return 10.0; }
+    
+    // ===== NVIDIA GPUs (GTX 10 Series) =====
+    if name_lower.contains("gtx 1080 ti") { return 25.0; }
+    if name_lower.contains("gtx 1080") { return 22.0; }
+    if name_lower.contains("gtx 1070 ti") { return 20.0; }
+    if name_lower.contains("gtx 1070") { return 18.0; }
+    if name_lower.contains("gtx 1060") { return 12.0; }
+    if name_lower.contains("gtx 1050") { return 8.0; }
+    
+    // ===== AMD GPUs (RX 7000 Series - RDNA 3) =====
+    if name_lower.contains("rx 7900 xtx") { return 75.0; }
+    if name_lower.contains("rx 7900 xt") { return 70.0; }
+    if name_lower.contains("rx 7900 gre") { return 60.0; }
+    if name_lower.contains("rx 7800 xt") { return 55.0; }
+    if name_lower.contains("rx 7700 xt") { return 45.0; }
+    if name_lower.contains("rx 7600") { return 35.0; }
+    
+    // ===== AMD GPUs (RX 6000 Series - RDNA 2) =====
+    if name_lower.contains("rx 6950 xt") { return 60.0; }
+    if name_lower.contains("rx 6900 xt") { return 55.0; }
+    if name_lower.contains("rx 6800 xt") { return 52.0; }
     if name_lower.contains("rx 6800") { return 50.0; }
-    if name_lower.contains("rx 6700") { return 35.0; }
+    if name_lower.contains("rx 6750 xt") { return 40.0; }
+    if name_lower.contains("rx 6700 xt") { return 35.0; }
+    if name_lower.contains("rx 6700") { return 32.0; }
+    if name_lower.contains("rx 6650 xt") { return 28.0; }
+    if name_lower.contains("rx 6600 xt") { return 26.0; }
     if name_lower.contains("rx 6600") { return 25.0; }
+    if name_lower.contains("rx 6500 xt") { return 12.0; }
+    if name_lower.contains("rx 6400") { return 8.0; }
+    
+    // ===== AMD GPUs (RX 5000 Series - RDNA 1) =====
+    if name_lower.contains("rx 5700 xt") { return 28.0; }
+    if name_lower.contains("rx 5700") { return 25.0; }
+    if name_lower.contains("rx 5600 xt") { return 22.0; }
+    if name_lower.contains("rx 5500 xt") { return 14.0; }
+    
+    // ===== AMD GPUs (RX 500 Series - Polaris) =====
+    if name_lower.contains("rx 590") { return 17.0; }
     if name_lower.contains("rx 580") { return 15.0; }
     if name_lower.contains("rx 570") { return 12.0; }
+    if name_lower.contains("rx 560") { return 8.0; }
+    if name_lower.contains("rx 550") { return 5.0; }
     
-    // Intel GPUs
+    // ===== AMD GPUs (Vega Series) =====
+    if name_lower.contains("vega 64") || name_lower.contains("vega64") { return 25.0; }
+    if name_lower.contains("vega 56") || name_lower.contains("vega56") { return 22.0; }
+    if name_lower.contains("vega") { return 18.0; }
+    
+    // ===== AMD GPUs (Generic detection) =====
+    if name_lower.contains("radeon") || name_lower.contains("amd") {
+        // Estimate based on memory for unknown AMD GPUs
+        return (memory_gb * 3.5).max(10.0);
+    }
+    
+    // ===== Intel GPUs (Arc Series) =====
+    if name_lower.contains("arc a770") { return 25.0; }
+    if name_lower.contains("arc a750") { return 22.0; }
+    if name_lower.contains("arc a580") { return 15.0; }
+    if name_lower.contains("arc a380") { return 8.0; }
+    if name_lower.contains("arc") { return 12.0; }
+    
+    // ===== Intel Integrated GPUs (not recommended) =====
     if name_lower.contains("intel") || name_lower.contains("uhd") || name_lower.contains("iris") {
         return 2.0;
     }
     
-    // Default estimate based on memory
-    memory_gb * 2.0
+    // Default estimate based on memory for unknown GPUs
+    (memory_gb * 2.5).max(5.0)
 }
 
 /// Detect OpenCL GPU devices
