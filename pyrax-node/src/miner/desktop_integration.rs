@@ -170,21 +170,16 @@ impl DesktopMiner {
 
     /// Get available GPU devices
     pub fn detect_devices() -> Vec<GpuDeviceInfo> {
-        match detect_devices() {
-            Ok(devices) => devices.into_iter().map(|d| GpuDeviceInfo {
-                index: d.index,
-                name: d.name.clone(),
-                vendor: format!("{:?}", d.backend),
-                memory_mb: d.memory_bytes / (1024 * 1024),
-                compute_units: d.compute_units,
-                is_supported: d.is_supported(),
-                driver_version: d.driver_version.clone(),
-            }).collect(),
-            Err(e) => {
-                warn!("Failed to detect GPU devices: {}", e);
-                vec![]
-            }
-        }
+        let devices = detect_devices();
+        devices.into_iter().map(|d| GpuDeviceInfo {
+            index: d.index,
+            name: d.name.clone(),
+            vendor: format!("{:?}", d.backend),
+            memory_mb: d.memory_bytes / (1024 * 1024),
+            compute_units: d.compute_units,
+            is_supported: true, // All detected devices are supported
+            driver_version: d.driver_version.clone(),
+        }).collect()
     }
 
     /// Benchmark GPU devices

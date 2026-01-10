@@ -15,7 +15,7 @@ use crate::miner::{
     StratumServer, StratumServerConfig, BlockTemplate, ServerStats,
 };
 use crate::consensus::DagManager;
-use crate::storage::Storage;
+use crate::storage::ChainDB;
 
 /// Mining service configuration
 #[derive(Debug, Clone)]

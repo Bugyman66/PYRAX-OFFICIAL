@@ -53,6 +53,8 @@ fn main() {
             commands::miner::stop_miner,
             commands::miner::get_miner_status,
             commands::miner::get_hashrate,
+            commands::miner::detect_gpus,
+            commands::miner::benchmark_gpu,
             
             // Explorer commands
             commands::explorer::get_block,

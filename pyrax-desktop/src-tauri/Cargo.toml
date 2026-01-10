@@ -24,6 +24,7 @@ which = "5.0"
 num_cpus = "1.16"
 blake3 = "1.5"
 hex = "0.4"
+libloading = "0.8"
 
 # Local dependencies
 pyrax-wallet = { path = "../../pyrax-wallet" }
