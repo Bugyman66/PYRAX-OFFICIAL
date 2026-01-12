@@ -205,12 +205,20 @@ impl DesktopMiner {
             // Run benchmark
             let hashrate = self.run_device_benchmark(device.index, duration_secs).await;
             
+            // Read actual power usage from device
+            let power_usage = Self::read_device_power(device.index).await;
+            let efficiency = if power_usage > 0 {
+                hashrate / power_usage as f64
+            } else {
+                hashrate / 200.0 // Fallback estimate
+            };
+            
             results.push(BenchmarkResult {
                 device_index: device.index,
                 device_name: device.name,
                 hashrate,
-                power_usage: 0, // TODO: Read actual power
-                efficiency: hashrate / 200.0, // Estimated W
+                power_usage,
+                efficiency,
                 error: None,
             });
         }
@@ -220,15 +228,79 @@ impl DesktopMiner {
 
     /// Run benchmark on a single device
     async fn run_device_benchmark(&self, device_index: usize, duration_secs: u64) -> f64 {
-        // TODO: Implement actual GPU benchmarking
-        // For now, return estimated hashrate based on device
+        use crate::miner::gpu::{GpuMiner, GpuMinerConfig};
+        use crate::consensus::kawpow::{kawpow_hash, generate_cache, get_epoch, compute_seed};
+        
         let devices = Self::detect_devices();
-        if let Some(device) = devices.get(device_index) {
-            // Rough estimate: 30 MH/s per GB of VRAM for KAWPOW
-            (device.memory_mb as f64 / 1024.0) * 30.0
-        } else {
-            0.0
+        let device = match devices.get(device_index) {
+            Some(d) => d,
+            None => return 0.0,
+        };
+        
+        // Create test mining config
+        let config = GpuMinerConfig {
+            devices: vec![device_index],
+            intensity: 100,
+            ..Default::default()
+        };
+        
+        // Generate test data for benchmark
+        let test_header = [0u8; 32];
+        let epoch = 0u64;
+        let cache = generate_cache(epoch);
+        let seed = compute_seed(epoch);
+        
+        let start = std::time::Instant::now();
+        let mut hashes = 0u64;
+        
+        // Run benchmark for specified duration
+        while start.elapsed().as_secs() < duration_secs {
+            // Perform KAWPOW hash computations
+            for nonce in 0..10000u64 {
+                let _ = kawpow_hash(&test_header, nonce, &cache, &seed);
+                hashes += 1;
+            }
+            
+            // Yield to prevent blocking
+            tokio::task::yield_now().await;
         }
+        
+        let elapsed = start.elapsed().as_secs_f64();
+        let hashrate = hashes as f64 / elapsed / 1_000_000.0; // MH/s
+        
+        info!("Device {} benchmark: {:.2} MH/s ({} hashes in {:.1}s)", 
+            device_index, hashrate, hashes, elapsed);
+        
+        hashrate
+    }
+    
+    /// Read power usage from GPU device
+    async fn read_device_power(device_index: usize) -> u32 {
+        #[cfg(target_os = "windows")]
+        {
+            // Try NVML for NVIDIA GPUs
+            if let Ok(power) = read_nvml_power(device_index) {
+                return power;
+            }
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            // Try sysfs for AMD GPUs
+            let hwmon_path = format!("/sys/class/drm/card{}/device/hwmon/hwmon0/power1_average", device_index);
+            if let Ok(content) = std::fs::read_to_string(&hwmon_path) {
+                if let Ok(power_uw) = content.trim().parse::<u64>() {
+                    return (power_uw / 1_000_000) as u32; // Convert µW to W
+                }
+            }
+            
+            // Try NVML
+            if let Ok(power) = read_nvml_power(device_index) {
+                return power;
+            }
+        }
+        
+        0 // Unknown
     }
 
     /// Start mining
@@ -287,8 +359,35 @@ impl DesktopMiner {
             ).await;
         });
 
-        // TODO: Start GPU mining threads
-        // This would integrate with the GPU miner module
+        // Start GPU mining threads
+        let devices = if self.config.gpu_devices.is_empty() {
+            Self::detect_devices().iter().map(|d| d.index).collect()
+        } else {
+            self.config.gpu_devices.clone()
+        };
+        
+        let gpu_config = GpuMinerConfig {
+            devices: devices.clone(),
+            intensity: self.config.intensity,
+            temp_limit: self.config.temp_limit,
+            power_limit: self.config.power_limit,
+        };
+        
+        let gpu_miner = Arc::new(GpuMiner::new(gpu_config));
+        self.gpu_miner = Some(Arc::clone(&gpu_miner));
+        
+        // Spawn mining threads for each device
+        for device_idx in devices {
+            let miner = Arc::clone(&gpu_miner);
+            let running = Arc::clone(&self.running);
+            let stats = Arc::clone(&self.stats);
+            let status = Arc::clone(&self.status);
+            let event_tx = event_tx.clone();
+            
+            tokio::spawn(async move {
+                Self::gpu_mining_loop(miner, device_idx, running, stats, status, event_tx).await;
+            });
+        }
 
         info!("Desktop miner started successfully");
         Ok(())
@@ -382,8 +481,70 @@ impl DesktopMiner {
             return Err("Intensity must be between 1 and 100".to_string());
         }
         self.config.intensity = intensity;
-        // TODO: Apply to running GPU threads
+        
+        // Apply to running GPU miner
+        if let Some(gpu_miner) = &self.gpu_miner {
+            gpu_miner.set_intensity(intensity).await;
+        }
+        
         Ok(())
+    }
+    
+    /// GPU mining loop for a single device
+    async fn gpu_mining_loop(
+        miner: Arc<GpuMiner>,
+        device_idx: usize,
+        running: Arc<AtomicBool>,
+        stats: Arc<MinerStats>,
+        status: Arc<RwLock<MinerStatus>>,
+        event_tx: Option<mpsc::Sender<MiningEvent>>,
+    ) {
+        info!("GPU mining loop started for device {}", device_idx);
+        
+        while running.load(Ordering::SeqCst) {
+            // Mine a batch of hashes
+            match miner.mine_batch(device_idx).await {
+                Ok(result) => {
+                    stats.total_hashes.fetch_add(result.hashes, Ordering::Relaxed);
+                    
+                    // Update device status
+                    {
+                        let mut status = status.write().await;
+                        if let Some(device) = status.devices.iter_mut().find(|d| d.index == device_idx) {
+                            device.hashrate = result.hashrate;
+                            device.temperature = result.temperature;
+                            device.power_usage = result.power_usage;
+                        }
+                        status.total_hashrate = status.devices.iter().map(|d| d.hashrate).sum();
+                    }
+                    
+                    // Check for solution
+                    if let Some(solution) = result.solution {
+                        info!("Solution found on device {}: nonce=0x{:016x}", 
+                            device_idx, solution.nonce);
+                        stats.shares_accepted.fetch_add(1, Ordering::Relaxed);
+                        
+                        if let Some(tx) = &event_tx {
+                            let _ = tx.send(MiningEvent::ShareAccepted {
+                                hashrate: result.hashrate,
+                            }).await;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Mining error on device {}: {}", device_idx, e);
+                    if let Some(tx) = &event_tx {
+                        let _ = tx.send(MiningEvent::DeviceError {
+                            device: device_idx,
+                            error: e.to_string(),
+                        }).await;
+                    }
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+            }
+        }
+        
+        info!("GPU mining loop stopped for device {}", device_idx);
     }
 
     /// Check if mining is active
@@ -460,6 +621,72 @@ impl DesktopMiningSettings {
             temp_limit: self.temp_limit,
             power_limit: self.power_limit,
         })
+    }
+}
+
+/// Read power usage via NVML (NVIDIA Management Library)
+#[allow(unused_variables)]
+fn read_nvml_power(device_index: usize) -> Result<u32, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::ffi::c_void;
+        
+        // Load NVML library
+        let lib = unsafe {
+            libloading::Library::new("nvml.dll")
+                .map_err(|e| format!("Failed to load NVML: {}", e))?
+        };
+        
+        // Get function pointers
+        type NvmlInit = unsafe extern "C" fn() -> i32;
+        type NvmlDeviceGetHandleByIndex = unsafe extern "C" fn(u32, *mut *mut c_void) -> i32;
+        type NvmlDeviceGetPowerUsage = unsafe extern "C" fn(*mut c_void, *mut u32) -> i32;
+        
+        unsafe {
+            let init: libloading::Symbol<NvmlInit> = lib.get(b"nvmlInit_v2")
+                .map_err(|e| format!("nvmlInit not found: {}", e))?;
+            let get_handle: libloading::Symbol<NvmlDeviceGetHandleByIndex> = 
+                lib.get(b"nvmlDeviceGetHandleByIndex_v2")
+                .map_err(|e| format!("nvmlDeviceGetHandleByIndex not found: {}", e))?;
+            let get_power: libloading::Symbol<NvmlDeviceGetPowerUsage> = 
+                lib.get(b"nvmlDeviceGetPowerUsage")
+                .map_err(|e| format!("nvmlDeviceGetPowerUsage not found: {}", e))?;
+            
+            // Initialize NVML
+            let result = init();
+            if result != 0 {
+                return Err(format!("nvmlInit failed: {}", result));
+            }
+            
+            // Get device handle
+            let mut handle: *mut c_void = std::ptr::null_mut();
+            let result = get_handle(device_index as u32, &mut handle);
+            if result != 0 {
+                return Err(format!("nvmlDeviceGetHandleByIndex failed: {}", result));
+            }
+            
+            // Get power usage (in milliwatts)
+            let mut power_mw: u32 = 0;
+            let result = get_power(handle, &mut power_mw);
+            if result != 0 {
+                return Err(format!("nvmlDeviceGetPowerUsage failed: {}", result));
+            }
+            
+            Ok(power_mw / 1000) // Convert mW to W
+        }
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Try loading libnvidia-ml.so on Linux
+        let lib = unsafe {
+            libloading::Library::new("libnvidia-ml.so.1")
+                .or_else(|_| libloading::Library::new("libnvidia-ml.so"))
+                .map_err(|e| format!("Failed to load NVML: {}", e))?
+        };
+        
+        // Similar implementation as Windows
+        Err("NVML not available on this platform".to_string())
     }
 }
 

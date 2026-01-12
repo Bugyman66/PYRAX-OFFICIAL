@@ -58,7 +58,7 @@ const fadeInUp = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
 };
 
-function AnimatedCounter({ value, suffix = '', prefix = '', duration = 2 }: { value: number; suffix?: string; prefix?: string; duration?: number }) {
+function AnimatedCounter({ value, suffix = '', prefix = '', duration = 2, noFormat = false }: { value: number; suffix?: string; prefix?: string; duration?: number; noFormat?: boolean }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let start = 0;
@@ -75,7 +75,7 @@ function AnimatedCounter({ value, suffix = '', prefix = '', duration = 2 }: { va
     }, 1000 / 60);
     return () => clearInterval(timer);
   }, [value, duration]);
-  return <span>{prefix}{count.toLocaleString()}{suffix}</span>;
+  return <span>{prefix}{noFormat ? count : count.toLocaleString()}{suffix}</span>;
 }
 
 function LiveDataBar({ label, value, maxValue, color, delay = 0, suffix = '', prefix = '' }: { label: string; value: number; maxValue: number; color: string; delay?: number; suffix?: string; prefix?: string }) {
@@ -234,7 +234,7 @@ function Slide({ id, t, locale }: { id: string; t: any; locale: string }) {
           { icon: CubeTransparentIcon, value: 100, suffix: 'B', label: 'Total Supply', color: 'text-pyrax-400' },
           { icon: BoltIcon, value: 500, suffix: 'K+', label: 'TPS (Layer 2)', color: 'text-amber-400' },
           { icon: ShieldCheckIcon, value: 3, suffix: '', label: 'Mining Streams', color: 'text-green-400' },
-          { icon: RocketLaunchIcon, value: 2026, suffix: '', label: 'Mainnet Launch', color: 'text-blue-400' },
+          { icon: RocketLaunchIcon, value: 2026, suffix: '', label: 'Mainnet Launch', color: 'text-blue-400', noFormat: true },
         ].map((stat, i) => (
           <motion.div
             key={i}
@@ -246,7 +246,7 @@ function Slide({ id, t, locale }: { id: string; t: any; locale: string }) {
           >
             <stat.icon className={`h-8 w-8 ${stat.color} mx-auto mb-3 group-hover:scale-110 transition-transform`} />
             <div className={`text-3xl font-black ${stat.color}`}>
-              <AnimatedCounter value={stat.value} suffix={stat.suffix} duration={1.5} />
+              <AnimatedCounter value={stat.value} suffix={stat.suffix} duration={1.5} noFormat={stat.noFormat} />
             </div>
             <div className="text-stone-500 text-sm mt-1">{stat.label}</div>
           </motion.div>

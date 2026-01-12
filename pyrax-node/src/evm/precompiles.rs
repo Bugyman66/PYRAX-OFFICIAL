@@ -1,10 +1,17 @@
 //! EVM Precompiled Contracts
 //!
 //! Standard Ethereum precompiles plus PYRAX-specific extensions
+//! Production-ready implementations using proper cryptographic libraries
 
 use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 use blake3::Hasher as Blake3Hasher;
+use num_bigint::BigUint;
+use num_traits::{Zero, One};
+use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
+use ark_ff::{PrimeField, Field};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 
 use super::types::{Address, B256, U256};
 
@@ -272,9 +279,45 @@ fn modexp(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return PrecompileResult::success(vec![0u8; mod_len], gas_cost);
     }
 
-    // For production, implement full modexp using num-bigint
-    // This is a placeholder that returns zeros
-    PrecompileResult::success(vec![0u8; mod_len], gas_cost)
+    // Extract base, exp, mod from input
+    let data_start = 96;
+    let base_start = data_start;
+    let exp_start = base_start + base_len;
+    let mod_start = exp_start + exp_len;
+
+    // Pad input if necessary
+    let padded_input = if input.len() < mod_start + mod_len {
+        let mut padded = input.to_vec();
+        padded.resize(mod_start + mod_len, 0);
+        padded
+    } else {
+        input.to_vec()
+    };
+
+    let base_bytes = &padded_input[base_start..base_start + base_len];
+    let exp_bytes = &padded_input[exp_start..exp_start + exp_len];
+    let mod_bytes = &padded_input[mod_start..mod_start + mod_len];
+
+    // Convert to BigUint
+    let base = BigUint::from_bytes_be(base_bytes);
+    let exp = BigUint::from_bytes_be(exp_bytes);
+    let modulus = BigUint::from_bytes_be(mod_bytes);
+
+    // Handle modulus == 0
+    if modulus.is_zero() {
+        return PrecompileResult::success(vec![0u8; mod_len], gas_cost);
+    }
+
+    // Compute base^exp mod modulus using modpow
+    let result = base.modpow(&exp, &modulus);
+
+    // Convert result back to bytes with correct padding
+    let result_bytes = result.to_bytes_be();
+    let mut output = vec![0u8; mod_len];
+    let start = mod_len.saturating_sub(result_bytes.len());
+    output[start..].copy_from_slice(&result_bytes[..std::cmp::min(result_bytes.len(), mod_len)]);
+
+    PrecompileResult::success(output, gas_cost)
 }
 
 /// BN128_ADD (0x06) - BN128 curve point addition
@@ -285,11 +328,29 @@ fn bn128_add(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return PrecompileResult::error(gas_limit);
     }
 
-    // Input: 64 bytes (point 1) + 64 bytes (point 2)
-    // Output: 64 bytes (result point)
-    // For production, implement using bn crate
+    // Pad input to 128 bytes
+    let mut padded = [0u8; 128];
+    let len = std::cmp::min(input.len(), 128);
+    padded[..len].copy_from_slice(&input[..len]);
+
+    // Parse point 1 (x1, y1)
+    let p1 = match parse_g1_point(&padded[0..64]) {
+        Some(p) => p,
+        None => return PrecompileResult::error(GAS_COST),
+    };
+
+    // Parse point 2 (x2, y2)
+    let p2 = match parse_g1_point(&padded[64..128]) {
+        Some(p) => p,
+        None => return PrecompileResult::error(GAS_COST),
+    };
+
+    // Add points
+    let result = (p1 + p2).into_affine();
     
-    PrecompileResult::success(vec![0u8; 64], GAS_COST)
+    // Encode result
+    let output = encode_g1_point(&result);
+    PrecompileResult::success(output, GAS_COST)
 }
 
 /// BN128_MUL (0x07) - BN128 curve scalar multiplication
@@ -300,10 +361,29 @@ fn bn128_mul(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return PrecompileResult::error(gas_limit);
     }
 
-    // Input: 64 bytes (point) + 32 bytes (scalar)
-    // Output: 64 bytes (result point)
+    // Pad input to 96 bytes
+    let mut padded = [0u8; 96];
+    let len = std::cmp::min(input.len(), 96);
+    padded[..len].copy_from_slice(&input[..len]);
+
+    // Parse point (x, y)
+    let point = match parse_g1_point(&padded[0..64]) {
+        Some(p) => p,
+        None => return PrecompileResult::error(GAS_COST),
+    };
+
+    // Parse scalar (32 bytes, big-endian)
+    let scalar_bytes = &padded[64..96];
+    let scalar = match Fr::from_be_bytes_mod_order(scalar_bytes).into() {
+        s => s,
+    };
+
+    // Scalar multiplication
+    let result = (point * scalar).into_affine();
     
-    PrecompileResult::success(vec![0u8; 64], GAS_COST)
+    // Encode result
+    let output = encode_g1_point(&result);
+    PrecompileResult::success(output, GAS_COST)
 }
 
 /// BN128_PAIRING (0x08) - BN128 pairing check
@@ -316,11 +396,123 @@ fn bn128_pairing(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return PrecompileResult::error(gas_limit);
     }
 
-    // Returns 1 if pairing check passes, 0 otherwise
+    // Empty input is valid and returns true
+    if input.is_empty() {
+        let mut output = vec![0u8; 32];
+        output[31] = 1;
+        return PrecompileResult::success(output, gas_cost);
+    }
+
+    // Input must be multiple of 192 bytes
+    if input.len() % 192 != 0 {
+        return PrecompileResult::error(gas_cost);
+    }
+
+    // Parse and accumulate pairings
+    let mut g1_points = Vec::new();
+    let mut g2_points = Vec::new();
+
+    for chunk in input.chunks(192) {
+        // Parse G1 point (64 bytes)
+        let g1 = match parse_g1_point(&chunk[0..64]) {
+            Some(p) => p,
+            None => return PrecompileResult::error(gas_cost),
+        };
+
+        // Parse G2 point (128 bytes)
+        let g2 = match parse_g2_point(&chunk[64..192]) {
+            Some(p) => p,
+            None => return PrecompileResult::error(gas_cost),
+        };
+
+        g1_points.push(g1);
+        g2_points.push(g2);
+    }
+
+    // Compute multi-pairing: e(g1[0], g2[0]) * e(g1[1], g2[1]) * ... == 1
+    let result = Bn254::multi_pairing(&g1_points, &g2_points);
+    
     let mut output = vec![0u8; 32];
-    output[31] = 1; // Placeholder: always return true
+    if result.is_zero() {
+        output[31] = 1; // Pairing check passed
+    }
+    // else output[31] = 0 (pairing check failed)
     
     PrecompileResult::success(output, gas_cost)
+}
+
+/// Parse a G1 point from 64 bytes (x: 32 bytes, y: 32 bytes, big-endian)
+fn parse_g1_point(data: &[u8]) -> Option<G1Affine> {
+    if data.len() != 64 {
+        return None;
+    }
+
+    // Check for point at infinity (all zeros)
+    if data.iter().all(|&b| b == 0) {
+        return Some(G1Affine::identity());
+    }
+
+    // Parse x and y coordinates (big-endian)
+    let x = ark_bn254::Fq::from_be_bytes_mod_order(&data[0..32]);
+    let y = ark_bn254::Fq::from_be_bytes_mod_order(&data[32..64]);
+
+    // Construct point and check it's on the curve
+    let point = G1Affine::new(x, y);
+    if point.is_on_curve() && point.is_in_correct_subgroup_assuming_on_curve() {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+/// Parse a G2 point from 128 bytes
+fn parse_g2_point(data: &[u8]) -> Option<G2Affine> {
+    if data.len() != 128 {
+        return None;
+    }
+
+    // Check for point at infinity
+    if data.iter().all(|&b| b == 0) {
+        return Some(G2Affine::identity());
+    }
+
+    // G2 coordinates are elements of Fq2 = Fq[i] / (i^2 + 1)
+    // Format: x_imag (32) | x_real (32) | y_imag (32) | y_real (32)
+    let x_imag = ark_bn254::Fq::from_be_bytes_mod_order(&data[0..32]);
+    let x_real = ark_bn254::Fq::from_be_bytes_mod_order(&data[32..64]);
+    let y_imag = ark_bn254::Fq::from_be_bytes_mod_order(&data[64..96]);
+    let y_real = ark_bn254::Fq::from_be_bytes_mod_order(&data[96..128]);
+
+    let x = ark_bn254::Fq2::new(x_real, x_imag);
+    let y = ark_bn254::Fq2::new(y_real, y_imag);
+
+    let point = G2Affine::new(x, y);
+    if point.is_on_curve() && point.is_in_correct_subgroup_assuming_on_curve() {
+        Some(point)
+    } else {
+        None
+    }
+}
+
+/// Encode a G1 point to 64 bytes
+fn encode_g1_point(point: &G1Affine) -> Vec<u8> {
+    let mut output = vec![0u8; 64];
+    
+    if point.is_zero() {
+        return output; // Return all zeros for point at infinity
+    }
+
+    // Encode x and y as big-endian 32-byte values
+    let x_bytes = point.x.into_bigint().to_bytes_be();
+    let y_bytes = point.y.into_bigint().to_bytes_be();
+    
+    // Pad to 32 bytes each
+    let x_start = 32 - x_bytes.len();
+    let y_start = 64 - y_bytes.len();
+    output[x_start..32].copy_from_slice(&x_bytes);
+    output[y_start..64].copy_from_slice(&y_bytes);
+    
+    output
 }
 
 /// BLAKE2F (0x09) - BLAKE2b F compression function
@@ -336,8 +528,119 @@ fn blake2f(input: &[u8], gas_limit: u64) -> PrecompileResult {
         return PrecompileResult::error(gas_limit);
     }
 
-    // For production, implement BLAKE2b F compression
-    PrecompileResult::success(vec![0u8; 64], gas_cost)
+    // Parse state vector h (8 x 8 bytes = 64 bytes)
+    let mut h = [0u64; 8];
+    for i in 0..8 {
+        let offset = 4 + i * 8;
+        h[i] = u64::from_le_bytes([
+            input[offset], input[offset + 1], input[offset + 2], input[offset + 3],
+            input[offset + 4], input[offset + 5], input[offset + 6], input[offset + 7],
+        ]);
+    }
+
+    // Parse message block m (16 x 8 bytes = 128 bytes)
+    let mut m = [0u64; 16];
+    for i in 0..16 {
+        let offset = 68 + i * 8;
+        m[i] = u64::from_le_bytes([
+            input[offset], input[offset + 1], input[offset + 2], input[offset + 3],
+            input[offset + 4], input[offset + 5], input[offset + 6], input[offset + 7],
+        ]);
+    }
+
+    // Parse counter t (2 x 8 bytes = 16 bytes)
+    let t0 = u64::from_le_bytes([
+        input[196], input[197], input[198], input[199],
+        input[200], input[201], input[202], input[203],
+    ]);
+    let t1 = u64::from_le_bytes([
+        input[204], input[205], input[206], input[207],
+        input[208], input[209], input[210], input[211],
+    ]);
+
+    // Parse final block flag f (1 byte)
+    let f = input[212];
+    if f != 0 && f != 1 {
+        return PrecompileResult::error(gas_cost);
+    }
+
+    // BLAKE2b compression function
+    blake2b_compress(&mut h, &m, t0, t1, f == 1, rounds);
+
+    // Encode output
+    let mut output = vec![0u8; 64];
+    for i in 0..8 {
+        let bytes = h[i].to_le_bytes();
+        output[i * 8..(i + 1) * 8].copy_from_slice(&bytes);
+    }
+
+    PrecompileResult::success(output, gas_cost)
+}
+
+/// BLAKE2b compression function implementation
+fn blake2b_compress(h: &mut [u64; 8], m: &[u64; 16], t0: u64, t1: u64, f: bool, rounds: u32) {
+    // BLAKE2b IV
+    const IV: [u64; 8] = [
+        0x6a09e667f3bcc908, 0xbb67ae8584caa73b,
+        0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
+        0x510e527fade682d1, 0x9b05688c2b3e6c1f,
+        0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
+    ];
+
+    // BLAKE2b sigma permutations
+    const SIGMA: [[usize; 16]; 10] = [
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
+        [11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4],
+        [7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8],
+        [9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13],
+        [2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9],
+        [12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11],
+        [13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10],
+        [6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5],
+        [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0],
+    ];
+
+    // Initialize working vector
+    let mut v = [0u64; 16];
+    v[..8].copy_from_slice(h);
+    v[8..].copy_from_slice(&IV);
+    v[12] ^= t0;
+    v[13] ^= t1;
+    if f {
+        v[14] = !v[14];
+    }
+
+    // Mixing function G
+    #[inline(always)]
+    fn g(v: &mut [u64; 16], a: usize, b: usize, c: usize, d: usize, x: u64, y: u64) {
+        v[a] = v[a].wrapping_add(v[b]).wrapping_add(x);
+        v[d] = (v[d] ^ v[a]).rotate_right(32);
+        v[c] = v[c].wrapping_add(v[d]);
+        v[b] = (v[b] ^ v[c]).rotate_right(24);
+        v[a] = v[a].wrapping_add(v[b]).wrapping_add(y);
+        v[d] = (v[d] ^ v[a]).rotate_right(16);
+        v[c] = v[c].wrapping_add(v[d]);
+        v[b] = (v[b] ^ v[c]).rotate_right(63);
+    }
+
+    // Compression rounds
+    for i in 0..rounds as usize {
+        let s = &SIGMA[i % 10];
+        g(&mut v, 0, 4, 8, 12, m[s[0]], m[s[1]]);
+        g(&mut v, 1, 5, 9, 13, m[s[2]], m[s[3]]);
+        g(&mut v, 2, 6, 10, 14, m[s[4]], m[s[5]]);
+        g(&mut v, 3, 7, 11, 15, m[s[6]], m[s[7]]);
+        g(&mut v, 0, 5, 10, 15, m[s[8]], m[s[9]]);
+        g(&mut v, 1, 6, 11, 12, m[s[10]], m[s[11]]);
+        g(&mut v, 2, 7, 8, 13, m[s[12]], m[s[13]]);
+        g(&mut v, 3, 4, 9, 14, m[s[14]], m[s[15]]);
+    }
+
+    // Finalize
+    for i in 0..8 {
+        h[i] ^= v[i] ^ v[i + 8];
+    }
 }
 
 // ============================================================================

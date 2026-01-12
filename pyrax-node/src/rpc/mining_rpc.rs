@@ -52,6 +52,11 @@ impl MiningRpc {
         let epoch = get_epoch(template.height);
         let seed_hash = compute_seed(epoch);
 
+        // Calculate total transaction fees (input - output for each tx)
+        let total_fees: u64 = template.transactions.iter()
+            .map(|tx| tx.fee)
+            .sum();
+
         Ok(json!({
             "height": template.height,
             "parentHash": format!("0x{}", hex::encode(template.parent_hash.as_bytes())),
@@ -63,9 +68,7 @@ impl MiningRpc {
             "epoch": epoch,
             "coinbaseValue": template.coinbase_value,
             "transactions": template.transactions.len(),
-            "transactionsFees": template.transactions.iter()
-                .map(|_tx| 0u64) // TODO: Calculate actual fees
-                .sum::<u64>(),
+            "transactionsFees": total_fees,
         }))
     }
 
@@ -178,10 +181,17 @@ impl MiningRpc {
         debug!("Work submitted: nonce={}, header={}, mix={}", 
             nonce, header_hash, mix_hash);
 
-        // TODO: Validate and submit work through stratum server
-        // For now, return success if work looks valid
-        
-        Ok(json!(true))
+        // Validate and submit work through mining service
+        match self.mining_service.submit_work(nonce, header_hash, mix_hash).await {
+            Ok(block_hash) => {
+                info!("Work accepted! Block hash: {}", block_hash);
+                Ok(json!(true))
+            }
+            Err(e) => {
+                debug!("Work rejected: {}", e);
+                Ok(json!(false))
+            }
+        }
     }
 
     /// Get current hashrate
