@@ -119,6 +119,8 @@ export default function Navbar() {
     { name: 'Facebook', href: 'https://www.facebook.com/share/1BH17cWju3/?mibextid=wwXIfr', iconSrc: '/icons/facebook.svg', description: t('facebookDesc') },
     { name: 'Instagram', href: 'https://www.instagram.com/pyrax_network?igsh=MWJ1emNjczZhbnJrbw==', iconSrc: '/icons/instagram.svg', description: t('instagramDesc') },
     { name: t('facebookGroup'), href: 'https://www.facebook.com/groups/873178285202587', iconSrc: '/icons/facebook-group.svg', description: t('facebookGroupDesc') },
+    { name: 'Messenger', href: 'https://m.me/ch/Aba5kBGlwbdOIs12/', iconSrc: '/icons/messenger.svg', description: t('messengerDesc') },
+    { name: 'LinkedIn', href: 'https://www.linkedin.com/company/pyrax-llc/', iconSrc: '/icons/linkedin.svg', description: t('linkedinDesc') },
   ];
 
   const renderNavItem = (item: NavItem) => {
