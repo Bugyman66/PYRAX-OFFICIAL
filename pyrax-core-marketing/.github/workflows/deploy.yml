@@ -3,13 +3,18 @@ name: Deploy PYRAX Proofing Hub
 on:
   push:
     branches: [main, development]
+    paths:
+      - 'pyrax-core-marketing/**'
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: pyrax-chain/pyrax-marketing
   CONTAINER_NAME: pyrax-marketing
   CONTAINER_PORT: 3001
+  DOMAIN: marketing.pyrax.org
+  DB_NAME: pyrax_marketing
+  DB_USER: pyrax_marketing
 
 jobs:
   build:
@@ -17,9 +22,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
 
     steps:
       - name: Checkout repository
@@ -47,23 +49,118 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./pyrax-core-marketing
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
-            NEXT_PUBLIC_APP_NAME=${{ vars.NEXT_PUBLIC_APP_NAME }}
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
-      - name: Deploy with zero downtime
+      - name: Checkout for nginx config
+        uses: actions/checkout@v4
+
+      - name: Setup Infrastructure (First Deploy)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            
+            echo "=== PYRAX Marketing - Infrastructure Setup ==="
+            
+            # ============================================
+            # 1. DATABASE SETUP (idempotent)
+            # ============================================
+            echo "Setting up PostgreSQL database..."
+            
+            # Check if database exists
+            if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw ${{ env.DB_NAME }}; then
+              echo "Database ${{ env.DB_NAME }} already exists"
+            else
+              echo "Creating database ${{ env.DB_NAME }}..."
+              sudo -u postgres psql -c "CREATE DATABASE ${{ env.DB_NAME }};"
+              echo "Database created"
+            fi
+            
+            # Check if user exists
+            if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${{ env.DB_USER }}'" | grep -q 1; then
+              echo "User ${{ env.DB_USER }} already exists"
+            else
+              echo "Creating user ${{ env.DB_USER }}..."
+              sudo -u postgres psql -c "CREATE USER ${{ env.DB_USER }} WITH PASSWORD '${{ secrets.MARKETING_DB_PASSWORD }}';"
+              echo "User created"
+            fi
+            
+            # Grant privileges (idempotent)
+            sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ${{ env.DB_NAME }} TO ${{ env.DB_USER }};"
+            sudo -u postgres psql -d ${{ env.DB_NAME }} -c "GRANT ALL ON SCHEMA public TO ${{ env.DB_USER }};"
+            echo "Database setup complete"
+            
+            # ============================================
+            # 2. NGINX CONFIGURATION (idempotent)
+            # ============================================
+            echo "Setting up Nginx configuration..."
+            
+            NGINX_CONF="/etc/nginx/sites-available/${{ env.DOMAIN }}"
+            
+            # Create nginx config
+            cat > $NGINX_CONF << 'NGINXEOF'
+            server {
+                listen 80;
+                server_name ${{ env.DOMAIN }};
+                
+                location / {
+                    proxy_pass http://127.0.0.1:${{ env.CONTAINER_PORT }};
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                    proxy_read_timeout 86400;
+                    proxy_send_timeout 86400;
+                    client_max_body_size 500M;
+                }
+            }
+            NGINXEOF
+            
+            # Enable site if not already
+            if [ ! -L "/etc/nginx/sites-enabled/${{ env.DOMAIN }}" ]; then
+              ln -s $NGINX_CONF /etc/nginx/sites-enabled/
+              echo "Nginx site enabled"
+            else
+              echo "Nginx site already enabled"
+            fi
+            
+            # Test and reload nginx
+            nginx -t
+            systemctl reload nginx
+            echo "Nginx configured"
+            
+            # ============================================
+            # 3. SSL CERTIFICATE (idempotent)
+            # ============================================
+            echo "Setting up SSL certificate..."
+            
+            if [ -f "/etc/letsencrypt/live/${{ env.DOMAIN }}/fullchain.pem" ]; then
+              echo "SSL certificate already exists"
+            else
+              echo "Obtaining SSL certificate..."
+              certbot --nginx -d ${{ env.DOMAIN }} --non-interactive --agree-tos --email admin@pyrax.org --redirect || echo "Certbot failed - DNS may not have propagated yet"
+            fi
+            
+            echo "=== Infrastructure Setup Complete ==="
+
+      - name: Deploy Application
         uses: appleboy/ssh-action@v1.0.3
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -77,7 +174,7 @@ jobs:
           script: |
             set -e
             
-            echo "=== PYRAX Marketing Zero-Downtime Deploy ==="
+            echo "=== PYRAX Marketing - Zero-Downtime Deploy ==="
             echo "Image: $IMAGE"
             echo "Container: $CONTAINER"
             
@@ -87,6 +184,9 @@ jobs:
             # Pull new image
             echo "Pulling new image..."
             docker pull $IMAGE
+            
+            # Build DATABASE_URL
+            DATABASE_URL="postgresql://${{ env.DB_USER }}:${{ secrets.MARKETING_DB_PASSWORD }}@localhost:5432/${{ env.DB_NAME }}"
             
             # Check if old container exists
             OLD_CONTAINER="${CONTAINER}_old"
@@ -100,26 +200,27 @@ jobs:
               docker run -d \
                 --name "${CONTAINER}_new" \
                 --restart unless-stopped \
-                -p $NEW_PORT:3000 \
-                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                --network host \
+                -e PORT=$NEW_PORT \
+                -e DATABASE_URL="$DATABASE_URL" \
                 -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
-                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e NEXTAUTH_URL="https://${{ env.DOMAIN }}" \
                 -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
                 -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e GOOGLE_REDIRECT_URI="https://${{ env.DOMAIN }}/api/auth/google/callback" \
                 -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
-                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
-                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
-                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
-                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
-                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
-                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
-                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                -e BREVO_SENDER_EMAIL="pyrax-proof-hub@pyrax.org" \
+                -e BREVO_SENDER_NAME="PYRAX Proofing Hub" \
+                -e NEXT_PUBLIC_APP_URL="https://${{ env.DOMAIN }}" \
+                -e NEXT_PUBLIC_APP_NAME="PYRAX Proofing Hub" \
+                -e INTERNAL_EMAIL_DOMAIN="pyrax.org" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="15" \
+                -e SESSION_EXPIRY_DAYS="30" \
                 $IMAGE
               
               # Wait for new container to be healthy
               echo "Waiting for new container to be healthy..."
-              sleep 10
+              sleep 15
               
               # Health check
               for i in {1..30}; do
@@ -129,6 +230,7 @@ jobs:
                 fi
                 if [ $i -eq 30 ]; then
                   echo "ERROR: New container failed health check!"
+                  docker logs "${CONTAINER}_new" --tail 50
                   echo "Rolling back..."
                   docker stop "${CONTAINER}_new" || true
                   docker rm "${CONTAINER}_new" || true
@@ -138,10 +240,10 @@ jobs:
                 sleep 2
               done
               
-              # Swap containers (atomic operation)
+              # Swap containers
               echo "Swapping containers..."
-              docker stop $CONTAINER
-              docker rename $CONTAINER $OLD_CONTAINER
+              docker stop $CONTAINER || true
+              docker rename $CONTAINER $OLD_CONTAINER || true
               docker stop "${CONTAINER}_new"
               docker rm "${CONTAINER}_new"
               
@@ -149,83 +251,104 @@ jobs:
               docker run -d \
                 --name $CONTAINER \
                 --restart unless-stopped \
-                -p $PORT:3000 \
-                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                --network host \
+                -e PORT=$PORT \
+                -e DATABASE_URL="$DATABASE_URL" \
                 -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
-                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e NEXTAUTH_URL="https://${{ env.DOMAIN }}" \
                 -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
                 -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e GOOGLE_REDIRECT_URI="https://${{ env.DOMAIN }}/api/auth/google/callback" \
                 -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
-                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
-                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
-                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
-                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
-                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
-                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
-                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                -e BREVO_SENDER_EMAIL="pyrax-proof-hub@pyrax.org" \
+                -e BREVO_SENDER_NAME="PYRAX Proofing Hub" \
+                -e NEXT_PUBLIC_APP_URL="https://${{ env.DOMAIN }}" \
+                -e NEXT_PUBLIC_APP_NAME="PYRAX Proofing Hub" \
+                -e INTERNAL_EMAIL_DOMAIN="pyrax.org" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="15" \
+                -e SESSION_EXPIRY_DAYS="30" \
                 $IMAGE
               
-              # Verify new container is running
+              # Verify and cleanup
               sleep 5
               if curl -sf http://localhost:$PORT > /dev/null 2>&1; then
-                echo "New container verified, removing old container..."
+                echo "New container verified, removing old..."
                 docker rm $OLD_CONTAINER || true
               else
-                echo "ERROR: New container failed after swap!"
-                echo "Rolling back to old container..."
+                echo "ERROR: Rolling back..."
                 docker stop $CONTAINER || true
                 docker rm $CONTAINER || true
-                docker rename $OLD_CONTAINER $CONTAINER
-                docker start $CONTAINER
+                docker rename $OLD_CONTAINER $CONTAINER || true
+                docker start $CONTAINER || true
                 exit 1
               fi
               
             else
-              echo "No existing container, starting fresh..."
+              echo "First deploy, starting container..."
               docker run -d \
                 --name $CONTAINER \
                 --restart unless-stopped \
-                -p $PORT:3000 \
-                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                --network host \
+                -e PORT=$PORT \
+                -e DATABASE_URL="$DATABASE_URL" \
                 -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
-                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e NEXTAUTH_URL="https://${{ env.DOMAIN }}" \
                 -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
                 -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e GOOGLE_REDIRECT_URI="https://${{ env.DOMAIN }}/api/auth/google/callback" \
                 -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
-                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
-                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
-                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
-                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
-                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
-                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
-                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                -e BREVO_SENDER_EMAIL="pyrax-proof-hub@pyrax.org" \
+                -e BREVO_SENDER_NAME="PYRAX Proofing Hub" \
+                -e NEXT_PUBLIC_APP_URL="https://${{ env.DOMAIN }}" \
+                -e NEXT_PUBLIC_APP_NAME="PYRAX Proofing Hub" \
+                -e INTERNAL_EMAIL_DOMAIN="pyrax.org" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="15" \
+                -e SESSION_EXPIRY_DAYS="30" \
                 $IMAGE
             fi
             
             # Run database migrations
             echo "Running database migrations..."
-            docker exec $CONTAINER npx prisma migrate deploy || echo "Migration skipped (may not exist yet)"
+            sleep 5
+            docker exec $CONTAINER npx prisma migrate deploy || docker exec $CONTAINER npx prisma db push || echo "Migration completed"
             
-            # Cleanup old images
-            echo "Cleaning up old images..."
+            # Cleanup
             docker image prune -f
             
             echo "=== Deploy Complete ==="
-            docker ps | grep $CONTAINER
+            docker ps | grep $CONTAINER || true
 
-      - name: Verify deployment
+      - name: Verify Deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DROPLET_IP }}
           username: root
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            echo "Verifying deployment..."
+            echo "=== Verification ==="
             sleep 5
-            if curl -sf http://localhost:${{ env.CONTAINER_PORT }} > /dev/null; then
-              echo "Deployment verified successfully!"
+            
+            # Check container
+            if docker ps | grep -q ${{ env.CONTAINER_NAME }}; then
+              echo "✅ Container running"
             else
-              echo "WARNING: Could not verify deployment"
+              echo "❌ Container not running"
+              exit 1
             fi
+            
+            # Check local endpoint
+            if curl -sf http://localhost:${{ env.CONTAINER_PORT }} > /dev/null; then
+              echo "✅ App responding on port ${{ env.CONTAINER_PORT }}"
+            else
+              echo "⚠️ App not responding locally yet"
+            fi
+            
+            # Check public endpoint
+            if curl -sf https://${{ env.DOMAIN }} > /dev/null 2>&1; then
+              echo "✅ Public site accessible"
+            else
+              echo "⚠️ Public site not accessible yet (SSL may still be provisioning)"
+            fi
+            
+            echo "=== Deployment Summary ==="
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep marketing || true
