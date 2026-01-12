@@ -1,0 +1,231 @@
+name: Deploy PYRAX Proofing Hub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CONTAINER_NAME: pyrax-marketing
+  CONTAINER_PORT: 3001
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_APP_NAME=${{ vars.NEXT_PUBLIC_APP_NAME }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Deploy with zero downtime
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          CONTAINER: ${{ env.CONTAINER_NAME }}
+          PORT: ${{ env.CONTAINER_PORT }}
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: IMAGE,CONTAINER,PORT
+          script: |
+            set -e
+            
+            echo "=== PYRAX Marketing Zero-Downtime Deploy ==="
+            echo "Image: $IMAGE"
+            echo "Container: $CONTAINER"
+            
+            # Login to GitHub Container Registry
+            echo ${{ secrets.GH_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new image
+            echo "Pulling new image..."
+            docker pull $IMAGE
+            
+            # Check if old container exists
+            OLD_CONTAINER="${CONTAINER}_old"
+            if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
+              echo "Existing container found, preparing blue-green deploy..."
+              
+              # Start new container on temporary port
+              NEW_PORT=$((PORT + 1000))
+              echo "Starting new container on port $NEW_PORT for health check..."
+              
+              docker run -d \
+                --name "${CONTAINER}_new" \
+                --restart unless-stopped \
+                -p $NEW_PORT:3000 \
+                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
+                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+                -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
+                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
+                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
+                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
+                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
+                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
+                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                $IMAGE
+              
+              # Wait for new container to be healthy
+              echo "Waiting for new container to be healthy..."
+              sleep 10
+              
+              # Health check
+              for i in {1..30}; do
+                if curl -sf http://localhost:$NEW_PORT > /dev/null 2>&1; then
+                  echo "New container is healthy!"
+                  break
+                fi
+                if [ $i -eq 30 ]; then
+                  echo "ERROR: New container failed health check!"
+                  echo "Rolling back..."
+                  docker stop "${CONTAINER}_new" || true
+                  docker rm "${CONTAINER}_new" || true
+                  exit 1
+                fi
+                echo "Health check attempt $i/30..."
+                sleep 2
+              done
+              
+              # Swap containers (atomic operation)
+              echo "Swapping containers..."
+              docker stop $CONTAINER
+              docker rename $CONTAINER $OLD_CONTAINER
+              docker stop "${CONTAINER}_new"
+              docker rm "${CONTAINER}_new"
+              
+              # Start final container on correct port
+              docker run -d \
+                --name $CONTAINER \
+                --restart unless-stopped \
+                -p $PORT:3000 \
+                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
+                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+                -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
+                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
+                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
+                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
+                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
+                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
+                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                $IMAGE
+              
+              # Verify new container is running
+              sleep 5
+              if curl -sf http://localhost:$PORT > /dev/null 2>&1; then
+                echo "New container verified, removing old container..."
+                docker rm $OLD_CONTAINER || true
+              else
+                echo "ERROR: New container failed after swap!"
+                echo "Rolling back to old container..."
+                docker stop $CONTAINER || true
+                docker rm $CONTAINER || true
+                docker rename $OLD_CONTAINER $CONTAINER
+                docker start $CONTAINER
+                exit 1
+              fi
+              
+            else
+              echo "No existing container, starting fresh..."
+              docker run -d \
+                --name $CONTAINER \
+                --restart unless-stopped \
+                -p $PORT:3000 \
+                -e DATABASE_URL="${{ secrets.MARKETING_DATABASE_URL }}" \
+                -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
+                -e NEXTAUTH_URL="${{ vars.NEXTAUTH_URL }}" \
+                -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+                -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+                -e GOOGLE_REDIRECT_URI="${{ vars.GOOGLE_REDIRECT_URI }}" \
+                -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
+                -e BREVO_SENDER_EMAIL="${{ vars.BREVO_SENDER_EMAIL }}" \
+                -e BREVO_SENDER_NAME="${{ vars.BREVO_SENDER_NAME }}" \
+                -e NEXT_PUBLIC_APP_URL="${{ vars.NEXT_PUBLIC_APP_URL }}" \
+                -e NEXT_PUBLIC_APP_NAME="${{ vars.NEXT_PUBLIC_APP_NAME }}" \
+                -e INTERNAL_EMAIL_DOMAIN="${{ vars.INTERNAL_EMAIL_DOMAIN }}" \
+                -e MAGIC_LINK_EXPIRY_MINUTES="${{ vars.MAGIC_LINK_EXPIRY_MINUTES }}" \
+                -e SESSION_EXPIRY_DAYS="${{ vars.SESSION_EXPIRY_DAYS }}" \
+                $IMAGE
+            fi
+            
+            # Run database migrations
+            echo "Running database migrations..."
+            docker exec $CONTAINER npx prisma migrate deploy || echo "Migration skipped (may not exist yet)"
+            
+            # Cleanup old images
+            echo "Cleaning up old images..."
+            docker image prune -f
+            
+            echo "=== Deploy Complete ==="
+            docker ps | grep $CONTAINER
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            echo "Verifying deployment..."
+            sleep 5
+            if curl -sf http://localhost:${{ env.CONTAINER_PORT }} > /dev/null; then
+              echo "Deployment verified successfully!"
+            else
+              echo "WARNING: Could not verify deployment"
+            fi

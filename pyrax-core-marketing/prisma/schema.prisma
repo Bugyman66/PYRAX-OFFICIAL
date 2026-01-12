@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OrgAdmin
+  DepartmentHead
+  Employee
+  PublicSubmitter
+}
+
+enum ProofStatus {
+  Draft
+  InReview
+  Approved
+  Rejected
+  Published
+}
+
+enum VersionKind {
+  Source
+  Rendition
+}
+
+enum DecisionType {
+  Approve
+  NeedsChanges
+  Reject
+}
+
+enum WorkflowStatus {
+  Active
+  Completed
+  Cancelled
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          UserRole  @default(Employee)
+  departmentId  String?
+  isInternal    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  department    Department?  @relation(fields: [departmentId], references: [id])
+  
+  createdFolders      Folder[]           @relation("FolderCreator")
+  createdProofs       Proof[]            @relation("ProofCreator")
+  createdVersions     ProofVersion[]     @relation("VersionCreator")
+  createdAnnotations  Annotation[]       @relation("AnnotationCreator")
+  createdComments     Comment[]          @relation("CommentCreator")
+  decisions           Decision[]         @relation("DecisionMaker")
+  publishedAssets     PublicAsset[]      @relation("AssetPublisher")
+  submissions         ExternalSubmission[] @relation("Submitter")
+  magicLinks          MagicLinkToken[]
+  sessions            Session[]
+  auditEvents         AuditEvent[]       @relation("AuditActor")
+
+  @@index([email])
+  @@index([departmentId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users             User[]
+  folders           Folder[]
+  workflowTemplates WorkflowTemplate[]
+
+  @@index([name])
+}
+
+model Folder {
+  id            String   @id @default(cuid())
+  departmentId  String
+  name          String
+  description   String?
+  driveFolderId String?
+  accessJson    Json?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id])
+  createdBy  User       @relation("FolderCreator", fields: [createdById], references: [id])
+  proofs     Proof[]
+
+  @@index([departmentId])
+  @@index([createdById])
+}
+
+model Proof {
+  id                   String      @id @default(cuid())
+  folderId             String
+  title                String
+  description          String?
+  status               ProofStatus @default(Draft)
+  createdById          String
+  isExternalSubmission Boolean     @default(false)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  folder            Folder              @relation(fields: [folderId], references: [id])
+  createdBy         User                @relation("ProofCreator", fields: [createdById], references: [id])
+  versions          ProofVersion[]
+  workflowInstance  WorkflowInstance?
+  publicAsset       PublicAsset?
+  externalSubmission ExternalSubmission?
+
+  @@index([folderId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model ProofVersion {
+  id            String      @id @default(cuid())
+  proofId       String
+  versionNumber Int
+  driveFileId   String
+  fileName      String
+  mimeType      String
+  fileSize      Int?
+  kind          VersionKind @default(Source)
+  metadata      Json?
+  createdById   String
+  createdAt     DateTime    @default(now())
+
+  proof       Proof        @relation(fields: [proofId], references: [id], onDelete: Cascade)
+  createdBy   User         @relation("VersionCreator", fields: [createdById], references: [id])
+  annotations Annotation[]
+  comments    Comment[]
+
+  @@unique([proofId, versionNumber, kind])
+  @@index([proofId])
+  @@index([driveFileId])
+}
+
+model Annotation {
+  id             String   @id @default(cuid())
+  proofVersionId String
+  pageOrTimecode String?
+  geometryJson   Json
+  color          String   @default("#FF0000")
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  proofVersion ProofVersion @relation(fields: [proofVersionId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("AnnotationCreator", fields: [createdById], references: [id])
+  comments     Comment[]
+
+  @@index([proofVersionId])
+}
+
+model Comment {
+  id             String   @id @default(cuid())
+  proofVersionId String
+  annotationId   String?
+  parentId       String?
+  body           String
+  mentionsJson   Json?
+  resolved       Boolean  @default(false)
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  proofVersion ProofVersion @relation(fields: [proofVersionId], references: [id], onDelete: Cascade)
+  annotation   Annotation?  @relation(fields: [annotationId], references: [id], onDelete: SetNull)
+  parent       Comment?     @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies      Comment[]    @relation("CommentReplies")
+  createdBy    User         @relation("CommentCreator", fields: [createdById], references: [id])
+
+  @@index([proofVersionId])
+  @@index([annotationId])
+  @@index([parentId])
+}
+
+model WorkflowTemplate {
+  id            String   @id @default(cuid())
+  departmentId  String
+  name          String
+  description   String?
+  stepsJson     Json
+  finalRuleJson Json
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  department Department         @relation(fields: [departmentId], references: [id])
+  instances  WorkflowInstance[]
+
+  @@index([departmentId])
+}
+
+model WorkflowInstance {
+  id               String         @id @default(cuid())
+  proofId          String         @unique
+  templateId       String
+  currentStepIndex Int            @default(0)
+  status           WorkflowStatus @default(Active)
+  dueDatesJson     Json?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  proof     Proof            @relation(fields: [proofId], references: [id], onDelete: Cascade)
+  template  WorkflowTemplate @relation(fields: [templateId], references: [id])
+  decisions Decision[]
+
+  @@index([templateId])
+  @@index([status])
+}
+
+model Decision {
+  id                 String       @id @default(cuid())
+  workflowInstanceId String
+  stepIndex          Int
+  decisionType       DecisionType
+  note               String?
+  decidedById        String
+  createdAt          DateTime     @default(now())
+
+  workflowInstance WorkflowInstance @relation(fields: [workflowInstanceId], references: [id], onDelete: Cascade)
+  decidedBy        User             @relation("DecisionMaker", fields: [decidedById], references: [id])
+
+  @@index([workflowInstanceId])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  action      String
+  actorId     String?
+  payloadJson Json?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model PublicAsset {
+  id              String   @id @default(cuid())
+  proofId         String   @unique
+  slug            String   @unique
+  title           String?
+  description     String?
+  downloadAllowed Boolean  @default(true)
+  mediaKitSection String?
+  displayOrder    Int      @default(0)
+  isPublished     Boolean  @default(false)
+  publishedById   String
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  proof       Proof @relation(fields: [proofId], references: [id], onDelete: Cascade)
+  publishedBy User  @relation("AssetPublisher", fields: [publishedById], references: [id])
+
+  @@index([slug])
+  @@index([isPublished])
+  @@index([mediaKitSection])
+}
+
+model ExternalSubmission {
+  id        String   @id @default(cuid())
+  userId    String
+  proofId   String   @unique
+  message   String?
+  category  String?
+  createdAt DateTime @default(now())
+
+  user  User  @relation("Submitter", fields: [userId], references: [id])
+  proof Proof @relation(fields: [proofId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MagicLinkToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model DriveIntegration {
+  id                String   @id @default(cuid())
+  accessToken       String?
+  refreshToken      String
+  tokenExpiresAt    DateTime?
+  rootFolderId      String
+  isConnected       Boolean  @default(true)
+  connectedByEmail  String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model NotificationPreference {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  onAssignment    Boolean @default(true)
+  onMention       Boolean @default(true)
+  onStepChange    Boolean @default(true)
+  onDecision      Boolean @default(true)
+  onApproval      Boolean @default(true)
+  onSubmission    Boolean @default(true)
+}

@@ -1,0 +1,44 @@
+{
+  "name": "pyrax-proofing-hub",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/uuid": "^10.0.0",
+    "bcryptjs": "^3.0.3",
+    "googleapis": "^170.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "konva": "^10.0.12",
+    "lucide-react": "^0.562.0",
+    "next": "14.2.35",
+    "pdfjs-dist": "^5.4.530",
+    "prisma": "^6.19.1",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-konva": "^18.2.14",
+    "tailwindcss": "^4.1.17",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "concurrently": "^9.2.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "typescript": "^5"
+  }
+}
