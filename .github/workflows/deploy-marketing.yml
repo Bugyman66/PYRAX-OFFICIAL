@@ -116,9 +116,17 @@ jobs:
           # 4. UPDATE NGINX (Docker nginx container)
           echo "Updating nginx config..."
           cd /opt/pyrax
+          git pull origin development 2>/dev/null || true
           
-          # Reload nginx container if running
-          docker exec pyrax-nginx nginx -s reload 2>/dev/null || echo "Nginx container not running, will be started with full deploy"
+          # Copy updated nginx config into container and reload
+          if docker ps | grep -q pyrax-nginx; then
+            docker cp /opt/pyrax/deployment/nginx/docker.conf pyrax-nginx:/etc/nginx/nginx.conf
+            docker exec pyrax-nginx nginx -t && docker exec pyrax-nginx nginx -s reload
+            echo "Nginx config updated and reloaded"
+          else
+            echo "Nginx container not running - starting with docker-compose..."
+            docker compose up -d nginx 2>/dev/null || echo "Will need full deploy for nginx"
+          fi
           
           # 5. VERIFY
           echo "Verifying..."
