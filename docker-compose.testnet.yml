@@ -2,6 +2,54 @@
 # Usage: docker compose -f docker-compose.testnet.yml up -d
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: pyrax-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=pyrax
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-pyrax_secure_password}
+      - POSTGRES_DB=pyrax_marketing
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pyrax -d pyrax_marketing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pyrax-network
+
+  # Marketing/Proofing Hub - marketing.pyrax.org
+  marketing:
+    build:
+      context: ./pyrax-core-marketing
+      dockerfile: Dockerfile
+    container_name: pyrax-marketing
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://pyrax:${POSTGRES_PASSWORD:-pyrax_secure_password}@postgres:5432/pyrax_marketing
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - NEXT_PUBLIC_APP_URL=https://marketing.pyrax.org
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - BREVO_SENDER_EMAIL=${BREVO_SENDER_EMAIL:-noreply@pyrax.org}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - pyrax-network
+
   # Main Website - pyrax.org (also serves testnet.pyrax.org)
   website:
     build:
@@ -104,6 +152,7 @@ services:
       - faucet
       - docs
       - explorer
+      - marketing
     networks:
       - pyrax-network
 
@@ -113,3 +162,4 @@ networks:
 
 volumes:
   nginx-cache:
+  postgres-data:
