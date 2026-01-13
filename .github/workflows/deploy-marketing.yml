@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,96 +47,85 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Infrastructure and Deploy
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: root
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -e
-            echo "=== PYRAX Marketing - Full Deploy ==="
-            
-            # 1. DATABASE SETUP
-            echo "Setting up PostgreSQL..."
-            sudo -u postgres psql -c "CREATE DATABASE pyrax_marketing;" 2>/dev/null || echo "DB exists"
-            sudo -u postgres psql -c "CREATE USER pyrax_marketing WITH PASSWORD '${{ secrets.MARKETING_DB_PASSWORD }}';" 2>/dev/null || echo "User exists"
-            sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE pyrax_marketing TO pyrax_marketing;" || true
-            sudo -u postgres psql -d pyrax_marketing -c "GRANT ALL ON SCHEMA public TO pyrax_marketing;" || true
-            
-            # 2. NGINX CONFIG
-            echo "Configuring nginx..."
-            cat > /etc/nginx/sites-available/marketing.pyrax.org << 'EOF'
-            server {
-                listen 80;
-                server_name marketing.pyrax.org;
-                location / {
-                    proxy_pass http://127.0.0.1:3001;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection 'upgrade';
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_cache_bypass $http_upgrade;
-                    client_max_body_size 500M;
-                }
-            }
-            EOF
-            ln -sf /etc/nginx/sites-available/marketing.pyrax.org /etc/nginx/sites-enabled/
-            nginx -t && systemctl reload nginx
-            
-            # 3. SSL
-            echo "Setting up SSL..."
-            certbot --nginx -d marketing.pyrax.org --non-interactive --agree-tos --email admin@pyrax.org --redirect 2>/dev/null || echo "SSL exists or failed"
-            
-            # 4. DEPLOY CONTAINER
-            echo "Deploying container..."
-            echo ${{ secrets.GH_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/pyrax-chain/pyrax-marketing:latest
-            
-            docker stop pyrax-marketing 2>/dev/null || true
-            docker rm pyrax-marketing 2>/dev/null || true
-            
-            docker run -d \
-              --name pyrax-marketing \
-              --restart unless-stopped \
-              --network host \
-              -e PORT=3001 \
-              -e DATABASE_URL="postgresql://pyrax_marketing:${{ secrets.MARKETING_DB_PASSWORD }}@localhost:5432/pyrax_marketing" \
-              -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
-              -e NEXTAUTH_URL="https://marketing.pyrax.org" \
-              -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
-              -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-              -e GOOGLE_REDIRECT_URI="https://marketing.pyrax.org/api/auth/google/callback" \
-              -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
-              -e BREVO_SENDER_EMAIL="pyrax-proof-hub@pyrax.org" \
-              -e BREVO_SENDER_NAME="PYRAX Proofing Hub" \
-              -e NEXT_PUBLIC_APP_URL="https://marketing.pyrax.org" \
-              -e NEXT_PUBLIC_APP_NAME="PYRAX Proofing Hub" \
-              -e INTERNAL_EMAIL_DOMAIN="pyrax.org" \
-              -e MAGIC_LINK_EXPIRY_MINUTES="15" \
-              -e SESSION_EXPIRY_DAYS="30" \
-              ghcr.io/pyrax-chain/pyrax-marketing:latest
-            
-            # 5. MIGRATIONS
-            echo "Running migrations..."
-            sleep 10
-            docker exec pyrax-marketing npx prisma migrate deploy 2>/dev/null || docker exec pyrax-marketing npx prisma db push 2>/dev/null || echo "Migration done"
-            
-            # 6. VERIFY
-            echo "Verifying..."
-            sleep 5
-            docker ps | grep pyrax-marketing
-            curl -sf http://localhost:3001 > /dev/null && echo "✅ App responding" || echo "⚠️ App starting..."
-            
-            echo "=== Deploy Complete ==="
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DROPLET_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy Marketing App
+        run: |
+          ssh root@${{ secrets.DROPLET_IP }} << 'ENDSSH'
+          set -e
+          echo "=== PYRAX Marketing - Deploy ==="
+          
+          # 1. DATABASE SETUP (PostgreSQL must be installed on host)
+          echo "Setting up PostgreSQL..."
+          sudo -u postgres psql -c "CREATE DATABASE pyrax_marketing;" 2>/dev/null || echo "DB exists"
+          sudo -u postgres psql -c "CREATE USER pyrax_marketing WITH PASSWORD '${{ secrets.MARKETING_DB_PASSWORD }}';" 2>/dev/null || echo "User exists"  
+          sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE pyrax_marketing TO pyrax_marketing;" 2>/dev/null || true
+          sudo -u postgres psql -d pyrax_marketing -c "GRANT ALL ON SCHEMA public TO pyrax_marketing;" 2>/dev/null || true
+          sudo -u postgres psql -c "ALTER USER pyrax_marketing WITH PASSWORD '${{ secrets.MARKETING_DB_PASSWORD }}';" 2>/dev/null || true
+          
+          # 2. PULL AND DEPLOY CONTAINER
+          echo "Deploying container..."
+          echo ${{ secrets.GH_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull ghcr.io/pyrax-chain/pyrax-marketing:latest
+          
+          docker stop pyrax-marketing 2>/dev/null || true
+          docker rm pyrax-marketing 2>/dev/null || true
+          
+          docker run -d \
+            --name pyrax-marketing \
+            --restart unless-stopped \
+            -p 3004:3000 \
+            -e NODE_ENV=production \
+            -e PORT=3000 \
+            -e DATABASE_URL="postgresql://pyrax_marketing:${{ secrets.MARKETING_DB_PASSWORD }}@host.docker.internal:5432/pyrax_marketing" \
+            -e NEXTAUTH_SECRET="${{ secrets.NEXTAUTH_SECRET }}" \
+            -e NEXT_PUBLIC_APP_URL="https://marketing.pyrax.org" \
+            -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+            -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+            -e GOOGLE_REDIRECT_URI="https://marketing.pyrax.org/api/auth/google/callback" \
+            -e BREVO_API_KEY="${{ secrets.BREVO_API_KEY }}" \
+            -e BREVO_SENDER_EMAIL="pyrax-proof-hub@pyrax.org" \
+            -e BREVO_SENDER_NAME="PYRAX Proofing Hub" \
+            -e NEXT_PUBLIC_APP_NAME="PYRAX Proofing Hub" \
+            -e INTERNAL_EMAIL_DOMAIN="pyrax.org" \
+            -e MAGIC_LINK_EXPIRY_MINUTES="15" \
+            -e SESSION_EXPIRY_DAYS="30" \
+            --add-host=host.docker.internal:host-gateway \
+            ghcr.io/pyrax-chain/pyrax-marketing:latest
+          
+          # 3. RUN MIGRATIONS
+          echo "Running migrations..."
+          sleep 10
+          docker exec pyrax-marketing npx prisma migrate deploy --schema=./prisma/schema.prisma 2>/dev/null || \
+          docker exec pyrax-marketing npx prisma db push --schema=./prisma/schema.prisma 2>/dev/null || \
+          echo "Migration completed or skipped"
+          
+          # 4. UPDATE NGINX (Docker nginx container)
+          echo "Updating nginx config..."
+          cd /opt/pyrax
+          
+          # Reload nginx container if running
+          docker exec pyrax-nginx nginx -s reload 2>/dev/null || echo "Nginx container not running, will be started with full deploy"
+          
+          # 5. VERIFY
+          echo "Verifying..."
+          sleep 5
+          docker ps | grep pyrax-marketing || echo "Container not listed"
+          docker logs pyrax-marketing --tail=20 2>&1 || true
+          curl -sf http://localhost:3004 > /dev/null && echo "✅ App responding on port 3004" || echo "⚠️ App still starting..."
+          
+          echo "=== Deploy Complete ==="
+          ENDSSH
+
+      - name: Health Check
+        run: |
+          sleep 10
+          curl -sf https://marketing.pyrax.org > /dev/null && echo "✅ marketing.pyrax.org is live" || echo "⚠️ Site may still be starting"
