@@ -19,14 +19,14 @@ export default function Footer() {
     resources: [
       { name: t('whitepaper'), href: '/whitepaper.pdf' },
       { name: t('documentation'), href: 'https://docs.testnet.pyrax.org' },
-      { name: t('github'), href: 'https://github.com/pyrax-official' },
+      { name: t('github'), href: 'https://github.com/PYRAX-Chain/PYRAX-OFFICIAL' },
       { name: t('brandKit'), href: '/brand' },
     ],
     community: [
-      { name: navT('discord'), href: 'https://discord.gg/z9kjrE9q' },
-      { name: navT('twitter'), href: 'https://twitter.com/pyrax_org' },
-      { name: navT('telegram'), href: 'https://t.me/pyrax_official' },
-      { name: navT('github'), href: 'https://github.com/pyrax-official' },
+      { name: navT('discord'), href: 'https://discord.gg/UH5tseES' },
+      { name: navT('twitter'), href: 'https://x.com/PYRAX_Official?s=20' },
+      { name: navT('telegram'), href: 'https://t.me/PYRAXNetwork' },
+      { name: navT('github'), href: 'https://github.com/PYRAX-Chain/PYRAX-OFFICIAL' },
     ],
     legal: [
       { name: t('privacyPolicy'), href: '/privacy' },
