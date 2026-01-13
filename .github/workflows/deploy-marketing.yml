@@ -79,13 +79,13 @@ jobs:
           docker stop pyrax-marketing 2>/dev/null || true
           docker rm pyrax-marketing 2>/dev/null || true
           
-          # Create network if it doesn't exist
-          docker network create pyrax-official_pyrax-network 2>/dev/null || true
+          # Use the same network as docker-compose (pyrax_pyrax-network)
+          docker network create pyrax_pyrax-network 2>/dev/null || true
           
           docker run -d \
             --name pyrax-marketing \
             --restart unless-stopped \
-            --network pyrax-official_pyrax-network \
+            --network pyrax_pyrax-network \
             --network-alias marketing \
             -p 3004:3000 \
             -e NODE_ENV=production \
