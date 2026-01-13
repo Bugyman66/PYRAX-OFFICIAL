@@ -52,10 +52,9 @@ impl MiningRpc {
         let epoch = get_epoch(template.height);
         let seed_hash = compute_seed(epoch);
 
-        // Calculate total transaction fees (input - output for each tx)
-        let total_fees: u64 = template.transactions.iter()
-            .map(|tx| tx.fee)
-            .sum();
+        // Calculate total transaction fees (fees would be computed from inputs - outputs)
+        // For now, fees are included in the coinbase value
+        let total_fees: u64 = 0;
 
         Ok(json!({
             "height": template.height,

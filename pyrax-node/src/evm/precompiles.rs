@@ -7,11 +7,9 @@ use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 use blake3::Hasher as Blake3Hasher;
 use num_bigint::BigUint;
-use num_traits::{Zero, One};
-use ark_bn254::{Bn254, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
+use ark_bn254::{Bn254, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
-use ark_ff::{PrimeField, Field};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_ff::{PrimeField, BigInteger, Zero};
 
 use super::types::{Address, B256, U256};
 
@@ -374,9 +372,7 @@ fn bn128_mul(input: &[u8], gas_limit: u64) -> PrecompileResult {
 
     // Parse scalar (32 bytes, big-endian)
     let scalar_bytes = &padded[64..96];
-    let scalar = match Fr::from_be_bytes_mod_order(scalar_bytes).into() {
-        s => s,
-    };
+    let scalar = Fr::from_be_bytes_mod_order(scalar_bytes);
 
     // Scalar multiplication
     let result = (point * scalar).into_affine();

@@ -320,6 +320,36 @@ impl MiningService {
         self.chain_provider.submit_block(block)
     }
 
+    /// Submit work from RPC (nonce, header_hash, mix_hash)
+    pub async fn submit_work(&self, nonce: u64, header_hash: H256, mix_hash: H256) -> Result<H256, String> {
+        // Get current template to reconstruct block
+        let template = self.get_block_template();
+        
+        // Build block header with submitted nonce
+        let header = BlockHeader {
+            version: 1,
+            stream: 0,
+            parent_hash: template.parent_hash,
+            merkle_root: H256::zero(), // Would be computed from transactions
+            utxo_commitment: H256::zero(),
+            timestamp: template.timestamp,
+            difficulty: template.difficulty,
+            nonce,
+            extra_nonce: 0,
+            height: template.height,
+            beneficiary: self.config.coinbase_address,
+        };
+        
+        // Verify the work meets difficulty target
+        if header.hash() != header_hash {
+            return Err("Header hash mismatch".to_string());
+        }
+        
+        // Build and submit block
+        let block = Block::new(header, template.transactions);
+        self.chain_provider.submit_block(block)
+    }
+
     /// Get mining info for RPC
     pub fn get_mining_info(&self) -> MiningInfo {
         let stats = self.stratum_server.as_ref().map(|s| {

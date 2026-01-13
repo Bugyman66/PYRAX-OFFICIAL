@@ -79,6 +79,8 @@ parking_lot = "0.12"
 crossbeam-channel = "0.5"
 libloading = "0.8"
 walkdir = "2.4"
+num-bigint = "0.4"
+num-traits = "0.2"
 
 # Types
 ethereum-types = "0.14"
@@ -89,6 +91,13 @@ rlp = "0.5"
 revm = { version = "3.5", default-features = false, features = ["std", "serde"] }
 alloy-primitives = { version = "0.4", features = ["serde", "rlp"] }
 alloy-rlp = "0.3"
+
+# Elliptic Curve / BN254 Pairing for EVM Precompiles (ecAdd, ecMul, ecPairing)
+ark-ec = "0.4"
+ark-ff = "0.4"
+ark-serialize = "0.4"
+ark-bn254 = "0.4"
+ark-std = "0.4"
 
 # WASM Runtime
 wasmtime = "15.0"

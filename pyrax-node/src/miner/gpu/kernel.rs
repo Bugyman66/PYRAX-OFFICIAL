@@ -40,18 +40,24 @@ pub struct GpuMinerStats {
 #[derive(Debug, Clone)]
 pub struct GpuMinerConfig {
     pub device_index: Option<usize>,
+    pub devices: Vec<usize>,
     pub intensity: u32,
     pub batch_size: u64,
     pub dag_cache_path: String,
+    pub temp_limit: Option<u32>,
+    pub power_limit: Option<u32>,
 }
 
 impl Default for GpuMinerConfig {
     fn default() -> Self {
         Self {
             device_index: None, // Auto-select best device
+            devices: vec![],
             intensity: 100,
             batch_size: 1 << 20, // ~1M hashes per batch
             dag_cache_path: "./dag_cache".to_string(),
+            temp_limit: None,
+            power_limit: None,
         }
     }
 }
@@ -211,6 +217,22 @@ impl GpuMiner {
         self.current_epoch = Some(epoch);
         info!("DAG prepared for epoch {}", epoch);
         Ok(())
+    }
+
+    /// Get batch size
+    pub fn get_batch_size(&self) -> u64 {
+        self.config.batch_size
+    }
+
+    /// Get current hashrate
+    pub fn get_hashrate(&self) -> f64 {
+        self.stats.read().hashrate
+    }
+
+    /// Set mining intensity (no-op for now, intensity is set at config time)
+    pub async fn set_intensity(&self, _intensity: u8) {
+        // Intensity changes would require reconfiguring the GPU kernel
+        // For now this is a no-op as intensity is set at initialization
     }
 
     /// Mine a single batch and return result if found
