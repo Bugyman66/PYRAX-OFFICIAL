@@ -130,11 +130,11 @@ export default function Footer() {
           <p className="text-sm text-stone-500">
             {t('copyright')}
           </p>
-          
+
           {/* Social Icons */}
           <div className="flex items-center gap-4">
             <a
-              href="https://twitter.com/pyrax_org"
+              href="https://x.com/PYRAX_Official?s=20"
               target="_blank"
               rel="noopener noreferrer"
               className="text-stone-400 hover:text-white transition-colors"
@@ -144,7 +144,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://discord.gg/z9kjrE9q"
+              href="https://discord.gg/UH5tseES"
               target="_blank"
               rel="noopener noreferrer"
               className="text-stone-400 hover:text-white transition-colors"
@@ -154,7 +154,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://github.com/pyrax-official"
+              href="https://github.com/PYRAX-Chain/PYRAX-OFFICIAL"
               target="_blank"
               rel="noopener noreferrer"
               className="text-stone-400 hover:text-white transition-colors"
@@ -164,7 +164,7 @@ export default function Footer() {
               </svg>
             </a>
             <a
-              href="https://t.me/pyrax_official"
+              href="https://t.me/PYRAXNetwork"
               target="_blank"
               rel="noopener noreferrer"
               className="text-stone-400 hover:text-white transition-colors"
