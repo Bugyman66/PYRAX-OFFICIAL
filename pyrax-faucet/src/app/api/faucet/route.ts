@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ethers } from 'ethers';
 
 // In-memory rate limiting (use Redis in production)
 const requestCache = new Map<string, number>();
 
 const FAUCET_AMOUNT = 100; // PYRAX tokens per request
+
+// Simple address validation (20 bytes hex string)
+function isValidAddress(address: string): boolean {
+  if (!address) return false;
+  const cleaned = address.toLowerCase().replace(/^0x/, '');
+  return /^[0-9a-f]{40}$/.test(cleaned);
+}
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 
 // Network configuration
@@ -13,20 +19,24 @@ type NetworkConfig = {
   rpcUrl: string;
   chainId: number;
   explorerUrl: string;
+  faucetAddress: string;
 };
 
+// PYRAX Chain IDs: Mainnet=79729, Testnet=797291, Devnet=797292
 const NETWORKS: Record<string, NetworkConfig> = {
   devnet: {
     name: 'PYRAX Devnet',
-    rpcUrl: process.env.DEVNET_RPC_URL || 'http://localhost:8545',
-    chainId: 13370,
-    explorerUrl: 'https://explorer.dev.pyrax.org',
+    rpcUrl: process.env.DEVNET_RPC_URL || 'http://node:8545',
+    chainId: 797292,
+    explorerUrl: 'https://explorer.pyrax-devnet.org',
+    faucetAddress: '0x1111111111111111111111111111111111111111', // Genesis faucet pool
   },
   testnet: {
     name: 'PYRAX Testnet',
     rpcUrl: process.env.TESTNET_RPC_URL || 'https://rpc.testnet.pyrax.org',
-    chainId: 13371,
+    chainId: 797291,
     explorerUrl: 'https://explorer.testnet.pyrax.org',
+    faucetAddress: '0x1111111111111111111111111111111111111111', // Genesis faucet pool
   },
 };
 
@@ -42,14 +52,33 @@ function getNetwork(): NetworkConfig | null {
   return NETWORKS[networkEnv] || NETWORKS.testnet;
 }
 
-// Get faucet wallet from environment
-function getFaucetWallet(provider: ethers.Provider): ethers.Wallet | null {
-  const privateKey = process.env.FAUCET_PRIVATE_KEY;
-  if (!privateKey) {
-    console.error('FAUCET_PRIVATE_KEY not configured');
-    return null;
+// PYRAX RPC helper for native transactions
+async function pyraxRpcCall(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
+  const response = await fetch(rpcUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method,
+      params,
+      id: Date.now(),
+    }),
+  });
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error.message || 'RPC error');
   }
-  return new ethers.Wallet(privateKey, provider);
+  return data.result;
+}
+
+// Get faucet balance from PYRAX RPC
+async function getFaucetBalance(rpcUrl: string, faucetAddress: string): Promise<bigint> {
+  try {
+    const result = await pyraxRpcCall(rpcUrl, 'pyrax_getBalance', [faucetAddress]) as { balance: number };
+    return BigInt(result.balance || 0);
+  } catch {
+    return BigInt(0);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -73,8 +102,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if valid Ethereum address format
-    if (!ethers.isAddress(address)) {
+    // Check if valid PYRAX address format (20 bytes hex)
+    if (!isValidAddress(address)) {
       return NextResponse.json(
         { error: 'Invalid wallet address format' },
         { status: 400 }
@@ -97,57 +126,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Connect to PYRAX network
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl, {
-      name: network.name,
-      chainId: network.chainId,
-    });
-
-    // Get faucet wallet
-    const faucetWallet = getFaucetWallet(provider);
-    if (!faucetWallet) {
-      return NextResponse.json(
-        { error: 'Faucet wallet not configured' },
-        { status: 500 }
-      );
-    }
-
-    // Check faucet balance
-    const faucetBalance = await provider.getBalance(faucetWallet.address);
-    const amountWei = ethers.parseEther(FAUCET_AMOUNT.toString());
+    // Check faucet balance using PYRAX RPC
+    const faucetBalance = await getFaucetBalance(network.rpcUrl, network.faucetAddress);
+    const amountUnits = BigInt(FAUCET_AMOUNT) * BigInt(100_000_000); // 8 decimals
     
-    if (faucetBalance < amountWei) {
-      console.error(`Faucet balance too low: ${ethers.formatEther(faucetBalance)} PYRAX`);
+    if (faucetBalance < amountUnits) {
+      console.error(`Faucet balance too low: ${faucetBalance} units`);
       return NextResponse.json(
         { error: 'Faucet is temporarily out of funds. Please try again later.' },
         { status: 503 }
       );
     }
 
-    // Send transaction
-    const tx = await faucetWallet.sendTransaction({
-      to: address,
-      value: amountWei,
-    });
+    // Send transaction using PYRAX native RPC (from genesis faucet pool)
+    // Uses pyrax_createTestTransaction which spends from faucet address to recipient
+    const result = await pyraxRpcCall(network.rpcUrl, 'pyrax_createTestTransaction', [
+      network.faucetAddress,  // from: faucet pool address
+      normalizedAddress,      // to: recipient address
+      Number(amountUnits),    // amount in smallest units
+    ]) as { accepted: boolean; hash?: string; error?: string };
 
-    // Wait for transaction to be mined
-    const receipt = await tx.wait();
+    if (!result.accepted) {
+      console.error(`Faucet transaction failed: ${result.error}`);
+      return NextResponse.json(
+        { error: result.error || 'Transaction rejected' },
+        { status: 500 }
+      );
+    }
 
     // Update rate limit cache
     requestCache.set(normalizedAddress, now);
 
     // Log the request
-    console.log(`Faucet: Sent ${FAUCET_AMOUNT} PYRAX to ${address} - tx: ${tx.hash}`);
+    console.log(`Faucet: Sent ${FAUCET_AMOUNT} PYRAX to ${address} - tx: ${result.hash}`);
 
     return NextResponse.json({
       success: true,
       message: `Successfully sent ${FAUCET_AMOUNT} PYRAX to ${address.slice(0, 6)}...${address.slice(-4)}`,
       amount: FAUCET_AMOUNT,
-      txHash: tx.hash,
-      blockNumber: receipt?.blockNumber,
+      txHash: result.hash,
       address,
       network: network.name,
-      explorerUrl: `${network.explorerUrl}/tx/${tx.hash}`,
+      explorerUrl: `${network.explorerUrl}/tx/${result.hash}`,
     });
 
   } catch (error) {
@@ -187,26 +207,23 @@ export async function GET() {
     });
   }
 
-  // Try to get faucet balance
+  // Try to get faucet balance using PYRAX RPC
   let balance = 'unknown';
+  let balanceUnits = BigInt(0);
   try {
-    const provider = new ethers.JsonRpcProvider(network.rpcUrl, {
-      name: network.name,
-      chainId: network.chainId,
-    });
-    const privateKey = process.env.FAUCET_PRIVATE_KEY;
-    if (privateKey) {
-      const wallet = new ethers.Wallet(privateKey, provider);
-      const balanceWei = await provider.getBalance(wallet.address);
-      balance = `${ethers.formatEther(balanceWei)} PYRAX`;
-    }
+    balanceUnits = await getFaucetBalance(network.rpcUrl, network.faucetAddress);
+    // Convert from smallest units (8 decimals) to PYRAX
+    const pyraxBalance = Number(balanceUnits) / 100_000_000;
+    balance = `${pyraxBalance.toLocaleString()} PYRAX`;
   } catch {
     // Ignore balance check errors
   }
 
   return NextResponse.json({
     name: network.name + ' Faucet',
-    network: process.env.PYRAX_NETWORK || 'testnet',
+    network: process.env.PYRAX_NETWORK || 'devnet',
+    chainId: network.chainId,
+    faucetAddress: network.faucetAddress,
     amount: FAUCET_AMOUNT,
     cooldown: '1 hour',
     status: 'online',

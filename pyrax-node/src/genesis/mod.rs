@@ -90,6 +90,25 @@ pub mod params {
     pub const MAINNET_EXTRA_DATA: &[u8] = b"PYRAX Genesis - TriStream DAG Blockchain";
     pub const TESTNET_EXTRA_DATA: &[u8] = b"PYRAX Testnet Genesis";
     pub const DEVNET_EXTRA_DATA: &[u8] = b"PYRAX Devnet Genesis";
+    
+    /// DECIMALS: 1 PYRAX = 100,000,000 units (8 decimals like Bitcoin)
+    pub const DECIMALS: u64 = 100_000_000;
+    
+    /// Devnet faucet pool allocation: 1 billion PYRAX for testing
+    pub const DEVNET_FAUCET_ALLOCATION: u64 = 1_000_000_000 * DECIMALS;
+    
+    /// Devnet test wallet allocation: 10 million PYRAX each
+    pub const DEVNET_TEST_WALLET_ALLOCATION: u64 = 10_000_000 * DECIMALS;
+    
+    /// Well-known devnet addresses (deterministic for testing)
+    /// Faucet address: 0x1111111111111111111111111111111111111111
+    pub const DEVNET_FAUCET_ADDRESS: [u8; 20] = [0x11; 20];
+    /// Test wallet 1: 0x2222222222222222222222222222222222222222
+    pub const DEVNET_TEST_WALLET_1: [u8; 20] = [0x22; 20];
+    /// Test wallet 2: 0x3333333333333333333333333333333333333333
+    pub const DEVNET_TEST_WALLET_2: [u8; 20] = [0x33; 20];
+    /// Test wallet 3: 0x4444444444444444444444444444444444444444
+    pub const DEVNET_TEST_WALLET_3: [u8; 20] = [0x44; 20];
 }
 
 /// Create the canonical genesis block for a network
@@ -112,7 +131,14 @@ pub fn genesis_block(network: NetworkId) -> Block {
         ),
     };
 
-    // Genesis coinbase transaction
+    // Build genesis outputs based on network
+    let outputs = match network {
+        NetworkId::DEVNET => devnet_genesis_outputs(),
+        NetworkId::TESTNET => testnet_genesis_outputs(),
+        NetworkId::MAINNET | _ => mainnet_genesis_outputs(),
+    };
+
+    // Genesis coinbase transaction with pre-allocated outputs
     let coinbase_tx = Transaction {
         version: 1,
         inputs: vec![TxInput {
@@ -120,10 +146,7 @@ pub fn genesis_block(network: NetworkId) -> Block {
             script_sig: extra_data.to_vec(),
             sequence: 0xFFFFFFFF,
         }],
-        outputs: vec![TxOutput {
-            value: 0, // Genesis coinbase has no output value
-            script_pubkey: vec![],
-        }],
+        outputs,
         lock_time: 0,
     };
 
@@ -147,6 +170,51 @@ pub fn genesis_block(network: NetworkId) -> Block {
         header,
         transactions: vec![coinbase_tx],
     }
+}
+
+/// Generate devnet genesis outputs with faucet pool and test wallets
+fn devnet_genesis_outputs() -> Vec<TxOutput> {
+    vec![
+        // Faucet pool: 1 billion PYRAX
+        TxOutput::p2pkh(
+            params::DEVNET_FAUCET_ALLOCATION,
+            &Address(params::DEVNET_FAUCET_ADDRESS),
+        ),
+        // Test wallet 1: 10 million PYRAX
+        TxOutput::p2pkh(
+            params::DEVNET_TEST_WALLET_ALLOCATION,
+            &Address(params::DEVNET_TEST_WALLET_1),
+        ),
+        // Test wallet 2: 10 million PYRAX
+        TxOutput::p2pkh(
+            params::DEVNET_TEST_WALLET_ALLOCATION,
+            &Address(params::DEVNET_TEST_WALLET_2),
+        ),
+        // Test wallet 3: 10 million PYRAX
+        TxOutput::p2pkh(
+            params::DEVNET_TEST_WALLET_ALLOCATION,
+            &Address(params::DEVNET_TEST_WALLET_3),
+        ),
+    ]
+}
+
+/// Generate testnet genesis outputs (similar to devnet but larger faucet)
+fn testnet_genesis_outputs() -> Vec<TxOutput> {
+    vec![
+        // Testnet faucet pool: 5 billion PYRAX
+        TxOutput::p2pkh(
+            5_000_000_000 * params::DECIMALS,
+            &Address(params::DEVNET_FAUCET_ADDRESS),
+        ),
+    ]
+}
+
+/// Mainnet genesis outputs - empty coinbase, all tokens come from mining
+fn mainnet_genesis_outputs() -> Vec<TxOutput> {
+    vec![TxOutput {
+        value: 0,
+        script_pubkey: vec![],
+    }]
 }
 
 /// Validate that a block matches the expected genesis for a network
