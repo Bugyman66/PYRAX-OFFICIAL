@@ -245,7 +245,8 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // Start Staking service if enabled (Stream C - ZK Validation)
-    let _staking_handle = if args.staking {
+    // IMPORTANT: We must keep both the service AND the RPC server handle alive
+    let (_staking_service, _staking_rpc_handle) = if args.staking {
         info!("Starting Stream C Staking service on {}", args.staking_addr);
         
         use services::staking::{StakingService, StakingConfig};
@@ -263,25 +264,25 @@ async fn main() -> anyhow::Result<()> {
         
         match staking_service.start().await {
             Ok(_) => {
-                // Start the Staking RPC server
+                // Start the Staking RPC server - MUST keep handle alive!
                 match rpc::start_staking_server(&args.staking_addr, staking_service.clone()).await {
-                    Ok(_handle) => {
+                    Ok(handle) => {
                         info!("✓ Stream C Staking RPC running on {}", args.staking_addr);
-                        Some(staking_service)
+                        (Some(staking_service), Some(handle))
                     }
                     Err(e) => {
                         error!("Failed to start Staking RPC server: {}", e);
-                        None
+                        (Some(staking_service), None)
                     }
                 }
             }
             Err(e) => {
                 error!("Failed to start Staking service: {}", e);
-                None
+                (None, None)
             }
         }
     } else {
-        None
+        (None, None)
     };
 
     // Initialize P2P if enabled
