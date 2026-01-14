@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/tauri';
+import { toast } from './toastStore';
 
 export interface NodeStatus {
   running: boolean;
@@ -86,12 +87,17 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
       const status = await invoke<NodeStatus>('start_node');
       if (status) {
         set({ status, loading: false, error: null });
+        toast.success(`Connected to ${status.network} network`);
       } else {
-        set({ loading: false, error: 'No status returned' });
+        const err = 'No status returned from node';
+        set({ loading: false, error: err });
+        toast.error(err);
       }
     } catch (e) {
       console.error('Failed to start node:', e);
-      set({ error: String(e), loading: false });
+      const errorMsg = String(e);
+      set({ error: errorMsg, loading: false });
+      toast.error(`Failed to start node: ${errorMsg}`);
       // Still fetch status to update UI
       try {
         const status = await invoke<NodeStatus>('get_node_status');
@@ -110,8 +116,11 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
       await invoke('stop_node');
       await get().fetchStatus();
       set({ loading: false });
+      toast.info('Node stopped');
     } catch (e) {
-      set({ error: String(e), loading: false });
+      const errorMsg = String(e);
+      set({ error: errorMsg, loading: false });
+      toast.error(`Failed to stop node: ${errorMsg}`);
     }
   },
 }));

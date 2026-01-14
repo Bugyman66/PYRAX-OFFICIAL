@@ -7,6 +7,7 @@ import Mining from './pages/Mining';
 import Explorer from './pages/Explorer';
 import Settings from './pages/Settings';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import ToastContainer from './components/ToastContainer';
 import { useNodeStore } from './stores/nodeStore';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
+      <ToastContainer />
     </ErrorBoundary>
   );
 }
