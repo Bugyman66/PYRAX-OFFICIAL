@@ -272,7 +272,7 @@ impl PyraxRpcServer for RpcServerImpl {
 
     async fn get_mempool_info(&self) -> RpcResult<RpcMempoolInfo> {
         let (size, bytes) = if let Some(ref mp) = self.mempool {
-            (mp.len(), 0) // TODO: track actual byte size
+            (mp.len(), mp.total_bytes())
         } else {
             (0, 0)
         };

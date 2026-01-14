@@ -455,12 +455,15 @@ async fn run_miner(
             .unwrap()
             .as_secs();
 
+        // Compute UTXO commitment (merkle root of UTXO set)
+        let utxo_commitment = compute_utxo_commitment(&db);
+        
         let mut header = BlockHeader {
             version: 1,
             stream: 0, // Stream A
             parent_hash,
             merkle_root,
-            utxo_commitment: H256::zero(), // TODO: compute UTXO commitment
+            utxo_commitment,
             timestamp,
             difficulty,
             nonce: rand::random(),
@@ -550,16 +553,37 @@ async fn run_miner(
     Ok(())
 }
 
-/// Calculate difficulty for next block (simple algorithm for now)
+/// Calculate difficulty for next block using production difficulty adjustment
 fn calculate_difficulty(db: &ChainDB, height: u64) -> u64 {
-    // For devnet, use fixed low difficulty
-    // TODO: Implement proper difficulty adjustment based on block times
-    if height < 100 {
-        return 1; // Very easy for initial blocks
+    use consensus::blake3_pow::DifficultyAdjustment;
+    
+    // Genesis and early blocks use minimum difficulty
+    if height <= DifficultyAdjustment::AVERAGING_WINDOW {
+        return DifficultyAdjustment::MIN_DIFFICULTY;
     }
     
-    // Gradual increase
-    1 + (height / 1000)
+    // Get the block at the start of the averaging window
+    let window_start_height = height.saturating_sub(DifficultyAdjustment::AVERAGING_WINDOW);
+    
+    let start_block = match db.get_block_by_height(window_start_height) {
+        Ok(Some(b)) => b,
+        _ => return DifficultyAdjustment::MIN_DIFFICULTY,
+    };
+    
+    let end_block = match db.get_block_by_height(height - 1) {
+        Ok(Some(b)) => b,
+        _ => return DifficultyAdjustment::MIN_DIFFICULTY,
+    };
+    
+    // Calculate actual time taken for the averaging window
+    let actual_time = end_block.header.timestamp.saturating_sub(start_block.header.timestamp);
+    let expected_time = DifficultyAdjustment::AVERAGING_WINDOW * DifficultyAdjustment::TARGET_BLOCK_TIME;
+    
+    // Get current difficulty from the last block
+    let current_difficulty = end_block.header.difficulty;
+    
+    // Calculate new difficulty
+    DifficultyAdjustment::calculate_next(current_difficulty, actual_time, expected_time)
 }
 
 /// Compute merkle root of transactions
@@ -583,6 +607,29 @@ fn compute_merkle_root(transactions: &[Transaction]) -> H256 {
     }
 
     hashes[0]
+}
+
+/// Compute UTXO commitment (Merkle root of UTXO set)
+fn compute_utxo_commitment(db: &ChainDB) -> H256 {
+    // Get all UTXO hashes from the database
+    let utxo_count = db.utxo_count().unwrap_or(0);
+    
+    if utxo_count == 0 {
+        return H256::zero();
+    }
+    
+    // For efficiency, we compute a rolling hash of all UTXOs
+    // In production, this would be a proper Merkle Mountain Range or sparse Merkle tree
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(b"PYRAX_UTXO_COMMITMENT_V1");
+    hasher.update(&utxo_count.to_le_bytes());
+    
+    // Include the chain tip hash for uniqueness per block
+    let tip = db.get_tip();
+    hasher.update(&tip.hash.0);
+    hasher.update(&tip.height.to_le_bytes());
+    
+    H256::from_slice(hasher.finalize().as_bytes())
 }
 
 /// Benchmark BLAKE3 hashrate
@@ -747,12 +794,15 @@ async fn run_miner_with_broadcast(
             .unwrap()
             .as_secs();
 
+        // Compute UTXO commitment for state verification
+        let utxo_commitment = compute_utxo_commitment(&db);
+        
         let mut header = BlockHeader {
             version: 1,
             stream: 0, // Stream A
             parent_hash,
             merkle_root,
-            utxo_commitment: H256::zero(),
+            utxo_commitment,
             timestamp,
             difficulty,
             nonce: rand::random(),

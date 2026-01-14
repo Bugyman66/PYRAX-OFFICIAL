@@ -42,6 +42,10 @@ struct MempoolInner {
     by_hash: HashMap<H256, MempoolEntry>,
     /// Track spent outpoints to detect double-spends
     spent_outpoints: HashSet<OutPoint>,
+    /// Total bytes of all transactions in mempool
+    total_bytes: usize,
+    /// Total fees of all transactions
+    total_fees: u64,
 }
 
 struct MempoolEntry {
@@ -57,6 +61,8 @@ impl Mempool {
             inner: Arc::new(RwLock::new(MempoolInner {
                 by_hash: HashMap::new(),
                 spent_outpoints: HashSet::new(),
+                total_bytes: 0,
+                total_fees: 0,
             })),
             config,
         }
@@ -114,6 +120,10 @@ impl Mempool {
             inner.spent_outpoints.insert(input.previous_output);
         }
 
+        // Update totals
+        inner.total_bytes += size;
+        inner.total_fees += fee;
+
         // Add entry
         inner.by_hash.insert(txid, MempoolEntry {
             tx,
@@ -122,7 +132,8 @@ impl Mempool {
             added_time: std::time::Instant::now(),
         });
 
-        debug!("Added tx {} to mempool (size: {}, fee: {})", txid, inner.by_hash.len(), fee);
+        debug!("Added tx {} to mempool (count: {}, bytes: {}, fee: {})", 
+            txid, inner.by_hash.len(), inner.total_bytes, fee);
         Ok(())
     }
 
@@ -130,6 +141,8 @@ impl Mempool {
     pub fn remove(&self, txid: &H256) {
         let mut inner = self.inner.write();
         if let Some(entry) = inner.by_hash.remove(txid) {
+            inner.total_bytes = inner.total_bytes.saturating_sub(entry.size);
+            inner.total_fees = inner.total_fees.saturating_sub(entry.fee);
             for input in &entry.tx.inputs {
                 inner.spent_outpoints.remove(&input.previous_output);
             }
@@ -150,6 +163,8 @@ impl Mempool {
 
         for txid in to_remove {
             if let Some(entry) = inner.by_hash.remove(&txid) {
+                inner.total_bytes = inner.total_bytes.saturating_sub(entry.size);
+                inner.total_fees = inner.total_fees.saturating_sub(entry.fee);
                 for input in &entry.tx.inputs {
                     inner.spent_outpoints.remove(&input.previous_output);
                 }
@@ -174,6 +189,16 @@ impl Mempool {
 
     pub fn is_empty(&self) -> bool {
         self.inner.read().by_hash.is_empty()
+    }
+
+    /// Get total bytes of all transactions in mempool
+    pub fn total_bytes(&self) -> usize {
+        self.inner.read().total_bytes
+    }
+
+    /// Get total fees of all transactions in mempool
+    pub fn total_fees(&self) -> u64 {
+        self.inner.read().total_fees
     }
 
     /// Get pending transactions sorted by fee rate (highest first)
@@ -204,8 +229,32 @@ impl Mempool {
         let mut inner = self.inner.write();
         inner.by_hash.clear();
         inner.spent_outpoints.clear();
+        inner.total_bytes = 0;
+        inner.total_fees = 0;
         info!("Mempool cleared");
     }
+
+    /// Get mempool info for RPC
+    pub fn get_info(&self) -> MempoolInfo {
+        let inner = self.inner.read();
+        MempoolInfo {
+            size: inner.by_hash.len(),
+            bytes: inner.total_bytes,
+            total_fees: inner.total_fees,
+            max_size: self.config.max_size,
+            min_fee_rate: self.config.min_fee_rate,
+        }
+    }
+}
+
+/// Mempool statistics for RPC
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MempoolInfo {
+    pub size: usize,
+    pub bytes: usize,
+    pub total_fees: u64,
+    pub max_size: usize,
+    pub min_fee_rate: u64,
 }
 
 #[derive(Debug, thiserror::Error)]

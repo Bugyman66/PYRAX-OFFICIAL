@@ -378,13 +378,17 @@ impl ChainDB {
             }
         }
 
-        // Update tip to target
+        // Update tip to target with recalculated total difficulty
         if let Some(target_block) = self.get_block_by_height(target_height)? {
             let cf_meta = self.db.cf_handle(ColumnFamily::ChainMeta.name()).unwrap();
+            
+            // Recalculate total difficulty by summing all block difficulties up to target
+            let total_difficulty = self.calculate_total_difficulty(target_height)?;
+            
             let new_tip = ChainTip {
                 height: target_height,
                 hash: target_block.hash(),
-                total_difficulty: 0, // TODO: recalculate
+                total_difficulty,
             };
             let tip_data = bincode::serialize(&new_tip)
                 .map_err(|e| StorageError::SerializationError(e.to_string()))?;
@@ -503,5 +507,23 @@ impl ChainDB {
     pub fn get_balance_for_address(&self, address: &crate::types::Address) -> Result<u64> {
         let utxos = self.get_utxos_for_address(address)?;
         Ok(utxos.iter().map(|(_, u)| u.output.value).sum())
+    }
+
+    /// Calculate total difficulty from genesis to a given height
+    pub fn calculate_total_difficulty(&self, height: BlockNumber) -> Result<u64> {
+        let mut total: u64 = 0;
+        
+        for h in 0..=height {
+            if let Some(block) = self.get_block_by_height(h)? {
+                total = total.saturating_add(block.header.difficulty);
+            }
+        }
+        
+        Ok(total)
+    }
+
+    /// Get total difficulty for chain tip
+    pub fn total_difficulty(&self) -> u64 {
+        self.tip.read().total_difficulty
     }
 }

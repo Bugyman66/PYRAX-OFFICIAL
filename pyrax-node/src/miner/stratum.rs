@@ -405,9 +405,12 @@ impl StratumClient {
         // Parse header hash from prevhash
         let header_hash = parse_hex_to_h256(prev_hash).unwrap_or_default();
         
-        // For KAWPOW, we also need seed hash (usually derived from height/epoch)
-        // For now, use prevhash as placeholder
-        let seed_hash = header_hash;
+        // Compute KAWPOW seed hash from epoch
+        // Epoch = height / 7500, seed hash is keccak256 chain from genesis
+        use crate::consensus::{get_epoch, compute_seed};
+        let height = self.stats.read().await.blocks_found; // Approximate from stats
+        let epoch = get_epoch(height);
+        let seed_hash = compute_seed(epoch);
         
         // Calculate target from difficulty
         let difficulty = self.stats.read().await.current_difficulty;
