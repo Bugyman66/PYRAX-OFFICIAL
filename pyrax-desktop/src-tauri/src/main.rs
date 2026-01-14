@@ -65,6 +65,13 @@ fn main() {
             commands::settings::get_settings,
             commands::settings::save_settings,
             commands::settings::get_data_dir,
+            commands::settings::set_data_dir,
+            commands::settings::browse_directory,
+            
+            // Updater commands
+            commands::updater::check_for_updates,
+            commands::updater::install_update,
+            commands::updater::get_app_version,
         ])
         .setup(|app| {
             info!("Application setup complete");

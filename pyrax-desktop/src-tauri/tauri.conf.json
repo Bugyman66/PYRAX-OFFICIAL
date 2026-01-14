@@ -19,25 +19,31 @@
         "all": true
       },
       "dialog": {
-        "all": true
+        "all": true,
+        "open": true,
+        "save": true
       },
       "fs": {
         "all": true,
-        "scope": ["$APP/**", "$RESOURCE/**"]
+        "scope": ["$APP/**", "$RESOURCE/**", "$HOME/**", "$DATA/**", "**"]
       },
       "path": {
         "all": true
       },
       "process": {
-        "all": true
+        "all": true,
+        "relaunch": true
       },
       "notification": {
+        "all": true
+      },
+      "globalShortcut": {
         "all": true
       }
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": ["nsis", "msi"],
       "identifier": "org.pyrax.desktop",
       "icon": [
         "icons/32x32.png",
@@ -52,14 +58,39 @@
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
+        "timestampUrl": "",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        },
+        "nsis": {
+          "installMode": "perUser",
+          "installerIcon": "icons/icon.ico",
+          "headerImage": "icons/128x128.png",
+          "sidebarImage": "icons/128x128.png",
+          "license": null,
+          "displayLanguageSelector": false,
+          "languages": ["English"],
+          "customLanguageFiles": null
+        }
+      },
+      "publisher": "PYRAX Chain",
+      "shortDescription": "PYRAX Desktop - Decentralized Blockchain Node",
+      "longDescription": "PYRAX Desktop is a fully decentralized blockchain node client with integrated wallet, mining, and staking capabilities.",
+      "category": "Finance"
     },
     "security": {
       "csp": null
     },
     "updater": {
-      "active": false
+      "active": true,
+      "dialog": false,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IFBZUkFYX0RFU0tUT1BfVVBEQVRFUgpSV1NJRDhZSDRnRGNqamhpNzZBMHltajBJZzN4RkRpVDg1UFJBWF9ERVNLVE9QX1VQREFURVIKdW50cnVzdGVkIGNvbW1lbnQ6IFBZUkFYX0RFU0tUT1BfVVBEQVRFUgpSV1NJRDhZSDRnRGNqamhpNzZBMHltajBJZzN4RkRpVDg1",
+      "endpoints": [
+        "https://github.com/PYRAX-Chain/PYRAX-OFFICIAL/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     },
     "windows": [
       {

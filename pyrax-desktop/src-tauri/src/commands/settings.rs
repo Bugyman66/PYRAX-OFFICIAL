@@ -132,3 +132,72 @@ pub async fn get_data_dir(
     
     Ok(app_state.data_dir.to_string_lossy().to_string())
 }
+
+#[tauri::command]
+pub async fn set_data_dir(
+    path: String,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let path_buf = PathBuf::from(&path);
+    
+    // Validate path exists or can be created
+    if !path_buf.exists() {
+        fs::create_dir_all(&path_buf)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+    
+    // Validate path is a directory
+    if !path_buf.is_dir() {
+        return Err("Path is not a directory".to_string());
+    }
+    
+    let mut app_state = state.lock();
+    app_state.data_dir = path_buf;
+    
+    info!("Data directory set to: {}", path);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn browse_directory(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Option<String>, String> {
+    use tauri::api::dialog::FileDialogBuilder;
+    use std::sync::mpsc;
+    
+    let current_dir = {
+        let app_state = state.lock();
+        app_state.data_dir.clone()
+    };
+    
+    let (tx, rx) = mpsc::channel();
+    
+    FileDialogBuilder::new()
+        .set_title("Select Chain Data Directory")
+        .set_directory(&current_dir)
+        .pick_folder(move |path| {
+            let _ = tx.send(path);
+        });
+    
+    match rx.recv() {
+        Ok(Some(path)) => {
+            let path_str = path.to_string_lossy().to_string();
+            
+            // Update state with new path
+            let mut app_state = state.lock();
+            app_state.data_dir = path.clone();
+            
+            info!("User selected data directory: {}", path_str);
+            Ok(Some(path_str))
+        }
+        Ok(None) => {
+            // User cancelled
+            Ok(None)
+        }
+        Err(e) => {
+            error!("Failed to receive dialog result: {}", e);
+            Err(format!("Dialog error: {}", e))
+        }
+    }
+}

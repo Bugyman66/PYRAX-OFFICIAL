@@ -1,0 +1,193 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get version
+        id: get-version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            VERSION=${GITHUB_REF#refs/tags/desktop-v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `desktop-v${{ steps.get-version.outputs.version }}`,
+              name: `PYRAX Desktop v${{ steps.get-version.outputs.version }}`,
+              body: `## PYRAX Desktop v${{ steps.get-version.outputs.version }}\n\nDownload the installer for your platform below.\n\n### Changes\n- See commit history for changes`,
+              draft: true,
+              prerelease: false
+            });
+            return data.id;
+
+  build-tauri:
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ''
+            target: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: pyrax-desktop/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './pyrax-desktop/src-tauri -> target'
+
+      - name: Install frontend dependencies
+        working-directory: pyrax-desktop
+        run: npm ci
+
+      - name: Update version in tauri.conf.json
+        working-directory: pyrax-desktop/src-tauri
+        run: |
+          $content = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
+          $content.package.version = "${{ needs.create-release.outputs.version }}"
+          $content | ConvertTo-Json -Depth 100 | Set-Content tauri.conf.json
+        shell: pwsh
+
+      - name: Update version in Cargo.toml
+        working-directory: pyrax-desktop/src-tauri
+        run: |
+          (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
+        shell: pwsh
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: pyrax-desktop
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }}
+
+  publish-release:
+    needs: [create-release, build-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              draft: false
+            });
+
+  generate-update-manifest:
+    needs: [create-release, build-tauri, publish-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download release assets
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { data: release } = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }}
+            });
+            
+            // Find the .nsis.zip and .nsis.zip.sig files
+            const nsisAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
+            const sigAsset = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            
+            if (!nsisAsset || !sigAsset) {
+              console.log('Assets not found, skipping manifest generation');
+              return;
+            }
+            
+            // Download signature
+            const sigResponse = await github.rest.repos.getReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              asset_id: sigAsset.id,
+              headers: { accept: 'application/octet-stream' }
+            });
+            
+            const signature = Buffer.from(sigResponse.data).toString('utf8');
+            
+            // Create update manifest
+            const manifest = {
+              version: '${{ needs.create-release.outputs.version }}',
+              notes: 'PYRAX Desktop v${{ needs.create-release.outputs.version }}',
+              pub_date: new Date().toISOString(),
+              platforms: {
+                'windows-x86_64': {
+                  signature: signature.trim(),
+                  url: nsisAsset.browser_download_url
+                }
+              }
+            };
+            
+            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+            console.log('Generated latest.json:', manifest);
+
+      - name: Upload update manifest
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./latest.json
+          asset_name: latest.json
+          asset_content_type: application/json

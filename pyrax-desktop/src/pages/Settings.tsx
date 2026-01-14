@@ -67,6 +67,19 @@ export default function Settings() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleBrowseDirectory = async () => {
+    try {
+      const result = await invoke<string | null>('browse_directory');
+      if (result) {
+        setDataDir(result);
+        // Also save it to settings
+        await invoke('set_data_dir', { path: result });
+      }
+    } catch (e) {
+      console.error('Failed to browse directory:', e);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -154,16 +167,25 @@ export default function Settings() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Data Directory</label>
+            <label className="block text-sm text-gray-400 mb-2">Chain Data Directory</label>
+            <p className="text-xs text-gray-500 mb-2">
+              Choose where blockchain data is stored. Requires restart to take effect.
+            </p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={dataDir}
-                readOnly
-                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-400"
+                onChange={(e) => setDataDir(e.target.value)}
+                className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:border-purple-500 outline-none"
+                placeholder="Select a directory..."
               />
-              <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg">
+              <button 
+                onClick={handleBrowseDirectory}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2"
+                title="Browse for directory"
+              >
                 <FolderOpen size={20} />
+                Browse
               </button>
             </div>
           </div>

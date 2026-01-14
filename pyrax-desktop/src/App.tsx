@@ -8,6 +8,7 @@ import Explorer from './pages/Explorer';
 import Settings from './pages/Settings';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import ToastContainer from './components/ToastContainer';
+import UpdateNotification from './components/UpdateNotification';
 import { useNodeStore } from './stores/nodeStore';
 
 export default function App() {
@@ -41,6 +42,7 @@ export default function App() {
         </Routes>
       </ErrorBoundary>
       <ToastContainer />
+      <UpdateNotification />
     </>
   );
 }
