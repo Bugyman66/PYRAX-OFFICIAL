@@ -263,8 +263,17 @@ async fn main() -> anyhow::Result<()> {
         
         match staking_service.start().await {
             Ok(_) => {
-                info!("✓ Stream C Staking running on {}", args.staking_addr);
-                Some(staking_service)
+                // Start the Staking RPC server
+                match rpc::start_staking_server(&args.staking_addr, staking_service.clone()).await {
+                    Ok(_handle) => {
+                        info!("✓ Stream C Staking RPC running on {}", args.staking_addr);
+                        Some(staking_service)
+                    }
+                    Err(e) => {
+                        error!("Failed to start Staking RPC server: {}", e);
+                        None
+                    }
+                }
             }
             Err(e) => {
                 error!("Failed to start Staking service: {}", e);

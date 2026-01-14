@@ -13,7 +13,7 @@ pub mod ai;
 pub mod mining_rpc;
 pub mod staking_rpc;
 
-pub use server::{start_server, start_server_with_mempool};
+pub use server::{start_server, start_server_with_mempool, start_staking_server};
 pub use types::*;
 pub use client::{RpcClient, NetworkConfig, RpcClientError};
 pub use ai::{AIRpcImpl, AIRpcServer};

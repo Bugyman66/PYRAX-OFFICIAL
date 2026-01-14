@@ -440,6 +440,26 @@ pub async fn start_server_with_mempool(
     Ok(handle)
 }
 
+/// Start the Staking RPC server for Stream C
+pub async fn start_staking_server(
+    addr: &str,
+    staking_service: Arc<crate::services::staking::StakingService>,
+) -> Result<ServerHandle, Box<dyn std::error::Error + Send + Sync>> {
+    use super::staking_rpc::{StakingRpcImpl, StakingRpcServer};
+    
+    let addr: SocketAddr = addr.parse()?;
+    
+    let server = ServerBuilder::default()
+        .build(addr)
+        .await?;
+
+    let rpc = StakingRpcImpl::new(staking_service);
+    let handle = server.start(rpc.into_rpc());
+
+    info!("Stream C Staking RPC server started on http://{}", addr);
+    Ok(handle)
+}
+
 fn parse_hash(s: &str) -> Result<H256, RpcError> {
     let s = s.strip_prefix("0x").unwrap_or(s);
     let bytes = hex::decode(s)
