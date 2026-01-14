@@ -66,6 +66,37 @@ jobs:
           fi
           EOF
 
+      - name: Configure Firewall
+        run: |
+          ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
+          set -e
+          
+          echo "=== CONFIGURING FIREWALL ==="
+          
+          # Install ufw if not present
+          apt-get update -qq
+          apt-get install -y -qq ufw
+          
+          # Allow SSH first (important!)
+          ufw allow 22/tcp
+          
+          # Allow HTTP and HTTPS for Cloudflare
+          ufw allow 80/tcp
+          ufw allow 443/tcp
+          
+          # Allow blockchain P2P ports
+          ufw allow 30303/tcp
+          ufw allow 30304/udp
+          
+          # Enable firewall (non-interactive)
+          echo "y" | ufw enable || true
+          
+          # Show status
+          ufw status verbose
+          
+          echo "=== FIREWALL CONFIGURED ==="
+          EOF
+
       - name: Deploy to Devnet Server
         run: |
           ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
@@ -101,7 +132,13 @@ jobs:
           docker compose -f $COMPOSE_FILE ps
           
           echo "=== NGINX LOGS ==="
-          docker logs pyrax-nginx --tail=10 2>&1 || echo "Nginx not running yet"
+          docker logs pyrax-nginx --tail=20 2>&1 || echo "Nginx not running yet"
+          
+          echo "=== TESTING CONNECTIVITY ==="
+          curl -sf http://localhost:80 -o /dev/null && echo "Port 80: OK" || echo "Port 80: FAILED"
+          
+          echo "=== LISTENING PORTS ==="
+          netstat -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003' || ss -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003'
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
