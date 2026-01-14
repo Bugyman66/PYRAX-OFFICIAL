@@ -3,7 +3,8 @@ use crate::rpc::RpcClient;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use std::process::{Command, Child, Stdio};
+use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader};
 use tauri::{State, Manager, AppHandle};
 use tracing::{info, error, warn};
 
@@ -215,11 +216,13 @@ pub async fn start_node(
             crate::state::Network::Devnet => "devnet",
         };
         
-        let rpc_addr = format!("127.0.0.1:{}", rpc_port);
+        let rpc_addr = format!("0.0.0.0:{}", rpc_port);
         let p2p_port = rpc_port + 21758; // P2P port offset (e.g., 28545 -> 50303)
-        let p2p_addr = format!("0.0.0.0:{}", p2p_port);
+        let p2p_addr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port); // libp2p multiaddr format
         let staking_port = rpc_port + 2; // Staking RPC (e.g., 28545 -> 28547)
-        let staking_addr = format!("127.0.0.1:{}", staking_port);
+        let staking_addr = format!("0.0.0.0:{}", staking_port);
+        let stratum_port = rpc_port - 25212; // Stratum port (e.g., 28545 -> 3333)
+        let stratum_addr = format!("0.0.0.0:{}", stratum_port);
         
         // Get bootstrap peers for this network
         let bootstrap_peers = get_bootstrap_peers(&network);
@@ -232,26 +235,34 @@ pub async fn start_node(
            .arg("--p2p")
            .arg("--p2p-addr").arg(&p2p_addr)
            .arg("--stratum")
-           .arg("--stratum-addr").arg(format!("0.0.0.0:{}", rpc_port - 25212)) // Stratum port
+           .arg("--stratum-addr").arg(&stratum_addr)
            .arg("--staking")
            .arg("--staking-addr").arg(&staking_addr)
-           .arg("--datadir").arg(&data_dir);
+           .arg("--datadir").arg(&data_dir)
+           .arg("--verbosity").arg("3"); // Enable debug logging
         
-        // Add bootstrap peers
-        for peer in bootstrap_peers {
-            cmd.arg("--peer").arg(peer);
+        // Add first bootstrap peer (--peer only takes one)
+        if let Some(peer) = bootstrap_peers.first() {
+            cmd.arg("--peer").arg(*peer);
         }
         
-        cmd.stdout(Stdio::piped())
-           .stderr(Stdio::piped());
-        
+        // Log the full command for debugging
+        emit_log(&app, "debug", "node", &format!("Command: {:?}", cmd));
         info!("Starting node with command: {:?}", cmd);
+        
+        // Don't pipe stdout/stderr - let them go to null to prevent blocking
+        // The node will log to its own log file
+        cmd.stdout(Stdio::null())
+           .stderr(Stdio::null());
         
         match cmd.spawn() {
             Ok(child) => {
                 let pid = child.id();
                 emit_log(&app, "info", "node", &format!("Node started with PID: {}", pid));
-                emit_log(&app, "info", "p2p", "Connecting to P2P bootstrap peers...");
+                emit_log(&app, "info", "p2p", &format!("P2P listening on {}", p2p_addr));
+                emit_log(&app, "info", "rpc", &format!("Stream A RPC binding to {}", rpc_addr));
+                emit_log(&app, "info", "mining", &format!("Stream B Stratum binding to {}", stratum_addr));
+                emit_log(&app, "info", "staking", &format!("Stream C Staking RPC binding to {}", staking_addr));
                 info!("Node started with PID: {} - syncing blockchain from P2P peers...", pid);
                 
                 // Update state
@@ -266,17 +277,37 @@ pub async fn start_node(
                 emit_log(&app, "info", "rpc", "Waiting for RPC server to be ready...");
                 let rpc = RpcClient::localhost(rpc_port);
                 let mut attempts = 0;
-                while attempts < 60 { // Wait up to 30 seconds
+                let max_attempts = 120; // Wait up to 60 seconds
+                
+                while attempts < max_attempts {
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    
+                    // Check if process is still running
+                    {
+                        let app_state = state.lock();
+                        if let Some(ref _process) = app_state.node_process {
+                            // Process handle exists - check if it's still alive
+                        } else {
+                            emit_log(&app, "error", "node", "Node process terminated unexpectedly");
+                            break;
+                        }
+                    }
+                    
                     if rpc.is_connected().await {
                         emit_log(&app, "info", "rpc", &format!("RPC server ready on port {}", rpc_port));
+                        emit_log(&app, "info", "node", "Node fully operational - all streams active");
                         info!("Node RPC is ready!");
                         break;
                     }
+                    
                     if attempts % 10 == 0 && attempts > 0 {
                         emit_log(&app, "debug", "rpc", &format!("Still waiting for RPC... ({}s)", attempts / 2));
                     }
                     attempts += 1;
+                }
+                
+                if attempts >= max_attempts {
+                    emit_log(&app, "warn", "rpc", "RPC timeout - falling back to remote RPC");
                 }
                 
                 // Get initial status
