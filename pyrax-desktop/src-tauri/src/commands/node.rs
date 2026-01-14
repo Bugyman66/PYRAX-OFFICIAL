@@ -250,14 +250,58 @@ pub async fn start_node(
         emit_log(&app, "debug", "node", &format!("Command: {:?}", cmd));
         info!("Starting node with command: {:?}", cmd);
         
-        // Don't pipe stdout/stderr - let them go to null to prevent blocking
-        // The node will log to its own log file
-        cmd.stdout(Stdio::null())
-           .stderr(Stdio::null());
+        // Pipe stderr to capture error output
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped());
         
         match cmd.spawn() {
-            Ok(child) => {
+            Ok(mut child) => {
                 let pid = child.id();
+                
+                // Spawn a thread to read stderr and emit logs
+                let app_for_stderr = app.clone();
+                if let Some(stderr) = child.stderr.take() {
+                    std::thread::spawn(move || {
+                        let reader = BufReader::new(stderr);
+                        for line in reader.lines() {
+                            if let Ok(line) = line {
+                                // Emit node output to log viewer
+                                let level = if line.contains("ERROR") || line.contains("error") {
+                                    "error"
+                                } else if line.contains("WARN") || line.contains("warn") {
+                                    "warn"
+                                } else if line.contains("DEBUG") || line.contains("debug") {
+                                    "debug"
+                                } else {
+                                    "info"
+                                };
+                                let _ = app_for_stderr.emit_all("node-log", LogPayload {
+                                    level: level.to_string(),
+                                    category: "node".to_string(),
+                                    message: line,
+                                });
+                            }
+                        }
+                    });
+                }
+                
+                // Spawn a thread to read stdout too
+                let app_for_stdout = app.clone();
+                if let Some(stdout) = child.stdout.take() {
+                    std::thread::spawn(move || {
+                        let reader = BufReader::new(stdout);
+                        for line in reader.lines() {
+                            if let Ok(line) = line {
+                                let _ = app_for_stdout.emit_all("node-log", LogPayload {
+                                    level: "info".to_string(),
+                                    category: "node".to_string(),
+                                    message: line,
+                                });
+                            }
+                        }
+                    });
+                }
+                
                 emit_log(&app, "info", "node", &format!("Node started with PID: {}", pid));
                 emit_log(&app, "info", "p2p", &format!("P2P listening on {}", p2p_addr));
                 emit_log(&app, "info", "rpc", &format!("Stream A RPC binding to {}", rpc_addr));
