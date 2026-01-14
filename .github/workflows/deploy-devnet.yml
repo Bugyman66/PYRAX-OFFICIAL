@@ -219,13 +219,14 @@ jobs:
           
           echo ""
           echo "=== STREAM C - ZK STAKING ==="
-          STREAM_C=$(curl -sf -X POST https://staking.pyrax-devnet.org \
+          STREAM_C=$(curl -s --max-time 10 -X POST https://staking.pyrax-devnet.org \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"pyrax_getStakingStats","params":[],"id":1}' 2>/dev/null)
+            -d '{"jsonrpc":"2.0","method":"pyrax_getStakingStats","params":[],"id":1}' 2>/dev/null || echo "")
           if echo "$STREAM_C" | grep -q '"result"'; then
             echo "✓ Stream C Staking: OK"
           else
-            echo "⚠ Stream C Staking: Not responding (DNS may need propagation)"
+            echo "⚠ Stream C Staking: Not responding (DNS may need propagation for staking.pyrax-devnet.org)"
+            echo "  Add DNS A record: staking -> 209.38.137.105 (Proxied)"
           fi
           
           echo ""
