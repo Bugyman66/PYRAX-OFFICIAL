@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 import { 
   Activity, 
   Blocks, 
@@ -14,13 +15,32 @@ import {
 import { useNodeStore } from '../stores/nodeStore';
 import { useWalletStore } from '../stores/walletStore';
 import { useMinerStore } from '../stores/minerStore';
+import { useLogStore } from '../stores/logStore';
 import { formatBalance, formatHashrate } from '../lib/utils';
+import LogViewer from '../components/LogViewer';
 
 export default function Dashboard() {
   const { status, chainInfo, error: nodeError, startNode, stopNode, fetchChainInfo, loading: nodeLoading } = useNodeStore();
   const { addresses } = useWalletStore();
   const { status: minerStatus } = useMinerStore();
+  const { addLog } = useLogStore();
   const [selectedNetwork, setSelectedNetwork] = useState<'testnet' | 'devnet'>('testnet');
+
+  // Listen for log events from backend
+  useEffect(() => {
+    const unlisten = listen<{ level: string; category: string; message: string }>('node-log', (event) => {
+      const { level, category, message } = event.payload;
+      addLog(
+        level as 'info' | 'warn' | 'error' | 'debug',
+        category as 'node' | 'block' | 'p2p' | 'rpc' | 'mining' | 'staking' | 'system',
+        message
+      );
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [addLog]);
 
   useEffect(() => {
     // Load current network setting
@@ -198,6 +218,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Real-time Log Viewer */}
+      <LogViewer />
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

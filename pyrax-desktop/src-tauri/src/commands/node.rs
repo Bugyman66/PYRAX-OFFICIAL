@@ -4,8 +4,23 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::process::{Command, Child, Stdio};
-use tauri::State;
+use tauri::{State, Manager, AppHandle};
 use tracing::{info, error, warn};
+
+#[derive(Clone, Serialize)]
+struct LogPayload {
+    level: String,
+    category: String,
+    message: String,
+}
+
+fn emit_log(app: &AppHandle, level: &str, category: &str, message: &str) {
+    let _ = app.emit_all("node-log", LogPayload {
+        level: level.to_string(),
+        category: category.to_string(),
+        message: message.to_string(),
+    });
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +151,7 @@ fn get_node_binary_path() -> Option<std::path::PathBuf> {
 
 #[tauri::command]
 pub async fn start_node(
+    app: AppHandle,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<NodeStatus, String> {
     let (network, rpc_port, data_dir) = {
@@ -150,11 +166,14 @@ pub async fn start_node(
         )
     };
     
+    emit_log(&app, "info", "node", &format!("Starting PYRAX full node on {:?} network...", network));
     info!("Starting PYRAX full node on {:?} network...", network);
     
     // Check if a local node is already running on this port
+    emit_log(&app, "info", "rpc", &format!("Checking for existing node on port {}...", rpc_port));
     let local_rpc = RpcClient::localhost(rpc_port);
     if local_rpc.is_connected().await {
+        emit_log(&app, "info", "node", &format!("Found existing local node on port {}, connecting...", rpc_port));
         info!("Found existing local node on port {}, connecting...", rpc_port);
         {
             let mut app_state = state.lock();
@@ -165,6 +184,7 @@ pub async fn start_node(
         
         match local_rpc.get_chain_info().await {
             Ok(info) => {
+                emit_log(&app, "info", "block", &format!("Connected to existing node: height={}", info.best_block_height));
                 info!("Connected to existing node: network={}, height={}", info.network, info.best_block_height);
                 return Ok(NodeStatus {
                     running: true,
@@ -186,6 +206,7 @@ pub async fn start_node(
     
     // Try to spawn local pyrax-node binary (TRUE DECENTRALIZATION)
     if let Some(binary_path) = get_node_binary_path() {
+        emit_log(&app, "info", "node", &format!("Spawning local full node from: {:?}", binary_path));
         info!("Spawning local full node from: {:?}", binary_path);
         
         let network_arg = match network {
@@ -229,6 +250,8 @@ pub async fn start_node(
         match cmd.spawn() {
             Ok(child) => {
                 let pid = child.id();
+                emit_log(&app, "info", "node", &format!("Node started with PID: {}", pid));
+                emit_log(&app, "info", "p2p", "Connecting to P2P bootstrap peers...");
                 info!("Node started with PID: {} - syncing blockchain from P2P peers...", pid);
                 
                 // Update state
@@ -240,13 +263,18 @@ pub async fn start_node(
                 }
                 
                 // Wait for node RPC to be ready
+                emit_log(&app, "info", "rpc", "Waiting for RPC server to be ready...");
                 let rpc = RpcClient::localhost(rpc_port);
                 let mut attempts = 0;
                 while attempts < 60 { // Wait up to 30 seconds
                     tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
                     if rpc.is_connected().await {
+                        emit_log(&app, "info", "rpc", &format!("RPC server ready on port {}", rpc_port));
                         info!("Node RPC is ready!");
                         break;
+                    }
+                    if attempts % 10 == 0 && attempts > 0 {
+                        emit_log(&app, "debug", "rpc", &format!("Still waiting for RPC... ({}s)", attempts / 2));
                     }
                     attempts += 1;
                 }
@@ -255,20 +283,24 @@ pub async fn start_node(
                 return get_node_status(state).await;
             }
             Err(e) => {
+                emit_log(&app, "error", "node", &format!("Failed to spawn pyrax-node: {}", e));
                 error!("Failed to spawn pyrax-node: {}", e);
                 // Fall through to remote RPC fallback
             }
         }
     } else {
+        emit_log(&app, "warn", "node", "pyrax-node binary not found, falling back to remote RPC");
         warn!("pyrax-node binary not found, falling back to remote RPC");
     }
     
     // Fallback: Connect to remote RPC (light client mode - NOT fully decentralized)
     let remote_url = get_remote_rpc_url(&network);
+    emit_log(&app, "info", "rpc", &format!("Connecting to remote RPC: {}", remote_url));
     info!("Falling back to remote RPC (light client mode): {}", remote_url);
     let remote_rpc = RpcClient::new(remote_url);
     
     if remote_rpc.is_connected().await {
+        emit_log(&app, "warn", "node", "Connected in LIGHT CLIENT mode (not fully decentralized)");
         warn!("Connected to remote RPC - running in LIGHT CLIENT mode (not fully decentralized)");
         
         {
@@ -318,23 +350,25 @@ pub async fn start_node(
 
 #[tauri::command]
 pub async fn stop_node(
+    app: AppHandle,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<(), String> {
     let mut app_state = state.lock();
     
-    if !app_state.node_running {
-        return Err("Node is not running".to_string());
-    }
+    // Allow stopping even if not "running" - reset state
+    emit_log(&app, "info", "node", "Stopping node...");
+    info!("Stopping node...");
     
-    // Kill the node process
+    // Kill the node process if we have one
     if let Some(mut child) = app_state.node_process.take() {
-        info!("Stopping node process");
+        emit_log(&app, "info", "node", &format!("Stopping local node process (PID: {})", child.id()));
+        info!("Stopping local node process (PID: {})", child.id());
         
         #[cfg(target_os = "windows")]
         {
             // On Windows, use taskkill for graceful shutdown
             let _ = Command::new("taskkill")
-                .args(["/PID", &child.id().to_string(), "/T"])
+                .args(["/PID", &child.id().to_string(), "/T", "/F"])
                 .output();
         }
         
@@ -346,7 +380,12 @@ pub async fn stop_node(
         
         // Wait for process to exit
         let _ = child.wait();
+        emit_log(&app, "info", "node", "Node process stopped successfully");
         info!("Node process stopped");
+    } else if app_state.node_running {
+        // Light client mode - just disconnect
+        emit_log(&app, "info", "rpc", "Disconnecting from remote RPC (light client mode)");
+        info!("Disconnecting from remote RPC (light client mode)");
     }
     
     app_state.node_running = false;
