@@ -103,7 +103,8 @@ jobs:
 
       - name: Deploy to Devnet Server
         run: |
-          ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
+          # SSH with keepalive to prevent timeout during long builds
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@${{ env.DEVNET_SERVER }} << 'EOF'
           set -e
           
           cd /opt/pyrax
