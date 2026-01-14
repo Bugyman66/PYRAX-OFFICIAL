@@ -104,13 +104,15 @@ export default function DownloadsPage() {
             
             {/* Download Buttons */}
             <div className="flex flex-wrap justify-center gap-4 mb-8">
-              <button
-                disabled
-                className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-stone-700 text-stone-400 font-semibold cursor-not-allowed opacity-70"
+              <a
+                href="https://github.com/PYRAX-Chain/PYRAX-OFFICIAL/releases/download/desktop-v0.1.0/PYRAX.Desktop_0.1.0_x64-setup.exe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-3 px-8 py-4 rounded-xl bg-gradient-to-r from-pyrax-500 to-orange-500 text-white font-semibold hover:from-pyrax-600 hover:to-orange-600 transition-all shadow-lg shadow-pyrax-500/25 hover:shadow-pyrax-500/40"
               >
                 <ArrowDownTrayIcon className="h-6 w-6" />
-                {t('hero.downloadWindows')} (Coming Soon)
-              </button>
+                {t('hero.downloadWindows')}
+              </a>
               <button
                 disabled
                 className="inline-flex items-center gap-3 px-8 py-4 rounded-xl border border-stone-700 bg-stone-900/50 text-stone-400 font-semibold cursor-not-allowed opacity-70"
@@ -127,7 +129,7 @@ export default function DownloadsPage() {
               </button>
             </div>
             
-            <p className="text-sm text-stone-500">{t('hero.version')}</p>
+            <p className="text-sm text-stone-500">v0.1.0 • Windows 10+ (64-bit)</p>
           </motion.div>
         </div>
       </section>
