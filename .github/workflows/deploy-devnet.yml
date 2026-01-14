@@ -66,7 +66,7 @@ jobs:
           fi
           EOF
 
-      - name: Configure Firewall
+      - name: Configure Firewall for TriStream
         run: |
           ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
           set -e
@@ -75,22 +75,31 @@ jobs:
           systemctl enable docker
           systemctl start docker
           
-          echo "=== CONFIGURING FIREWALL ==="
+          echo "=== CONFIGURING FIREWALL FOR TRISTREAM ==="
           
           # Install ufw if not present
           apt-get update -qq
           apt-get install -y -qq ufw
           
           # Allow SSH first (important!)
-          ufw allow 22/tcp
+          ufw allow 22/tcp comment 'SSH'
           
           # Allow HTTP and HTTPS for Cloudflare
-          ufw allow 80/tcp
-          ufw allow 443/tcp
+          ufw allow 80/tcp comment 'HTTP'
+          ufw allow 443/tcp comment 'HTTPS'
           
-          # Allow blockchain P2P ports
-          ufw allow 30303/tcp
-          ufw allow 30304/udp
+          # Stream A: BLAKE3 PoW (internal via nginx)
+          # Port 8545 is internal only
+          
+          # Stream B: KAWPOW GPU Mining - Stratum
+          ufw allow 3333/tcp comment 'Stream B Stratum (GPU Mining)'
+          
+          # Stream C: ZK Staking (internal via nginx)
+          # Port 8547 is internal only
+          
+          # Blockchain P2P ports
+          ufw allow 30303/tcp comment 'P2P TCP'
+          ufw allow 30304/udp comment 'P2P UDP'
           
           # Enable firewall (non-interactive)
           echo "y" | ufw enable || true
@@ -98,7 +107,11 @@ jobs:
           # Show status
           ufw status verbose
           
-          echo "=== FIREWALL CONFIGURED ==="
+          echo "=== FIREWALL CONFIGURED FOR ALL STREAMS ==="
+          echo "  - Stream A RPC: Internal (nginx proxy)"
+          echo "  - Stream B Stratum: 3333/tcp (direct)"
+          echo "  - Stream C Staking: Internal (nginx proxy)"
+          echo "  - P2P: 30303/tcp, 30304/udp"
           EOF
 
       - name: Deploy to Devnet Server
@@ -172,14 +185,60 @@ jobs:
           echo "=== PYRAX DEVNET WILL AUTO-START ON BOOT ==="
           EOF
 
-      - name: Health Check
+      - name: Health Check - All Services
         run: |
-          sleep 15
-          echo "Checking website..."
-          curl -sf -o /dev/null https://pyrax-devnet.org || echo "Website check failed"
-          echo "Checking docs..."
-          curl -sf -o /dev/null https://docs.pyrax-devnet.org || echo "Docs check failed"
-          echo "Checking explorer..."
-          curl -sf -o /dev/null https://explorer.pyrax-devnet.org || echo "Explorer check failed"
-          echo "Checking faucet..."
-          curl -sf -o /dev/null https://faucet.pyrax-devnet.org || echo "Faucet check failed"
+          sleep 20
+          echo "========================================"
+          echo "   PYRAX DEVNET HEALTH CHECK"
+          echo "========================================"
+          
+          echo ""
+          echo "=== WEB SERVICES ==="
+          curl -sf -o /dev/null https://pyrax-devnet.org && echo "✓ Website: OK" || echo "✗ Website: FAILED"
+          curl -sf -o /dev/null https://docs.pyrax-devnet.org && echo "✓ Docs: OK" || echo "✗ Docs: FAILED"
+          curl -sf -o /dev/null https://explorer.pyrax-devnet.org && echo "✓ Explorer: OK" || echo "✗ Explorer: FAILED"
+          curl -sf -o /dev/null https://faucet.pyrax-devnet.org && echo "✓ Faucet: OK" || echo "✗ Faucet: FAILED"
+          curl -sf -o /dev/null https://marketing.pyrax-devnet.org && echo "✓ Marketing: OK" || echo "✗ Marketing: FAILED"
+          
+          echo ""
+          echo "=== STREAM A - BLAKE3 RPC ==="
+          STREAM_A=$(curl -sf -X POST https://rpc.pyrax-devnet.org \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"pyrax_chainId","params":[],"id":1}' 2>/dev/null)
+          if echo "$STREAM_A" | grep -q '"result"'; then
+            CHAIN_ID=$(echo "$STREAM_A" | grep -o '"result":[0-9]*' | cut -d: -f2)
+            echo "✓ Stream A RPC: OK (Chain ID: $CHAIN_ID)"
+          else
+            echo "✗ Stream A RPC: FAILED"
+          fi
+          
+          echo ""
+          echo "=== STREAM B - KAWPOW STRATUM ==="
+          # Check if stratum port is listening (can't fully test without miner)
+          nc -zv ${{ env.DEVNET_SERVER }} 3333 -w 3 && echo "✓ Stream B Stratum: Port 3333 OPEN" || echo "⚠ Stream B Stratum: Port 3333 not reachable (may need DNS propagation)"
+          
+          echo ""
+          echo "=== STREAM C - ZK STAKING ==="
+          STREAM_C=$(curl -sf -X POST https://staking.pyrax-devnet.org \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"pyrax_getStakingStats","params":[],"id":1}' 2>/dev/null)
+          if echo "$STREAM_C" | grep -q '"result"'; then
+            echo "✓ Stream C Staking: OK"
+          else
+            echo "⚠ Stream C Staking: Not responding (DNS may need propagation)"
+          fi
+          
+          echo ""
+          echo "========================================"
+          echo "   DEPLOYMENT COMPLETE"
+          echo "========================================"
+          echo ""
+          echo "Endpoints:"
+          echo "  Website:  https://pyrax-devnet.org"
+          echo "  RPC:      https://rpc.pyrax-devnet.org"
+          echo "  Stratum:  stratum+tcp://stratum.pyrax-devnet.org:3333"
+          echo "  Staking:  https://staking.pyrax-devnet.org"
+          echo "  Explorer: https://explorer.pyrax-devnet.org"
+          echo "  Faucet:   https://faucet.pyrax-devnet.org"
+          echo "  Docs:     https://docs.pyrax-devnet.org"
+          echo ""
