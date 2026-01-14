@@ -46,6 +46,9 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
+      "resources": [
+        "resources/pyrax-node.exe"
+      ],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",

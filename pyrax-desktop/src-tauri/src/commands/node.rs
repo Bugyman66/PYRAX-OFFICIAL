@@ -52,7 +52,7 @@ fn get_rpc_port(network: &crate::state::Network) -> u16 {
     }
 }
 
-/// Get the remote RPC URL for a network
+/// Get the remote RPC URL for a network (fallback only)
 fn get_remote_rpc_url(network: &crate::state::Network) -> &'static str {
     match network {
         crate::state::Network::Mainnet => "https://rpc.pyrax.org",
@@ -61,38 +61,84 @@ fn get_remote_rpc_url(network: &crate::state::Network) -> &'static str {
     }
 }
 
-fn get_node_binary_path() -> std::path::PathBuf {
+/// Get bootstrap P2P peers for a network
+fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
+    match network {
+        crate::state::Network::Mainnet => vec![
+            "/ip4/bootstrap.pyrax.org/tcp/30303",
+        ],
+        crate::state::Network::Testnet => vec![
+            "/ip4/bootstrap.pyrax-testnet.org/tcp/30303",
+        ],
+        crate::state::Network::Devnet => vec![
+            "/ip4/209.38.137.105/tcp/30303",
+        ],
+    }
+}
+
+fn get_node_binary_path() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "windows")]
     let binary_name = "pyrax-node.exe";
     #[cfg(not(target_os = "windows"))]
     let binary_name = "pyrax-node";
     
-    // Check current directory first, then PATH
+    // Check current directory (where the app executable is)
     let current_dir = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_default();
     
+    // Check in same directory as executable
     let local_path = current_dir.join(binary_name);
     if local_path.exists() {
-        return local_path;
+        info!("Found pyrax-node at: {:?}", local_path);
+        return Some(local_path);
     }
     
-    // Check in resources directory
+    // Check in resources directory (Tauri bundle location)
     let resource_path = current_dir.join("resources").join(binary_name);
     if resource_path.exists() {
-        return resource_path;
+        info!("Found pyrax-node in resources: {:?}", resource_path);
+        return Some(resource_path);
     }
     
-    // Fall back to PATH
-    std::path::PathBuf::from(binary_name)
+    // Check in _up_/resources (dev mode)
+    let dev_resource_path = current_dir.join("..").join("resources").join(binary_name);
+    if dev_resource_path.exists() {
+        info!("Found pyrax-node in dev resources: {:?}", dev_resource_path);
+        return Some(dev_resource_path);
+    }
+    
+    // Check src-tauri/resources (dev mode from target directory)
+    let src_tauri_path = std::path::PathBuf::from("pyrax-desktop/src-tauri/resources").join(binary_name);
+    if src_tauri_path.exists() {
+        info!("Found pyrax-node in src-tauri/resources: {:?}", src_tauri_path);
+        return Some(src_tauri_path);
+    }
+    
+    // Try to find in PATH
+    if let Ok(output) = std::process::Command::new("where").arg(binary_name).output() {
+        if output.status.success() {
+            let path_str = String::from_utf8_lossy(&output.stdout);
+            if let Some(first_line) = path_str.lines().next() {
+                let path = std::path::PathBuf::from(first_line.trim());
+                if path.exists() {
+                    info!("Found pyrax-node in PATH: {:?}", path);
+                    return Some(path);
+                }
+            }
+        }
+    }
+    
+    warn!("pyrax-node binary not found");
+    None
 }
 
 #[tauri::command]
 pub async fn start_node(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<NodeStatus, String> {
-    let (network, rpc_port, _data_dir) = {
+    let (network, rpc_port, data_dir) = {
         let app_state = state.lock();
         if app_state.node_running {
             return Err("Node is already running".to_string());
@@ -104,33 +150,28 @@ pub async fn start_node(
         )
     };
     
-    info!("Connecting to {:?} network...", network);
+    info!("Starting PYRAX full node on {:?} network...", network);
     
-    // First try to connect to remote network RPC (primary method - no local node needed)
-    let remote_url = get_remote_rpc_url(&network);
-    info!("Trying remote RPC: {}", remote_url);
-    let remote_rpc = RpcClient::new(remote_url);
-    
-    if remote_rpc.is_connected().await {
-        info!("Connected to remote {} RPC", network.to_string());
-        
-        // Update state
+    // Check if a local node is already running on this port
+    let local_rpc = RpcClient::localhost(rpc_port);
+    if local_rpc.is_connected().await {
+        info!("Found existing local node on port {}, connecting...", rpc_port);
         {
             let mut app_state = state.lock();
             app_state.node_running = true;
-            app_state.node_process = None; // Remote node
+            app_state.node_process = None; // External node
             app_state.rpc_port = rpc_port;
         }
         
-        match remote_rpc.get_chain_info().await {
+        match local_rpc.get_chain_info().await {
             Ok(info) => {
-                info!("Connected to remote node: network={}, height={}", info.network, info.best_block_height);
+                info!("Connected to existing node: network={}, height={}", info.network, info.best_block_height);
                 return Ok(NodeStatus {
                     running: true,
                     connected: true,
                     syncing: info.syncing,
                     sync_progress: if info.syncing { 50.0 } else { 100.0 },
-                    peer_count: 1, // Connected to remote
+                    peer_count: 0,
                     block_height: info.best_block_height,
                     block_hash: info.best_block_hash,
                     network: info.network,
@@ -138,7 +179,121 @@ pub async fn start_node(
                 });
             }
             Err(e) => {
-                warn!("Connected to remote but failed to get chain info: {}", e);
+                warn!("Connected but failed to get chain info: {}", e);
+            }
+        }
+    }
+    
+    // Try to spawn local pyrax-node binary (TRUE DECENTRALIZATION)
+    if let Some(binary_path) = get_node_binary_path() {
+        info!("Spawning local full node from: {:?}", binary_path);
+        
+        let network_arg = match network {
+            crate::state::Network::Mainnet => "mainnet",
+            crate::state::Network::Testnet => "testnet",
+            crate::state::Network::Devnet => "devnet",
+        };
+        
+        let rpc_addr = format!("127.0.0.1:{}", rpc_port);
+        let p2p_port = rpc_port + 21758; // P2P port offset (e.g., 28545 -> 50303)
+        let p2p_addr = format!("0.0.0.0:{}", p2p_port);
+        let staking_port = rpc_port + 2; // Staking RPC (e.g., 28545 -> 28547)
+        let staking_addr = format!("127.0.0.1:{}", staking_port);
+        
+        // Get bootstrap peers for this network
+        let bootstrap_peers = get_bootstrap_peers(&network);
+        
+        // Build command with all TriStream services enabled
+        let mut cmd = Command::new(&binary_path);
+        cmd.arg("--network").arg(network_arg)
+           .arg("--rpc")
+           .arg("--rpc-addr").arg(&rpc_addr)
+           .arg("--p2p")
+           .arg("--p2p-addr").arg(&p2p_addr)
+           .arg("--stratum")
+           .arg("--stratum-addr").arg(format!("0.0.0.0:{}", rpc_port - 25212)) // Stratum port
+           .arg("--staking")
+           .arg("--staking-addr").arg(&staking_addr)
+           .arg("--datadir").arg(&data_dir);
+        
+        // Add bootstrap peers
+        for peer in bootstrap_peers {
+            cmd.arg("--peer").arg(peer);
+        }
+        
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped());
+        
+        info!("Starting node with command: {:?}", cmd);
+        
+        match cmd.spawn() {
+            Ok(child) => {
+                let pid = child.id();
+                info!("Node started with PID: {} - syncing blockchain from P2P peers...", pid);
+                
+                // Update state
+                {
+                    let mut app_state = state.lock();
+                    app_state.node_running = true;
+                    app_state.node_process = Some(child);
+                    app_state.rpc_port = rpc_port;
+                }
+                
+                // Wait for node RPC to be ready
+                let rpc = RpcClient::localhost(rpc_port);
+                let mut attempts = 0;
+                while attempts < 60 { // Wait up to 30 seconds
+                    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                    if rpc.is_connected().await {
+                        info!("Node RPC is ready!");
+                        break;
+                    }
+                    attempts += 1;
+                }
+                
+                // Get initial status
+                return get_node_status(state).await;
+            }
+            Err(e) => {
+                error!("Failed to spawn pyrax-node: {}", e);
+                // Fall through to remote RPC fallback
+            }
+        }
+    } else {
+        warn!("pyrax-node binary not found, falling back to remote RPC");
+    }
+    
+    // Fallback: Connect to remote RPC (light client mode - NOT fully decentralized)
+    let remote_url = get_remote_rpc_url(&network);
+    info!("Falling back to remote RPC (light client mode): {}", remote_url);
+    let remote_rpc = RpcClient::new(remote_url);
+    
+    if remote_rpc.is_connected().await {
+        warn!("Connected to remote RPC - running in LIGHT CLIENT mode (not fully decentralized)");
+        
+        {
+            let mut app_state = state.lock();
+            app_state.node_running = true;
+            app_state.node_process = None;
+            app_state.rpc_port = rpc_port;
+        }
+        
+        match remote_rpc.get_chain_info().await {
+            Ok(info) => {
+                return Ok(NodeStatus {
+                    running: true,
+                    connected: true,
+                    syncing: info.syncing,
+                    sync_progress: if info.syncing { 50.0 } else { 100.0 },
+                    peer_count: 1,
+                    block_height: info.best_block_height,
+                    block_hash: info.best_block_hash,
+                    network: format!("{} (light)", info.network),
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                });
+            }
+            Err(e) => {
+                warn!("Remote RPC connected but failed to get chain info: {}", e);
                 return Ok(NodeStatus {
                     running: true,
                     connected: true,
@@ -147,64 +302,16 @@ pub async fn start_node(
                     peer_count: 1,
                     block_height: 0,
                     block_hash: String::new(),
-                    network: network.to_string(),
+                    network: format!("{} (light)", network.to_string()),
                     version: env!("CARGO_PKG_VERSION").to_string(),
                 });
             }
         }
     }
-    
-    // Fallback: Try local node on localhost
-    info!("Remote RPC unavailable, checking for local node on port {}", rpc_port);
-    let local_rpc = RpcClient::localhost(rpc_port);
-    
-    if local_rpc.is_connected().await {
-        info!("Found existing local node on port {}", rpc_port);
-        {
-            let mut app_state = state.lock();
-            app_state.node_running = true;
-            app_state.node_process = None;
-            app_state.rpc_port = rpc_port;
-        }
-        
-        match local_rpc.get_chain_info().await {
-            Ok(info) => {
-                return Ok(NodeStatus {
-                    running: true,
-                    connected: true,
-                    syncing: info.syncing,
-                    sync_progress: if info.syncing { 50.0 } else { 100.0 },
-                    peer_count: 0,
-                    block_height: info.best_block_height,
-                    block_hash: info.best_block_hash,
-                    network: info.network,
-                    version: env!("CARGO_PKG_VERSION").to_string(),
-                });
-            }
-            Err(e) => {
-                warn!("Local node connected but failed to get chain info: {}", e);
-                return Ok(NodeStatus {
-                    running: true,
-                    connected: true,
-                    syncing: false,
-                    sync_progress: 100.0,
-                    peer_count: 0,
-                    block_height: 0,
-                    block_hash: String::new(),
-                    network: network.to_string(),
-                    version: env!("CARGO_PKG_VERSION").to_string(),
-                });
-            }
-        }
-    }
-    
-    // No remote or local node available
-    error!("Cannot connect to {} network - remote RPC {} is unavailable and no local node found", 
-           network.to_string(), remote_url);
     
     Err(format!(
-        "Cannot connect to {} network. Remote RPC at {} is unavailable. Please check your internet connection or try again later.",
-        network.to_string(),
+        "Cannot start node: pyrax-node binary not found and remote RPC {} is unavailable. \
+         Please ensure pyrax-node.exe is in the application resources folder.",
         remote_url
     ))
 }
