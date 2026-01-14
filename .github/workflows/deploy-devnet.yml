@@ -71,6 +71,10 @@ jobs:
           ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
           set -e
           
+          echo "=== ENSURING DOCKER STARTS ON BOOT ==="
+          systemctl enable docker
+          systemctl start docker
+          
           echo "=== CONFIGURING FIREWALL ==="
           
           # Install ufw if not present
@@ -142,6 +146,29 @@ jobs:
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
+          
+          echo "=== CREATING SYSTEMD SERVICE FOR AUTO-START ==="
+          cat > /etc/systemd/system/pyrax-devnet.service << 'SERVICE'
+          [Unit]
+          Description=PYRAX Devnet Stack
+          After=docker.service
+          Requires=docker.service
+          
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          WorkingDirectory=/opt/pyrax
+          ExecStart=/usr/bin/docker compose -f docker-compose.devnet.yml up -d
+          ExecStop=/usr/bin/docker compose -f docker-compose.devnet.yml down
+          
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+          
+          systemctl daemon-reload
+          systemctl enable pyrax-devnet.service
+          
+          echo "=== PYRAX DEVNET WILL AUTO-START ON BOOT ==="
           EOF
 
       - name: Health Check
