@@ -1,0 +1,97 @@
+name: Deploy to Devnet
+
+on:
+  push:
+    branches:
+      - devnet
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  DEVNET_SERVER: 209.38.137.105
+
+jobs:
+  deploy:
+    name: Build and Deploy to Devnet
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.DEVNET_SERVER }} >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        run: |
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='target' \
+            ./ root@${{ env.DEVNET_SERVER }}:/opt/pyrax/
+
+      - name: Deploy to Devnet Server
+        run: |
+          ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
+          set -e
+          
+          cd /opt/pyrax
+          
+          COMPOSE_FILE="docker-compose.devnet.yml"
+          
+          echo "=== KILLING CONFLICTING PROCESSES ==="
+          systemctl stop nginx 2>/dev/null || true
+          systemctl stop apache2 2>/dev/null || true
+          systemctl disable nginx 2>/dev/null || true
+          systemctl disable apache2 2>/dev/null || true
+          
+          fuser -k 80/tcp 443/tcp 3000/tcp 3001/tcp 3002/tcp 3003/tcp 2>/dev/null || true
+          sleep 2
+          
+          echo "=== STOPPING OLD CONTAINERS ==="
+          docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+          docker rm -f pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx pyrax-marketing pyrax-postgres pyrax-redis 2>/dev/null || true
+          
+          echo "=== BUILDING IMAGES (with cache) ==="
+          docker compose -f $COMPOSE_FILE build
+          
+          echo "=== STARTING ALL SERVICES ==="
+          docker compose -f $COMPOSE_FILE up -d
+          
+          echo "=== WAITING FOR HEALTH CHECKS ==="
+          sleep 15
+          
+          echo "=== SERVICE STATUS ==="
+          docker compose -f $COMPOSE_FILE ps
+          
+          echo "=== NGINX LOGS ==="
+          docker logs pyrax-nginx --tail=10 2>&1 || echo "Nginx not running yet"
+          
+          echo "=== CLEANUP OLD IMAGES ==="
+          docker image prune -f
+          EOF
+
+      - name: Health Check
+        run: |
+          sleep 15
+          echo "Checking website..."
+          curl -sf -o /dev/null https://pyrax-devnet.org || echo "Website check failed"
+          echo "Checking docs..."
+          curl -sf -o /dev/null https://docs.pyrax-devnet.org || echo "Docs check failed"
+          echo "Checking explorer..."
+          curl -sf -o /dev/null https://explorer.pyrax-devnet.org || echo "Explorer check failed"
+          echo "Checking faucet..."
+          curl -sf -o /dev/null https://faucet.pyrax-devnet.org || echo "Faucet check failed"
