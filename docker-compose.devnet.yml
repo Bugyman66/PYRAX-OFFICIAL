@@ -4,6 +4,34 @@
 # Domain: pyrax-devnet.org
 
 services:
+  # PYRAX Blockchain Node
+  node:
+    build:
+      context: .
+      dockerfile: pyrax-node/Dockerfile
+    container_name: pyrax-node
+    restart: unless-stopped
+    ports:
+      - "30303:30303"
+      - "30304:30304/udp"
+    expose:
+      - "8545"
+      - "8546"
+    environment:
+      - RUST_LOG=info
+      - PYRAX_NETWORK=devnet
+    volumes:
+      - node-data:/app/data
+      - dag-cache:/app/dag_cache
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - pyrax-network
+
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
@@ -186,3 +214,5 @@ volumes:
   nginx-cache:
   postgres-data:
   redis-data:
+  node-data:
+  dag-cache:
