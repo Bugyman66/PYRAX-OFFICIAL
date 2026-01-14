@@ -408,9 +408,9 @@ impl StratumClient {
         // Compute KAWPOW seed hash from epoch
         // Epoch = height / 7500, seed hash is keccak256 chain from genesis
         use crate::consensus::{get_epoch, compute_seed};
-        let height = self.stats.read().await.blocks_found; // Approximate from stats
+        let height = self.stats.read().await.jobs_received; // Approximate height from job count
         let epoch = get_epoch(height);
-        let seed_hash = compute_seed(epoch);
+        let seed_hash = H256::from_slice(&compute_seed(epoch));
         
         // Calculate target from difficulty
         let difficulty = self.stats.read().await.current_difficulty;

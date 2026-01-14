@@ -319,7 +319,8 @@ impl StakingService {
         let (event_tx, _) = broadcast::channel(1000);
         
         let prover = if config.enable_proving {
-            Some(Arc::new(ZkProver::new(Default::default())))
+            // Use service address as default prover address
+            Some(Arc::new(ZkProver::new(Default::default(), Address::ZERO)))
         } else {
             None
         };
@@ -478,9 +479,10 @@ impl StakingService {
         drop(validators);
 
         // Verify the ZK proof
-        let verification = self.verifier.verify(&proof);
+        let verification = self.verifier.verify(&proof, validator)
+            .map_err(|e| format!("Proof verification error: {:?}", e))?;
         
-        if !verification.is_valid {
+        if !verification.valid {
             // Slash the validator for invalid proof
             self.slash_validator(validator, "Invalid ZK proof".to_string()).await;
             return Err("Invalid ZK proof - validator slashed".to_string());
