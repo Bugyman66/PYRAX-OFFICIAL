@@ -6,7 +6,8 @@
 //! - Metrics dashboard
 //! - API gateway
 //! - CLI tools
-//! - Mining service with stratum server
+//! - Mining service with stratum server (Stream B)
+//! - Staking service with ZK validation (Stream C)
 
 mod faucet;
 mod explorer;
@@ -14,6 +15,7 @@ mod metrics;
 mod api;
 mod cli;
 pub mod mining;
+pub mod staking;
 
 pub use faucet::{FaucetService, FaucetConfig, FaucetRequest, FaucetResponse};
 pub use explorer::{ExplorerService, ExplorerConfig, BlockInfo, TransactionInfo, AddressInfo};
@@ -21,6 +23,11 @@ pub use metrics::{MetricsService, MetricsConfig, ChainMetrics, NetworkMetrics};
 pub use api::{ApiGateway, ApiConfig, ApiResponse, RateLimiter};
 pub use cli::{CliCommand, CliConfig, CliRunner};
 pub use mining::{MiningService, MiningServiceConfig, MiningInfo, ChainStateProvider};
+pub use staking::{
+    StakingService, StakingConfig, StakingStats, StakingEvent,
+    Validator, Checkpoint, Attestation,
+    MIN_VALIDATOR_STAKE, CHECKPOINT_INTERVAL, CHECKPOINT_REWARD,
+};
 
 /// Default faucet amount (testnet only)
 pub const DEFAULT_FAUCET_AMOUNT: u64 = 100 * 100_000_000; // 100 PYRAX

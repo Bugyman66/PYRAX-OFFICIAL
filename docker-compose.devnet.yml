@@ -4,7 +4,10 @@
 # Domain: pyrax-devnet.org
 
 services:
-  # PYRAX Blockchain Node
+  # PYRAX Blockchain Node - TriStream DAG
+  # Stream A: BLAKE3 PoW (RPC 8545)
+  # Stream B: KAWPOW GPU Mining (Stratum 3333)
+  # Stream C: ZK Staking (RPC 8547)
   node:
     build:
       context: .
@@ -14,14 +17,14 @@ services:
     ports:
       - "30303:30303"      # P2P TCP
       - "30304:30304/udp"  # P2P UDP
-      - "3333:3333"        # Stratum (GPU mining)
+      - "3333:3333"        # Stream B Stratum (GPU mining) - direct access for miners
     expose:
-      - "8545"  # Stream A RPC (internal)
-      - "8546"  # Stream B RPC (internal)
+      - "8545"  # Stream A RPC (internal, proxied via nginx)
+      - "8546"  # WebSocket (internal)
+      - "8547"  # Stream C Staking RPC (internal, proxied via nginx)
     environment:
       - RUST_LOG=info
       - PYRAX_NETWORK=devnet
-      - PYRAX_STRATUM_ENABLED=true
     volumes:
       - node-data:/app/data
       - dag-cache:/app/dag_cache

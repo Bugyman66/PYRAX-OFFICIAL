@@ -1,19 +1,24 @@
 //! PYRAX JSON-RPC Module
 //!
 //! Production-ready JSON-RPC server and client for wallet and explorer integration
-//! Includes mining RPC for stratum server control and GPU mining
+//! Includes:
+//! - Core chain RPC (blocks, transactions, balances)
+//! - Mining RPC for stratum server control and GPU mining (Stream B)
+//! - Staking RPC for ZK validation and checkpoints (Stream C)
 
 mod server;
 mod types;
 pub mod client;
 pub mod ai;
 pub mod mining_rpc;
+pub mod staking_rpc;
 
 pub use server::{start_server, start_server_with_mempool};
 pub use types::*;
 pub use client::{RpcClient, NetworkConfig, RpcClientError};
 pub use ai::{AIRpcImpl, AIRpcServer};
 pub use mining_rpc::{MiningRpc, DesktopMiningStatus, DesktopMiningCommand, DesktopMiningResponse, GpuDeviceInfo};
+pub use staking_rpc::{StakingRpcImpl, StakingRpcServer};
 
 use thiserror::Error;
 

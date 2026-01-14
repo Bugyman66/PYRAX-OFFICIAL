@@ -52,12 +52,14 @@ RUN mkdir -p /app/data /app/dag_cache && chown -R pyrax:pyrax /app
 USER pyrax
 
 # Expose ports
-# 8545 - HTTP JSON-RPC
-# 8546 - WebSocket JSON-RPC
+# 8545 - Stream A RPC (BLAKE3 PoW)
+# 8546 - WebSocket
+# 8547 - Stream C Staking RPC
+# 3333 - Stream B Stratum (KAWPOW GPU Mining)
 # 30303 - P2P TCP
 # 30304 - P2P UDP
-EXPOSE 8545 8546 30303 30304/udp
+EXPOSE 8545 8546 8547 3333 30303 30304/udp
 
-# Default command
+# Default command - Enable all streams
 ENTRYPOINT ["pyrax-node"]
-CMD ["--network", "devnet", "--rpc", "--rpc-addr", "0.0.0.0:8545", "--datadir", "/app/data"]
+CMD ["--network", "devnet", "--rpc", "--rpc-addr", "0.0.0.0:8545", "--stratum", "--stratum-addr", "0.0.0.0:3333", "--staking", "--staking-addr", "0.0.0.0:8547", "--datadir", "/app/data"]

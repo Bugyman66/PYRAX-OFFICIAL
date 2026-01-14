@@ -66,7 +66,7 @@ struct Args {
     #[arg(long)]
     p2p: bool,
 
-    /// Enable CPU mining
+    /// Enable CPU mining (Stream A)
     #[arg(long)]
     mine: bool,
 
@@ -82,13 +82,29 @@ struct Args {
     #[arg(short, long, default_value = "2")]
     verbosity: u8,
 
-    /// Enable RPC server
+    /// Enable RPC server (Stream A on 8545)
     #[arg(long)]
     rpc: bool,
 
     /// RPC server address
-    #[arg(long, default_value = "127.0.0.1:8545")]
+    #[arg(long, default_value = "0.0.0.0:8545")]
     rpc_addr: String,
+
+    /// Enable Stratum server for GPU mining (Stream B)
+    #[arg(long)]
+    stratum: bool,
+
+    /// Stratum server address
+    #[arg(long, default_value = "0.0.0.0:3333")]
+    stratum_addr: String,
+
+    /// Enable Staking service (Stream C)
+    #[arg(long)]
+    staking: bool,
+
+    /// Staking RPC address
+    #[arg(long, default_value = "0.0.0.0:8547")]
+    staking_addr: String,
 }
 
 fn parse_network(s: &str) -> NetworkId {
@@ -135,14 +151,19 @@ async fn main() -> anyhow::Result<()> {
     let miner_address = parse_address(args.miner_address.as_ref());
 
     println!("╔═══════════════════════════════════════════════════════════════╗");
-    println!("║           PYRAX Node v{} - Stream A (BLAKE3)            ║", env!("CARGO_PKG_VERSION"));
-    println!("║              TriStream DAG Blockchain                         ║");
+    println!("║         PYRAX Node v{} - TriStream DAG Blockchain       ║", env!("CARGO_PKG_VERSION"));
+    println!("║   Stream A (BLAKE3) | Stream B (KAWPOW) | Stream C (ZK)       ║");
     println!("╚═══════════════════════════════════════════════════════════════╝");
     println!();
 
     info!("Starting PYRAX Node");
-    info!("Network: {} (ID: {})", network.name(), network.0);
+    info!("Network: {} (Chain ID: {})", network.name(), network.0);
     info!("Data directory: {:?}", args.datadir);
+    
+    // Log enabled services
+    if args.rpc { info!("Stream A RPC: {}", args.rpc_addr); }
+    if args.stratum { info!("Stream B Stratum: {}", args.stratum_addr); }
+    if args.staking { info!("Stream C Staking: {}", args.staking_addr); }
 
     // Open database
     let db_path = args.datadir.join(network.name());
@@ -155,16 +176,98 @@ async fn main() -> anyhow::Result<()> {
     let mempool = Arc::new(Mempool::new(MempoolConfig::default()));
     info!("Mempool initialized");
 
-    // Start RPC server if enabled
+    // Start RPC server if enabled (Stream A)
     let _rpc_handle = if args.rpc {
-        info!("Starting RPC server on {}", args.rpc_addr);
+        info!("Starting Stream A RPC server on {}", args.rpc_addr);
         match start_rpc_server_with_mempool(&args.rpc_addr, db.clone(), network, mempool.clone()).await {
             Ok(handle) => {
-                info!("RPC server running on http://{}", args.rpc_addr);
+                info!("✓ Stream A RPC running on http://{}", args.rpc_addr);
                 Some(handle)
             }
             Err(e) => {
                 error!("Failed to start RPC server: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Start Stratum server if enabled (Stream B - GPU Mining)
+    let _stratum_handle = if args.stratum {
+        info!("Starting Stream B Stratum server on {}", args.stratum_addr);
+        
+        use services::mining::{MiningService, MiningServiceConfig};
+        
+        let stratum_config = MiningServiceConfig {
+            stratum_enabled: true,
+            stratum_bind: args.stratum_addr.split(':').next().unwrap_or("0.0.0.0").to_string(),
+            stratum_port: args.stratum_addr.split(':').nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(3333),
+            share_difficulty: 1.0,
+            coinbase_address: miner_address,
+            cpu_mining_enabled: false,
+            cpu_threads: 0,
+        };
+        
+        // Create chain state provider for stratum
+        struct DbChainProvider(Arc<ChainDB>);
+        impl services::mining::ChainStateProvider for DbChainProvider {
+            fn get_height(&self) -> u64 { self.0.get_tip().height }
+            fn get_tip_hash(&self) -> types::H256 { self.0.get_tip().hash }
+            fn get_difficulty(&self) -> u64 { 1 } // Simplified for devnet
+            fn get_block_reward(&self, _height: u64) -> u64 { 100 * 100_000_000 } // 100 PYRAX for Stream B
+            fn get_pending_transactions(&self, _max: usize, _bytes: usize) -> Vec<types::Transaction> { vec![] }
+            fn submit_block(&self, block: types::Block) -> Result<types::H256, String> {
+                let hash = block.hash();
+                self.0.commit_block(&block).map_err(|e| e.to_string())?;
+                Ok(hash)
+            }
+            fn verify_header(&self, _header: &types::BlockHeader) -> Result<(), String> { Ok(()) }
+        }
+        
+        let chain_provider = Arc::new(DbChainProvider(db.clone()));
+        let mut mining_service = MiningService::new(stratum_config, chain_provider);
+        
+        match mining_service.start().await {
+            Ok(_) => {
+                info!("✓ Stream B Stratum running on {}", args.stratum_addr);
+                Some(mining_service)
+            }
+            Err(e) => {
+                error!("Failed to start Stratum server: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Start Staking service if enabled (Stream C - ZK Validation)
+    let _staking_handle = if args.staking {
+        info!("Starting Stream C Staking service on {}", args.staking_addr);
+        
+        use services::staking::{StakingService, StakingConfig};
+        
+        let staking_config = StakingConfig {
+            enabled: true,
+            rpc_bind: args.staking_addr.split(':').next().unwrap_or("0.0.0.0").to_string(),
+            rpc_port: args.staking_addr.split(':').nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(8547),
+            ..Default::default()
+        };
+        
+        let staking_service = Arc::new(StakingService::new(staking_config, db.clone()));
+        
+        match staking_service.start().await {
+            Ok(_) => {
+                info!("✓ Stream C Staking running on {}", args.staking_addr);
+                Some(staking_service)
+            }
+            Err(e) => {
+                error!("Failed to start Staking service: {}", e);
                 None
             }
         }
