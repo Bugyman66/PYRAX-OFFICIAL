@@ -19,10 +19,12 @@ RUN apt-get update && apt-get install -y \
 # Copy workspace files first for better caching
 COPY Cargo.toml Cargo.lock ./
 
-# Copy the node source
+# Copy all workspace members (required for Cargo workspace resolution)
 COPY pyrax-node ./pyrax-node
+COPY pyrax-wallet ./pyrax-wallet
+COPY pyrax-desktop/src-tauri ./pyrax-desktop/src-tauri
 
-# Build the node in release mode
+# Build only the node in release mode
 RUN cargo build --release --package pyrax-node
 
 # Runtime stage
