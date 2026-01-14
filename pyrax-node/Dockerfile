@@ -60,4 +60,4 @@ EXPOSE 8545 8546 30303 30304/udp
 
 # Default command
 ENTRYPOINT ["pyrax-node"]
-CMD ["--network", "devnet", "--rpc-addr", "0.0.0.0:8545", "--ws-addr", "0.0.0.0:8546", "--data-dir", "/app/data"]
+CMD ["--network", "devnet", "--rpc", "--rpc-addr", "0.0.0.0:8545", "--datadir", "/app/data"]
