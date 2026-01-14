@@ -135,7 +135,13 @@ jobs:
           
           echo "=== STOPPING OLD CONTAINERS ==="
           docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
-          docker rm -f pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx pyrax-marketing pyrax-postgres pyrax-redis 2>/dev/null || true
+          
+          echo "=== REMOVING ALL PYRAX CONTAINERS ==="
+          docker rm -f pyrax-node pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx pyrax-marketing pyrax-postgres pyrax-redis 2>/dev/null || true
+          
+          echo "=== REMOVING STALE NETWORKS ==="
+          docker network rm pyrax_pyrax-network 2>/dev/null || true
+          docker network prune -f 2>/dev/null || true
           
           echo "=== BUILDING IMAGES (with cache) ==="
           docker compose -f $COMPOSE_FILE build
