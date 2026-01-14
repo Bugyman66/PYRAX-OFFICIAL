@@ -28,17 +28,19 @@ export default function App() {
   }, [fetchStatus]);
 
   return (
-    <ErrorBoundary>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="wallet" element={<Wallet />} />
-          <Route path="mining" element={<Mining />} />
-          <Route path="explorer" element={<Explorer />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
+    <>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="wallet" element={<Wallet />} />
+            <Route path="mining" element={<Mining />} />
+            <Route path="explorer" element={<Explorer />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
       <ToastContainer />
-    </ErrorBoundary>
+    </>
   );
 }

@@ -1,9 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Copy, Check, AlertCircle, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { useToastStore, Toast } from '../stores/toastStore';
 
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState(60);
+  
+  // Update countdown every second
+  useEffect(() => {
+    const updateRemaining = () => {
+      const elapsed = Date.now() - toast.timestamp;
+      const remaining = Math.max(0, 60000 - elapsed);
+      setRemainingSeconds(Math.ceil(remaining / 1000));
+    };
+    
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 1000);
+    return () => clearInterval(interval);
+  }, [toast.timestamp]);
   
   const handleCopy = async () => {
     try {
@@ -41,10 +55,9 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
     }
   };
   
-  // Calculate remaining time
+  // Calculate remaining for progress bar
   const elapsed = Date.now() - toast.timestamp;
   const remaining = Math.max(0, 60000 - elapsed);
-  const remainingSeconds = Math.ceil(remaining / 1000);
   
   return (
     <div
@@ -96,10 +109,12 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
 export default function ToastContainer() {
   const { toasts, removeToast } = useToastStore();
   
+  console.log('[ToastContainer] Rendering with', toasts.length, 'toasts');
+  
   if (toasts.length === 0) return null;
   
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-h-[80vh] overflow-y-auto">
+    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-h-[80vh] overflow-y-auto pointer-events-auto">
       {toasts.map((toast) => (
         <ToastItem
           key={toast.id}

@@ -26,12 +26,17 @@ export const useToastStore = create<ToastStore>((set, get) => ({
       timestamp: Date.now(),
     };
     
-    set((state) => ({
-      toasts: [...state.toasts, toast],
-    }));
+    console.log('[Toast] Adding toast:', type, message);
+    
+    set((state) => {
+      const newToasts = [...state.toasts, toast];
+      console.log('[Toast] Current toasts count:', newToasts.length);
+      return { toasts: newToasts };
+    });
     
     // Auto-remove after 60 seconds (1 minute)
     setTimeout(() => {
+      console.log('[Toast] Auto-removing toast:', id);
       get().removeToast(id);
     }, 60000);
   },

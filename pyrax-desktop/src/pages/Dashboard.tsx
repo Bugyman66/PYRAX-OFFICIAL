@@ -159,11 +159,6 @@ export default function Dashboard() {
           Node Status
         </h2>
         
-        {nodeError && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-300 text-sm">
-            <strong>Error:</strong> {nodeError}
-          </div>
-        )}
         {status?.running ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <InfoItem label="Status" value={status.connected ? 'Connected' : 'Connecting...'} />
