@@ -3,7 +3,10 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::path::PathBuf;
+use std::fs;
+use std::io::{Read, Write};
 use tauri::State;
+use tracing::{info, warn, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
@@ -87,7 +90,36 @@ pub async fn save_settings(
         app_state.data_dir = PathBuf::from(dir);
     }
     
-    // TODO: Persist settings to file
+    // Persist settings to file
+    let settings_path = app_state.data_dir.join("settings.json");
+    let settings_to_save = AppSettings::from(&*app_state);
+    
+    // Ensure data directory exists
+    if let Err(e) = fs::create_dir_all(&app_state.data_dir) {
+        warn!("Failed to create data directory: {}", e);
+    }
+    
+    match serde_json::to_string_pretty(&settings_to_save) {
+        Ok(json) => {
+            match fs::File::create(&settings_path) {
+                Ok(mut file) => {
+                    if let Err(e) = file.write_all(json.as_bytes()) {
+                        error!("Failed to write settings file: {}", e);
+                        return Err(format!("Failed to save settings: {}", e));
+                    }
+                    info!("Settings saved to {:?}", settings_path);
+                }
+                Err(e) => {
+                    error!("Failed to create settings file: {}", e);
+                    return Err(format!("Failed to create settings file: {}", e));
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to serialize settings: {}", e);
+            return Err(format!("Failed to serialize settings: {}", e));
+        }
+    }
     
     Ok(())
 }

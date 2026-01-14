@@ -1,10 +1,12 @@
 use crate::state::AppState;
+use crate::rpc::RpcClient;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::ffi::c_void;
+use std::process::{Command, Stdio};
 use tauri::State;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinerStatus {
@@ -34,13 +36,21 @@ pub async fn start_miner(
     config: MinerConfig,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<MinerStatus, String> {
-    let mut app_state = state.lock();
+    let (already_running, node_running, network, rpc_port) = {
+        let app_state = state.lock();
+        (
+            app_state.miner_running,
+            app_state.node_running,
+            app_state.network.clone(),
+            app_state.rpc_port,
+        )
+    };
     
-    if app_state.miner_running {
+    if already_running {
         return Err("Miner is already running".to_string());
     }
     
-    if !app_state.node_running && config.pool_url.is_none() {
+    if !node_running && config.pool_url.is_none() {
         return Err("Node must be running for solo mining, or provide pool URL".to_string());
     }
     
@@ -49,22 +59,132 @@ pub async fn start_miner(
         return Err("Miner address is required".to_string());
     }
     
-    // TODO: Actually start miner process
-    app_state.miner_running = true;
-    app_state.settings.miner_address = Some(config.address);
+    // Determine Stratum URL - use pool URL if provided, otherwise use network default
+    let stratum_url = config.pool_url.clone()
+        .unwrap_or_else(|| {
+            let endpoints = network.endpoints();
+            endpoints.stream_b_stratum.clone()
+        });
     
-    Ok(MinerStatus {
-        running: true,
-        hashrate: 0.0,
-        hashrate_unit: "MH/s".to_string(),
-        accepted_shares: 0,
-        rejected_shares: 0,
-        blocks_found: 0,
-        temperature: None,
-        fan_speed: None,
-        power_usage: None,
-        device_name: "Initializing...".to_string(),
-    })
+    info!("Starting miner with address {} on {}", config.address, stratum_url);
+    
+    // Get miner binary path
+    let miner_binary = get_miner_binary_path();
+    
+    // Build command arguments for the miner
+    let mut cmd = Command::new(&miner_binary);
+    cmd.arg("--algo").arg("kawpow")
+       .arg("--pool").arg(&stratum_url)
+       .arg("--wallet").arg(&config.address)
+       .arg("--worker").arg("pyrax_desktop");
+    
+    // Add GPU device selection if specified
+    if let Some(cuda) = config.cuda_device {
+        if cuda >= 0 {
+            cmd.arg("--cuda-device").arg(cuda.to_string());
+        }
+    }
+    if let Some(opencl) = config.opencl_device {
+        if opencl >= 0 {
+            cmd.arg("--opencl-device").arg(opencl.to_string());
+        }
+    }
+    
+    // Add thread count for CPU mining fallback
+    if let Some(threads) = config.threads {
+        cmd.arg("--threads").arg(threads.to_string());
+    }
+    
+    cmd.stdout(Stdio::piped())
+       .stderr(Stdio::piped());
+    
+    // Try to spawn the miner process
+    match cmd.spawn() {
+        Ok(child) => {
+            let pid = child.id();
+            info!("Miner started with PID: {}", pid);
+            
+            let mut app_state = state.lock();
+            app_state.miner_running = true;
+            app_state.miner_process = Some(child);
+            app_state.settings.miner_address = Some(config.address.clone());
+            
+            Ok(MinerStatus {
+                running: true,
+                hashrate: 0.0,
+                hashrate_unit: "MH/s".to_string(),
+                accepted_shares: 0,
+                rejected_shares: 0,
+                blocks_found: 0,
+                temperature: None,
+                fan_speed: None,
+                power_usage: None,
+                device_name: "Initializing...".to_string(),
+            })
+        }
+        Err(e) => {
+            warn!("Failed to start external miner: {}. Using internal mining.", e);
+            
+            // Fall back to internal mining via RPC if node is running
+            if node_running {
+                let rpc = RpcClient::localhost(rpc_port);
+                // Check if we can get mining info from the node
+                match rpc.get_mining_info().await {
+                    Ok(_) => {
+                        let mut app_state = state.lock();
+                        app_state.miner_running = true;
+                        app_state.settings.miner_address = Some(config.address.clone());
+                        
+                        info!("Using node's internal mining via RPC");
+                        Ok(MinerStatus {
+                            running: true,
+                            hashrate: 0.0,
+                            hashrate_unit: "MH/s".to_string(),
+                            accepted_shares: 0,
+                            rejected_shares: 0,
+                            blocks_found: 0,
+                            temperature: None,
+                            fan_speed: None,
+                            power_usage: None,
+                            device_name: "Internal (RPC)".to_string(),
+                        })
+                    }
+                    Err(rpc_err) => {
+                        Err(format!("Failed to start miner: {}. RPC fallback also failed: {}", e, rpc_err))
+                    }
+                }
+            } else {
+                Err(format!("Failed to start miner: {}. No node running for fallback.", e))
+            }
+        }
+    }
+}
+
+fn get_miner_binary_path() -> std::path::PathBuf {
+    #[cfg(target_os = "windows")]
+    let binary_name = "pyrax-miner.exe";
+    #[cfg(not(target_os = "windows"))]
+    let binary_name = "pyrax-miner";
+    
+    // Check current directory first
+    let current_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_default();
+    
+    let local_path = current_dir.join(binary_name);
+    if local_path.exists() {
+        return local_path;
+    }
+    
+    // Check resources directory
+    let resource_path = current_dir.join("resources").join(binary_name);
+    if resource_path.exists() {
+        return resource_path;
+    }
+    
+    // Fall back to PATH
+    std::path::PathBuf::from(binary_name)
 }
 
 #[tauri::command]
@@ -77,7 +197,29 @@ pub async fn stop_miner(
         return Err("Miner is not running".to_string());
     }
     
-    // TODO: Actually stop miner process
+    // Stop the miner process if running
+    if let Some(mut child) = app_state.miner_process.take() {
+        info!("Stopping miner process");
+        
+        #[cfg(target_os = "windows")]
+        {
+            // On Windows, use taskkill for graceful shutdown
+            let _ = Command::new("taskkill")
+                .args(["/PID", &child.id().to_string(), "/T"])
+                .output();
+        }
+        
+        #[cfg(not(target_os = "windows"))]
+        {
+            // On Unix, send SIGTERM
+            let _ = child.kill();
+        }
+        
+        // Wait for process to exit
+        let _ = child.wait();
+        info!("Miner process stopped");
+    }
+    
     app_state.miner_running = false;
     
     Ok(())
@@ -87,9 +229,17 @@ pub async fn stop_miner(
 pub async fn get_miner_status(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<MinerStatus, String> {
-    let app_state = state.lock();
+    let (running, node_running, rpc_port, has_process) = {
+        let app_state = state.lock();
+        (
+            app_state.miner_running,
+            app_state.node_running,
+            app_state.rpc_port,
+            app_state.miner_process.is_some(),
+        )
+    };
     
-    if !app_state.miner_running {
+    if !running {
         return Ok(MinerStatus {
             running: false,
             hashrate: 0.0,
@@ -104,18 +254,37 @@ pub async fn get_miner_status(
         });
     }
     
-    // TODO: Get real miner status
+    // Try to get real mining info from node RPC
+    if node_running {
+        let rpc = RpcClient::localhost(rpc_port);
+        if let Ok(info) = rpc.get_mining_info().await {
+            return Ok(MinerStatus {
+                running: true,
+                hashrate: info.hashrate,
+                hashrate_unit: "MH/s".to_string(),
+                accepted_shares: info.blocks_found, // Use blocks as proxy for shares
+                rejected_shares: 0,
+                blocks_found: info.blocks_found,
+                temperature: None,
+                fan_speed: None,
+                power_usage: None,
+                device_name: if has_process { "External Miner".to_string() } else { "Internal (RPC)".to_string() },
+            });
+        }
+    }
+    
+    // Fallback status when RPC is unavailable
     Ok(MinerStatus {
         running: true,
-        hashrate: 25.5,
+        hashrate: 0.0,
         hashrate_unit: "MH/s".to_string(),
-        accepted_shares: 100,
-        rejected_shares: 2,
+        accepted_shares: 0,
+        rejected_shares: 0,
         blocks_found: 0,
-        temperature: Some(65),
-        fan_speed: Some(70),
-        power_usage: Some(120),
-        device_name: "GPU 0".to_string(),
+        temperature: None,
+        fan_speed: None,
+        power_usage: None,
+        device_name: if has_process { "External Miner".to_string() } else { "Mining...".to_string() },
     })
 }
 
@@ -123,14 +292,24 @@ pub async fn get_miner_status(
 pub async fn get_hashrate(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<f64, String> {
-    let app_state = state.lock();
+    let (running, node_running, rpc_port) = {
+        let app_state = state.lock();
+        (app_state.miner_running, app_state.node_running, app_state.rpc_port)
+    };
     
-    if !app_state.miner_running {
+    if !running {
         return Ok(0.0);
     }
     
-    // TODO: Get real hashrate
-    Ok(25.5)
+    // Get real hashrate from node RPC
+    if node_running {
+        let rpc = RpcClient::localhost(rpc_port);
+        if let Ok(info) = rpc.get_mining_info().await {
+            return Ok(info.hashrate);
+        }
+    }
+    
+    Ok(0.0)
 }
 
 /// GPU Device Information

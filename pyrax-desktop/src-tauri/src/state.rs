@@ -63,7 +63,7 @@ impl AppState {
             miner_running: false,
             wallet_unlocked: false,
             data_dir,
-            network: Network::Devnet,
+            network: Network::Testnet, // Testnet is primary
             settings: Settings::default(),
             node_process: None,
             miner_process: None,
@@ -100,7 +100,7 @@ impl Default for Settings {
 
 impl Default for Network {
     fn default() -> Self {
-        Network::Mainnet
+        Network::Testnet // Testnet is the primary network
     }
 }
 
@@ -116,6 +116,75 @@ impl std::fmt::Display for Network {
             Network::Mainnet => write!(f, "mainnet"),
             Network::Testnet => write!(f, "testnet"),
             Network::Devnet => write!(f, "devnet"),
+        }
+    }
+}
+
+/// Network endpoint configuration for all three streams
+#[derive(Debug, Clone)]
+pub struct NetworkEndpoints {
+    /// Stream A - BLAKE3 PoW RPC
+    pub stream_a_rpc: String,
+    /// Stream B - KAWPOW GPU Stratum
+    pub stream_b_stratum: String,
+    /// Stream C - ZK Staking RPC
+    pub stream_c_rpc: String,
+    /// P2P bootstrap nodes
+    pub bootstrap_nodes: Vec<String>,
+    /// Chain ID
+    pub chain_id: u32,
+}
+
+impl Network {
+    /// Get network endpoints for connecting to all streams
+    pub fn endpoints(&self) -> NetworkEndpoints {
+        match self {
+            Network::Mainnet => NetworkEndpoints {
+                stream_a_rpc: "https://rpc.pyrax.org".to_string(),
+                stream_b_stratum: "stratum+tcp://stratum.pyrax.org:3333".to_string(),
+                stream_c_rpc: "https://staking.pyrax.org".to_string(),
+                bootstrap_nodes: vec![
+                    "/dns4/node1.pyrax.org/tcp/30303".to_string(),
+                    "/dns4/node2.pyrax.org/tcp/30303".to_string(),
+                ],
+                chain_id: 797292,
+            },
+            Network::Testnet => NetworkEndpoints {
+                stream_a_rpc: "https://rpc.pyrax-testnet.org".to_string(),
+                stream_b_stratum: "stratum+tcp://stratum.pyrax-testnet.org:3333".to_string(),
+                stream_c_rpc: "https://staking.pyrax-testnet.org".to_string(),
+                bootstrap_nodes: vec![
+                    "/dns4/testnet.pyrax.org/tcp/30303".to_string(),
+                ],
+                chain_id: 7972920,
+            },
+            Network::Devnet => NetworkEndpoints {
+                stream_a_rpc: "https://rpc.pyrax-devnet.org".to_string(),
+                stream_b_stratum: "stratum+tcp://209.38.137.105:3333".to_string(),
+                stream_c_rpc: "https://staking.pyrax-devnet.org".to_string(),
+                bootstrap_nodes: vec![
+                    "/ip4/209.38.137.105/tcp/30303".to_string(),
+                ],
+                chain_id: 79729200,
+            },
+        }
+    }
+
+    /// Get local RPC port for embedded node
+    pub fn local_rpc_port(&self) -> u16 {
+        match self {
+            Network::Mainnet => 8545,
+            Network::Testnet => 18545,
+            Network::Devnet => 28545,
+        }
+    }
+
+    /// Get local Stratum port for embedded miner
+    pub fn local_stratum_port(&self) -> u16 {
+        match self {
+            Network::Mainnet => 3333,
+            Network::Testnet => 13333,
+            Network::Devnet => 23333,
         }
     }
 }
