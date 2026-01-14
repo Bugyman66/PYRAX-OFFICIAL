@@ -3,6 +3,7 @@ import { Settings as SettingsIcon, Save, FolderOpen, RefreshCw } from 'lucide-re
 import { invoke } from '@tauri-apps/api/tauri';
 
 interface AppSettings {
+  network: 'testnet' | 'devnet' | 'mainnet';
   autoStartNode: boolean;
   autoStartMiner: boolean;
   minerAddress?: string;
@@ -17,6 +18,7 @@ interface AppSettings {
 
 export default function Settings() {
   const [settings, setSettings] = useState<AppSettings>({
+    network: 'testnet', // Testnet is the default
     autoStartNode: false,
     autoStartMiner: false,
     minerThreads: 0,
@@ -85,6 +87,43 @@ export default function Settings() {
             </>
           )}
         </button>
+      </div>
+
+      {/* Network Selection - PROMINENT */}
+      <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 border-2 border-purple-500 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          🌐 Network Selection
+        </h2>
+        <p className="text-sm text-gray-300 mb-4">
+          Choose which PYRAX network to connect to. <strong>Testnet is recommended</strong> for testing.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <NetworkCard
+            name="Testnet"
+            description="Primary testing network"
+            chainId="7972920"
+            isSelected={settings.network === 'testnet'}
+            isRecommended={true}
+            onSelect={() => updateSetting('network', 'testnet')}
+          />
+          <NetworkCard
+            name="Devnet"
+            description="Development network"
+            chainId="79729200"
+            isSelected={settings.network === 'devnet'}
+            isRecommended={false}
+            onSelect={() => updateSetting('network', 'devnet')}
+          />
+          <NetworkCard
+            name="Mainnet"
+            description="Production network (coming soon)"
+            chainId="797292"
+            isSelected={settings.network === 'mainnet'}
+            isRecommended={false}
+            disabled={true}
+            onSelect={() => {}}
+          />
+        </div>
       </div>
 
       {/* General Settings */}
@@ -257,6 +296,52 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
           checked ? 'translate-x-6' : 'translate-x-0.5'
         }`}
       />
+    </button>
+  );
+}
+
+function NetworkCard({ 
+  name, 
+  description, 
+  chainId, 
+  isSelected, 
+  isRecommended, 
+  disabled,
+  onSelect 
+}: {
+  name: string;
+  description: string;
+  chainId: string;
+  isSelected: boolean;
+  isRecommended?: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      disabled={disabled}
+      className={`relative p-4 rounded-xl border-2 transition-all text-left ${
+        disabled 
+          ? 'opacity-50 cursor-not-allowed border-gray-700 bg-gray-800'
+          : isSelected
+            ? 'border-purple-500 bg-purple-900/30 ring-2 ring-purple-500/50'
+            : 'border-gray-600 bg-gray-800 hover:border-gray-500 hover:bg-gray-750'
+      }`}
+    >
+      {isRecommended && (
+        <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-green-600 text-xs rounded-full font-semibold">
+          Recommended
+        </span>
+      )}
+      <div className="font-semibold text-lg">{name}</div>
+      <div className="text-sm text-gray-400 mt-1">{description}</div>
+      <div className="text-xs text-gray-500 mt-2">Chain ID: {chainId}</div>
+      {isSelected && (
+        <div className="absolute top-3 right-3 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+          <span className="text-white text-xs">✓</span>
+        </div>
+      )}
     </button>
   );
 }

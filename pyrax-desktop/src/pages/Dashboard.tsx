@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/tauri';
 import { 
   Activity, 
   Blocks, 
@@ -7,7 +8,8 @@ import {
   Zap,
   Play,
   Square,
-  RefreshCw
+  RefreshCw,
+  Globe
 } from 'lucide-react';
 import { useNodeStore } from '../stores/nodeStore';
 import { useWalletStore } from '../stores/walletStore';
@@ -18,12 +20,34 @@ export default function Dashboard() {
   const { status, chainInfo, error: nodeError, startNode, stopNode, fetchChainInfo, loading: nodeLoading } = useNodeStore();
   const { addresses } = useWalletStore();
   const { status: minerStatus } = useMinerStore();
+  const [selectedNetwork, setSelectedNetwork] = useState<'testnet' | 'devnet'>('testnet');
+
+  useEffect(() => {
+    // Load current network setting
+    invoke<{ network: string }>('get_settings').then((settings) => {
+      if (settings.network === 'devnet' || settings.network === 'testnet') {
+        setSelectedNetwork(settings.network);
+      }
+    }).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (status?.running && status?.connected) {
       fetchChainInfo();
     }
   }, [status?.running, status?.connected, fetchChainInfo]);
+
+  const handleNetworkChange = async (network: 'testnet' | 'devnet') => {
+    setSelectedNetwork(network);
+    try {
+      const currentSettings = await invoke<any>('get_settings');
+      await invoke('save_settings', { 
+        settings: { ...currentSettings, network } 
+      });
+    } catch (e) {
+      console.error('Failed to save network:', e);
+    }
+  };
 
   const totalBalance = addresses.reduce((sum, addr) => {
     return sum + parseFloat(addr.balance || '0');
@@ -49,7 +73,35 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
+          {/* Network Selector */}
+          <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
+            <Globe size={16} className="ml-2 text-gray-400" />
+            <button
+              onClick={() => handleNetworkChange('testnet')}
+              disabled={status?.running}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                selectedNetwork === 'testnet'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              } ${status?.running ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Testnet
+            </button>
+            <button
+              onClick={() => handleNetworkChange('devnet')}
+              disabled={status?.running}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                selectedNetwork === 'devnet'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+              } ${status?.running ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              Devnet
+            </button>
+          </div>
+
+          {/* Node Control */}
           {status?.running ? (
             <button
               onClick={handleStopNode}
