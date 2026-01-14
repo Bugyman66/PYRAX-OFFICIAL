@@ -12,14 +12,16 @@ services:
     container_name: pyrax-node
     restart: unless-stopped
     ports:
-      - "30303:30303"
-      - "30304:30304/udp"
+      - "30303:30303"      # P2P TCP
+      - "30304:30304/udp"  # P2P UDP
+      - "3333:3333"        # Stratum (GPU mining)
     expose:
-      - "8545"
-      - "8546"
+      - "8545"  # Stream A RPC (internal)
+      - "8546"  # Stream B RPC (internal)
     environment:
       - RUST_LOG=info
       - PYRAX_NETWORK=devnet
+      - PYRAX_STRATUM_ENABLED=true
     volumes:
       - node-data:/app/data
       - dag-cache:/app/dag_cache
