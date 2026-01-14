@@ -96,15 +96,18 @@ impl fmt::Display for Address {
 pub struct NetworkId(pub u32);
 
 impl NetworkId {
-    pub const MAINNET: NetworkId = NetworkId(1);
-    pub const TESTNET: NetworkId = NetworkId(2);
-    pub const DEVNET: NetworkId = NetworkId(3);
+    /// PYRAX Mainnet - Chain ID 79729 (PYRAX on phone keypad: 7-9-7-2-9)
+    pub const MAINNET: NetworkId = NetworkId(79729);
+    /// PYRAX Testnet - Chain ID 797291
+    pub const TESTNET: NetworkId = NetworkId(797291);
+    /// PYRAX Devnet - Chain ID 797292
+    pub const DEVNET: NetworkId = NetworkId(797292);
     
     pub fn name(&self) -> &'static str {
         match self.0 {
-            1 => "mainnet",
-            2 => "testnet",
-            3 => "devnet",
+            79729 => "mainnet",
+            797291 => "testnet",
+            797292 => "devnet",
             _ => "unknown",
         }
     }

@@ -93,8 +93,9 @@ struct Args {
 
 fn parse_network(s: &str) -> NetworkId {
     match s.to_lowercase().as_str() {
-        "mainnet" | "main" | "1" => NetworkId::MAINNET,
-        "testnet" | "test" | "2" => NetworkId::TESTNET,
+        "mainnet" | "main" | "79729" => NetworkId::MAINNET,
+        "testnet" | "test" | "797291" => NetworkId::TESTNET,
+        "devnet" | "dev" | "797292" => NetworkId::DEVNET,
         _ => NetworkId::DEVNET,
     }
 }
