@@ -140,14 +140,14 @@ jobs:
             apt-get install -y -qq build-essential pkg-config libssl-dev clang llvm-dev libclang-dev
           fi
           
-          # Build pyrax-node
+          # Build pyrax-node (workspace build - binary goes to workspace root target/)
           echo "=== BUILDING PYRAX-NODE ==="
-          cd /opt/pyrax/pyrax-node
-          cargo build --release
+          cd /opt/pyrax
+          cargo build --release -p pyrax-node
           
-          # Install binary
+          # Install binary (workspace root target directory)
           echo "=== INSTALLING PYRAX-NODE BINARY ==="
-          cp target/release/pyrax-node /usr/local/bin/pyrax-node
+          cp /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
           chmod +x /usr/local/bin/pyrax-node
           echo "Installed: $(pyrax-node --version)"
           
