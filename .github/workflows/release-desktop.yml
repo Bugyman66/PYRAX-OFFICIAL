@@ -157,37 +157,85 @@ jobs:
             Write-Host "FOUND SIG: $($_.FullName)"
           }
 
-      - name: Upload NSIS installer to release
+      - name: Find and upload bundle files to release
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $version = "${{ needs.create-release.outputs.version }}"
-          $releaseId = "${{ needs.create-release.outputs.release_id }}"
-          $nsisDir = "pyrax-desktop/src-tauri/target/release/bundle/nsis"
           
-          # Find the exe file
-          $exeFile = Get-ChildItem -Path $nsisDir -Filter "*.exe" | Select-Object -First 1
+          Write-Host "=== Searching for bundle files ==="
+          
+          # Find bundle directory - check multiple possible locations
+          $bundleBase = "pyrax-desktop/src-tauri/target/release/bundle"
+          
+          if (-not (Test-Path $bundleBase)) {
+            Write-Host "Bundle directory not found at: $bundleBase"
+            Write-Host "Searching for bundle directory..."
+            $bundleBase = Get-ChildItem -Path "." -Directory -Recurse -Filter "bundle" -ErrorAction SilentlyContinue | 
+                          Where-Object { $_.FullName -like "*target*release*" } | 
+                          Select-Object -First 1 -ExpandProperty FullName
+            if ($bundleBase) {
+              Write-Host "Found bundle at: $bundleBase"
+            } else {
+              Write-Error "Could not find bundle directory anywhere!"
+              Write-Host "Listing all directories under pyrax-desktop:"
+              Get-ChildItem -Path "pyrax-desktop" -Directory -Recurse -Depth 6 | ForEach-Object { Write-Host $_.FullName }
+              exit 1
+            }
+          }
+          
+          Write-Host "Bundle base: $bundleBase"
+          Write-Host ""
+          Write-Host "=== All files in bundle directory ==="
+          Get-ChildItem -Path $bundleBase -Recurse -File | ForEach-Object {
+            Write-Host "$($_.FullName) ($($_.Length) bytes)"
+          }
+          Write-Host ""
+          
+          # Find NSIS directory
+          $nsisDir = Join-Path $bundleBase "nsis"
+          if (-not (Test-Path $nsisDir)) {
+            Write-Host "NSIS dir not found, looking for any exe..."
+            $nsisDir = $bundleBase
+          }
+          
+          # Upload all relevant files
+          $uploaded = 0
+          
+          # Find and upload exe
+          $exeFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*setup*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($exeFile) {
-            Write-Host "Uploading: $($exeFile.Name)"
+            Write-Host "Uploading EXE: $($exeFile.Name)"
             gh release upload "desktop-v$version" "$($exeFile.FullName)" --clobber
+            $uploaded++
           }
           
-          # Find and upload .nsis.zip if it exists
-          $zipFile = Get-ChildItem -Path $nsisDir -Filter "*.nsis.zip" | Select-Object -First 1
+          # Find and upload .nsis.zip
+          $zipFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*.nsis.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($zipFile) {
-            Write-Host "Uploading: $($zipFile.Name)"
+            Write-Host "Uploading NSIS ZIP: $($zipFile.Name)"
             gh release upload "desktop-v$version" "$($zipFile.FullName)" --clobber
+            $uploaded++
           }
           
-          # Find and upload .sig file if it exists
-          $sigFile = Get-ChildItem -Path $nsisDir -Filter "*.sig" | Select-Object -First 1
+          # Find and upload .sig file
+          $sigFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($sigFile) {
-            Write-Host "Uploading: $($sigFile.Name)"
+            Write-Host "Uploading SIG: $($sigFile.Name)"
             gh release upload "desktop-v$version" "$($sigFile.FullName)" --clobber
+            $uploaded++
           } else {
-            Write-Host "WARNING: No .sig file found! Updater will not work."
+            Write-Host "WARNING: No .sig file found! OTA updates will not work."
           }
+          
+          if ($uploaded -eq 0) {
+            Write-Error "No files were uploaded! Build may have failed."
+            exit 1
+          }
+          
+          Write-Host ""
+          Write-Host "Successfully uploaded $uploaded file(s)"
 
   publish-release:
     needs: [create-release, build-tauri]
