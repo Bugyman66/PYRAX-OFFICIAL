@@ -82,7 +82,16 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './pyrax-desktop/src-tauri -> target'
+          workspaces: '. -> target'
+
+      - name: Build pyrax-node binary
+        run: cargo build --release -p pyrax-node
+
+      - name: Copy pyrax-node to resources
+        run: |
+          mkdir -p pyrax-desktop/src-tauri/resources
+          Copy-Item target/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
+        shell: pwsh
 
       - name: Install frontend dependencies
         working-directory: pyrax-desktop
