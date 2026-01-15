@@ -168,29 +168,40 @@ jobs:
             
             console.log('Release assets:', release.assets.map(a => a.name));
             
-            // Find the .nsis.zip and .nsis.zip.sig files
-            const nsisAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
-            const sigAsset = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            // Find installer asset - try .nsis.zip first, then .exe
+            let installerAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
+            let sigAsset = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
             
-            if (!nsisAsset || !sigAsset) {
-              core.setFailed(`Required assets not found. NSIS: ${!!nsisAsset}, Sig: ${!!sigAsset}`);
+            // Fallback to .exe if .nsis.zip not found
+            if (!installerAsset) {
+              installerAsset = release.assets.find(a => a.name.endsWith('-setup.exe') || a.name.endsWith('_x64-setup.exe'));
+              sigAsset = release.assets.find(a => a.name.endsWith('-setup.exe.sig') || a.name.endsWith('_x64-setup.exe.sig'));
+            }
+            
+            if (!installerAsset) {
+              core.setFailed(`No installer asset found in release`);
               return;
             }
             
-            console.log('Found NSIS asset:', nsisAsset.name);
-            console.log('Found sig asset:', sigAsset.name);
+            console.log('Found installer asset:', installerAsset.name);
             
-            // Download signature using fetch
-            const sigUrl = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${sigAsset.id}`;
-            const sigResponse = await fetch(sigUrl, {
-              headers: {
-                'Authorization': `token ${process.env.GITHUB_TOKEN}`,
-                'Accept': 'application/octet-stream'
-              }
-            });
-            const signature = await sigResponse.text();
-            
-            console.log('Signature downloaded, length:', signature.length);
+            let signature = '';
+            if (sigAsset) {
+              console.log('Found sig asset:', sigAsset.name);
+              // Download signature using fetch
+              const sigUrl = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${sigAsset.id}`;
+              const sigResponse = await fetch(sigUrl, {
+                headers: {
+                  'Authorization': `token ${process.env.GITHUB_TOKEN}`,
+                  'Accept': 'application/octet-stream'
+                }
+              });
+              signature = await sigResponse.text();
+              console.log('Signature downloaded, length:', signature.length);
+            } else {
+              console.log('Warning: No signature file found - OTA updates may not work without signing');
+              signature = 'unsigned';
+            }
             
             // Create update manifest
             const manifest = {
@@ -200,7 +211,7 @@ jobs:
               platforms: {
                 'windows-x86_64': {
                   signature: signature.trim(),
-                  url: nsisAsset.browser_download_url
+                  url: installerAsset.browser_download_url
                 }
               }
             };
