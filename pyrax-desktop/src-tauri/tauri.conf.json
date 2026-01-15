@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "PYRAX Desktop",
-    "version": "0.2.3"
+    "version": "0.2.4"
   },
   "tauri": {
     "allowlist": {
@@ -75,7 +75,7 @@
     "updater": {
       "active": true,
       "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUzRjFBQTA4MTdCQTVBMjMKUldRaldyb1hDS3J4VXlqTm95QUNTbUx0N2kzSVhCcE16dDcrS1hxMkM3SHMwSjh6SU5OaWh1MnAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY3NjVGOTMwQ0ZERTAzClJXUUQzczh3K1dYM0FEaUtnZEIwTEJoTGNHcWV2SEtrVmpHNHJNT1l5Smgrd0h1RHJyWStyOTNICg==",
       "endpoints": [
         "https://github.com/PYRAX-Chain/PYRAX-OFFICIAL/releases/latest/download/latest.json"
       ],
