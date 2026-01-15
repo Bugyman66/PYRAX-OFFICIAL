@@ -5,6 +5,9 @@
 //! - mDNS for local peer discovery
 //! - Request/Response for block sync
 
+mod registry;
+pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
+
 use libp2p::{
     gossipsub, identify, mdns, noise,
     swarm::{NetworkBehaviour, SwarmEvent},
@@ -12,7 +15,7 @@ use libp2p::{
 };
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, RwLock};
 use tracing::{info, warn, debug, error};
 use futures::StreamExt;
@@ -89,6 +92,7 @@ pub struct Network {
     db: Arc<ChainDB>,
     network_id: NetworkId,
     connected_peers: Arc<RwLock<HashMap<PeerId, PeerInfo>>>,
+    peer_registry: PeerRegistry,
     // Channels for received blocks/txs
     block_tx: mpsc::Sender<Block>,
     block_rx: Option<mpsc::Receiver<Block>>,
@@ -97,8 +101,8 @@ pub struct Network {
 }
 
 impl Network {
-    /// Create a new P2P network
-    pub async fn new(config: P2PConfig, db: Arc<ChainDB>, network_id: NetworkId) -> anyhow::Result<Self> {
+    /// Create a new P2P network with a shared peer registry
+    pub async fn new(config: P2PConfig, db: Arc<ChainDB>, network_id: NetworkId, peer_registry: PeerRegistry) -> anyhow::Result<Self> {
         info!("Initializing P2P network for {}", network_id.name());
 
         // Generate keypair
@@ -151,12 +155,16 @@ impl Network {
         let (block_tx, block_rx) = mpsc::channel(100);
         let (tx_tx, tx_rx) = mpsc::channel(1000);
 
+        // Set local peer ID in registry
+        peer_registry.set_local_peer_id(local_peer_id.to_string()).await;
+
         Ok(Self {
             local_peer_id,
             swarm,
             db,
             network_id,
             connected_peers: Arc::new(RwLock::new(HashMap::new())),
+            peer_registry,
             block_tx,
             block_rx: Some(block_rx),
             tx_tx,
@@ -267,19 +275,38 @@ impl Network {
                             self.handle_behaviour_event(event).await;
                         }
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
-                            info!("Connected to peer: {} at {:?}", peer_id, endpoint.get_remote_address());
+                            let addr_str = endpoint.get_remote_address().to_string();
+                            let (ip, port) = parse_multiaddr(&addr_str);
+                            let direction = if endpoint.is_dialer() { PeerDirection::Outbound } else { PeerDirection::Inbound };
+                            
+                            info!("Connected to peer: {} at {} ({})", peer_id, addr_str, direction);
+                            
                             self.connected_peers.write().await.insert(peer_id, PeerInfo {
                                 peer_id: peer_id.to_string(),
-                                address: endpoint.get_remote_address().to_string(),
+                                address: addr_str.clone(),
                                 best_height: 0,
                             });
+                            
+                            self.peer_registry.add_peer(ConnectedPeer {
+                                peer_id: peer_id.to_string(),
+                                address: addr_str,
+                                ip,
+                                port,
+                                direction,
+                                connected_at: Instant::now(),
+                                last_seen: Instant::now(),
+                                client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
+                                best_height: 0,
+                            }).await;
                         }
                         SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                             info!("Disconnected from peer: {} ({:?})", peer_id, cause);
                             self.connected_peers.write().await.remove(&peer_id);
+                            self.peer_registry.remove_peer(&peer_id.to_string()).await;
                         }
                         SwarmEvent::NewListenAddr { address, .. } => {
                             info!("Listening on {}/p2p/{}", address, self.local_peer_id);
+                            self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
                         }
                         SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
                             debug!("Incoming connection from {} to {}", send_back_addr, local_addr);
@@ -316,12 +343,29 @@ impl Network {
                             self.handle_behaviour_event(event).await;
                         }
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
-                            info!("Connected to peer: {} at {:?}", peer_id, endpoint.get_remote_address());
+                            let addr_str = endpoint.get_remote_address().to_string();
+                            let (ip, port) = parse_multiaddr(&addr_str);
+                            let direction = if endpoint.is_dialer() { PeerDirection::Outbound } else { PeerDirection::Inbound };
+                            
+                            info!("Connected to peer: {} at {} ({})", peer_id, addr_str, direction);
+                            
                             self.connected_peers.write().await.insert(peer_id, PeerInfo {
                                 peer_id: peer_id.to_string(),
-                                address: endpoint.get_remote_address().to_string(),
+                                address: addr_str.clone(),
                                 best_height: 0,
                             });
+                            
+                            self.peer_registry.add_peer(ConnectedPeer {
+                                peer_id: peer_id.to_string(),
+                                address: addr_str,
+                                ip,
+                                port,
+                                direction,
+                                connected_at: Instant::now(),
+                                last_seen: Instant::now(),
+                                client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
+                                best_height: 0,
+                            }).await;
                             
                             // Start sync timer when first peer connects
                             if !sync_delay_started && !sync_requested {
@@ -332,9 +376,11 @@ impl Network {
                         SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                             info!("Disconnected from peer: {} ({:?})", peer_id, cause);
                             self.connected_peers.write().await.remove(&peer_id);
+                            self.peer_registry.remove_peer(&peer_id.to_string()).await;
                         }
                         SwarmEvent::NewListenAddr { address, .. } => {
                             info!("Listening on {}/p2p/{}", address, self.local_peer_id);
+                            self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
                         }
                         SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
                             debug!("Incoming connection from {} to {}", send_back_addr, local_addr);

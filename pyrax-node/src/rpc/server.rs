@@ -75,15 +75,25 @@ pub struct RpcServerImpl {
     db: Arc<ChainDB>,
     network_id: NetworkId,
     mempool: Option<Arc<Mempool>>,
+    peer_registry: Option<crate::p2p::PeerRegistry>,
 }
 
 impl RpcServerImpl {
     pub fn new(db: Arc<ChainDB>, network_id: NetworkId) -> Self {
-        Self { db, network_id, mempool: None }
+        Self { db, network_id, mempool: None, peer_registry: None }
     }
     
     pub fn with_mempool(db: Arc<ChainDB>, network_id: NetworkId, mempool: Arc<Mempool>) -> Self {
-        Self { db, network_id, mempool: Some(mempool) }
+        Self { db, network_id, mempool: Some(mempool), peer_registry: None }
+    }
+
+    pub fn with_mempool_and_peers(
+        db: Arc<ChainDB>,
+        network_id: NetworkId,
+        mempool: Arc<Mempool>,
+        peer_registry: crate::p2p::PeerRegistry,
+    ) -> Self {
+        Self { db, network_id, mempool: Some(mempool), peer_registry: Some(peer_registry) }
     }
 }
 
@@ -405,14 +415,43 @@ impl PyraxRpcServer for RpcServerImpl {
     }
 
     async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo> {
-        // Return network info - peers will be populated by P2P layer
-        // For now, return basic info indicating the node is running
-        Ok(super::RpcNetworkInfo {
-            peer_count: 0,
-            peers: vec![],
-            local_peer_id: "".to_string(),
-            listen_addresses: vec![],
-        })
+        if let Some(ref registry) = self.peer_registry {
+            let peers = registry.get_peers().await;
+            let local_peer_id = registry.local_peer_id().await;
+            let listen_addresses = registry.listen_addresses().await;
+
+            let rpc_peers: Vec<super::RpcPeerInfo> = peers.iter().map(|p| {
+                super::RpcPeerInfo {
+                    peer_id: p.peer_id.clone(),
+                    address: p.address.clone(),
+                    ip: p.ip.clone(),
+                    port: p.port,
+                    protocol: format!("/pyrax/{}/1.0.0", self.network_id.name()),
+                    direction: p.direction.to_string(),
+                    connected_secs: p.connected_at.elapsed().as_secs(),
+                    last_seen: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64 - p.last_seen.elapsed().as_millis() as u64,
+                    version: p.client_version.clone(),
+                    block_height: p.best_height,
+                }
+            }).collect();
+
+            Ok(super::RpcNetworkInfo {
+                peer_count: rpc_peers.len(),
+                peers: rpc_peers,
+                local_peer_id,
+                listen_addresses,
+            })
+        } else {
+            Ok(super::RpcNetworkInfo {
+                peer_count: 0,
+                peers: vec![],
+                local_peer_id: String::new(),
+                listen_addresses: vec![],
+            })
+        }
     }
 }
 
@@ -452,6 +491,27 @@ pub async fn start_server_with_mempool(
     let handle = server.start(rpc.into_rpc());
 
     info!("JSON-RPC server started on http://{} (with mempool)", addr);
+    Ok(handle)
+}
+
+/// Start the RPC server with mempool and P2P peer registry
+pub async fn start_server_with_peers(
+    addr: &str,
+    db: Arc<ChainDB>,
+    network_id: NetworkId,
+    mempool: Arc<Mempool>,
+    peer_registry: crate::p2p::PeerRegistry,
+) -> Result<ServerHandle, Box<dyn std::error::Error + Send + Sync>> {
+    let addr: SocketAddr = addr.parse()?;
+    
+    let server = ServerBuilder::default()
+        .build(addr)
+        .await?;
+
+    let rpc = RpcServerImpl::with_mempool_and_peers(db, network_id, mempool, peer_registry);
+    let handle = server.start(rpc.into_rpc());
+
+    info!("JSON-RPC server started on http://{} (with mempool + P2P)", addr);
     Ok(handle)
 }
 

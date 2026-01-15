@@ -36,9 +36,9 @@ mod services;
 use storage::ChainDB;
 use types::{NetworkId, Block, BlockHeader, Transaction, Address, H256};
 use validation::BlockValidator;
-use p2p::{Network, P2PConfig};
+use p2p::{Network, P2PConfig, PeerRegistry};
 use mempool::{Mempool, MempoolConfig};
-use rpc::{start_server as start_rpc_server, start_server_with_mempool as start_rpc_server_with_mempool};
+use rpc::{start_server_with_peers as start_rpc_server_with_peers};
 
 #[derive(Parser, Debug)]
 #[command(name = "pyrax-node")]
@@ -176,10 +176,14 @@ async fn main() -> anyhow::Result<()> {
     let mempool = Arc::new(Mempool::new(MempoolConfig::default()));
     info!("Mempool initialized");
 
+    // Create shared peer registry for P2P and RPC communication
+    let peer_registry = PeerRegistry::new();
+    info!("Peer registry initialized");
+
     // Start RPC server if enabled (Stream A)
     let _rpc_handle = if args.rpc {
         info!("Starting Stream A RPC server on {}", args.rpc_addr);
-        match start_rpc_server_with_mempool(&args.rpc_addr, db.clone(), network, mempool.clone()).await {
+        match start_rpc_server_with_peers(&args.rpc_addr, db.clone(), network, mempool.clone(), peer_registry.clone()).await {
             Ok(handle) => {
                 info!("✓ Stream A RPC running on http://{}", args.rpc_addr);
                 Some(handle)
@@ -295,7 +299,7 @@ async fn main() -> anyhow::Result<()> {
             max_peers: 50,
         };
 
-        let mut network = Network::new(p2p_config, db.clone(), network).await?;
+        let mut network = Network::new(p2p_config, db.clone(), network, peer_registry.clone()).await?;
         
         // Listen on configured address
         network.listen(&args.p2p_addr)?;
