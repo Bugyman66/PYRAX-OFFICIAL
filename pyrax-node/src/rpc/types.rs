@@ -119,7 +119,22 @@ pub struct RpcChainInfo {
 pub struct RpcPeerInfo {
     pub peer_id: String,
     pub address: String,
+    pub ip: String,
+    pub port: u16,
     pub protocol: String,
+    pub direction: String,
+    pub connected_secs: u64,
+    pub last_seen: u64,
+    pub version: String,
+    pub block_height: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcNetworkInfo {
+    pub peer_count: usize,
+    pub peers: Vec<RpcPeerInfo>,
+    pub local_peer_id: String,
+    pub listen_addresses: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

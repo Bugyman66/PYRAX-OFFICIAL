@@ -64,6 +64,10 @@ pub trait PyraxRpc {
     /// Create a test transaction (devnet only) - spends from one address to another
     #[method(name = "pyrax_createTestTransaction")]
     async fn create_test_transaction(&self, from_address: String, to_address: String, amount: u64) -> RpcResult<RpcSubmitResult>;
+
+    /// Get network peer information
+    #[method(name = "pyrax_getNetworkInfo")]
+    async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo>;
 }
 
 /// RPC server state
@@ -398,6 +402,17 @@ impl PyraxRpcServer for RpcServerImpl {
                 error: Some("Mempool not available".to_string()),
             })
         }
+    }
+
+    async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo> {
+        // Return network info - peers will be populated by P2P layer
+        // For now, return basic info indicating the node is running
+        Ok(super::RpcNetworkInfo {
+            peer_count: 0,
+            peers: vec![],
+            local_peer_id: "".to_string(),
+            listen_addresses: vec![],
+        })
     }
 }
 
