@@ -113,12 +113,21 @@ jobs:
           (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
         shell: pwsh
 
+      - name: Verify signing key is set
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrEmpty("${{ secrets.TAURI_PRIVATE_KEY }}")) {
+            Write-Error "TAURI_PRIVATE_KEY secret is not set! OTA updates require signing."
+            exit 1
+          }
+          Write-Host "TAURI_PRIVATE_KEY is set (length: $("${{ secrets.TAURI_PRIVATE_KEY }}".Length) chars)"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          TAURI_KEY_PASSWORD: ""
         with:
           projectPath: pyrax-desktop
           releaseId: ${{ needs.create-release.outputs.release_id }}
