@@ -287,11 +287,13 @@ pub async fn start_node(
         cmd.stdout(Stdio::null())
            .stderr(Stdio::null());
         
-        // On Windows, create the process without a window
+        // On Windows, create the process without a window and detached
         #[cfg(target_os = "windows")]
         {
             const CREATE_NO_WINDOW: u32 = 0x08000000;
-            cmd.creation_flags(CREATE_NO_WINDOW);
+            const DETACHED_PROCESS: u32 = 0x00000008;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+            cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
         }
         
         // Log the full command for debugging
@@ -299,8 +301,26 @@ pub async fn start_node(
         info!("Starting node with command: {:?}", cmd);
         
         match cmd.spawn() {
-            Ok(child) => {
+            Ok(mut child) => {
                 let pid = child.id();
+                
+                // Give the process a moment to start, then verify it's running
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                
+                match child.try_wait() {
+                    Ok(Some(status)) => {
+                        // Process exited immediately - this is a problem!
+                        emit_log(&app, "error", "node", &format!("Node process exited immediately with status: {}", status));
+                        return Err(format!("Node process exited immediately with status: {}", status));
+                    }
+                    Ok(None) => {
+                        // Process is still running - good!
+                        emit_log(&app, "info", "node", &format!("Node process {} is running", pid));
+                    }
+                    Err(e) => {
+                        emit_log(&app, "warn", "node", &format!("Could not check process status: {}", e));
+                    }
+                }
                 
                 emit_log(&app, "info", "node", &format!("Node started with PID: {}", pid));
                 emit_log(&app, "info", "p2p", &format!("P2P listening on {}", p2p_addr));
