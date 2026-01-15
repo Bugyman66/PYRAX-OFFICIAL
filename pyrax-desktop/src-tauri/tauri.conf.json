@@ -74,7 +74,7 @@
     },
     "updater": {
       "active": true,
-      "dialog": false,
+      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUzRjFBQTA4MTdCQTVBMjMKUldRaldyb1hDS3J4VXlqTm95QUNTbUx0N2kzSVhCcE16dDcrS1hxMkM3SHMwSjh6SU5OaWh1MnAK",
       "endpoints": [
         "https://github.com/PYRAX-Chain/PYRAX-OFFICIAL/releases/latest/download/latest.json"
