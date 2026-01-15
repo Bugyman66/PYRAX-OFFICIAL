@@ -63,7 +63,7 @@ impl AppState {
             miner_running: false,
             wallet_unlocked: false,
             data_dir,
-            network: Network::Testnet, // Testnet is primary
+            network: Network::Devnet, // Devnet is active, Testnet not yet deployed
             settings: Settings::default(),
             node_process: None,
             miner_process: None,
@@ -100,7 +100,7 @@ impl Default for Settings {
 
 impl Default for Network {
     fn default() -> Self {
-        Network::Testnet // Testnet is the primary network
+        Network::Devnet // Devnet is active, Testnet not yet deployed
     }
 }
 
