@@ -31,8 +31,12 @@ interface NodeStats {
   byCountry: Record<string, number>;
 }
 
-// RPC endpoint for getting connected peers
-const DEVNET_RPC = process.env.DEVNET_RPC_URL || 'http://209.38.137.105:28545';
+// RPC endpoints for all 3 streams
+const STREAM_ENDPOINTS = {
+  A: process.env.STREAM_A_RPC || 'http://209.38.137.105:28545',  // BLAKE3 PoW
+  B: process.env.STREAM_B_RPC || 'http://209.38.137.105:28545',  // KAWPOW (shares RPC with A for peer info)
+  C: process.env.STREAM_C_RPC || 'http://209.38.137.105:28547',  // ZK Staking
+};
 
 // Cache for IP geolocation to avoid repeated API calls
 const geoCache = new Map<string, GeoLocation>();
@@ -110,10 +114,10 @@ function extractIP(address: string): string {
   return address;
 }
 
-export async function GET() {
+// Fetch peers from a specific stream endpoint
+async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Promise<{ peers: any[]; localPeerId: string; listenAddresses: string[] }> {
   try {
-    // Get network info from the node's RPC
-    const response = await fetch(DEVNET_RPC, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -122,33 +126,64 @@ export async function GET() {
         params: [],
         id: 1,
       }),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(5000),
     });
 
     if (!response.ok) {
-      throw new Error(`RPC returned ${response.status}`);
+      return { peers: [], localPeerId: '', listenAddresses: [] };
     }
 
     const data = await response.json();
-    
     if (data.error) {
-      throw new Error(data.error.message || 'RPC error');
+      return { peers: [], localPeerId: '', listenAddresses: [] };
     }
 
     const networkInfo = data.result;
-    const peers = networkInfo?.peers || [];
+    // Tag each peer with the stream it came from
+    const peers = (networkInfo?.peers || []).map((p: any) => ({ ...p, _stream: stream }));
+    return {
+      peers,
+      localPeerId: networkInfo?.local_peer_id || '',
+      listenAddresses: networkInfo?.listen_addresses || [],
+    };
+  } catch {
+    return { peers: [], localPeerId: '', listenAddresses: [] };
+  }
+}
+
+export async function GET() {
+  try {
+    // Fetch peers from all 3 streams in parallel
+    const [streamA, streamC] = await Promise.all([
+      fetchStreamPeers(STREAM_ENDPOINTS.A, 'A'),
+      fetchStreamPeers(STREAM_ENDPOINTS.C, 'C'),
+    ]);
+
+    // Combine all peers, using _stream tag or detecting from endpoint
+    const allPeers = [...streamA.peers, ...streamC.peers];
+    
+    // Deduplicate peers by peer_id (same peer might be connected to multiple streams)
+    const seenPeerIds = new Set<string>();
+    const uniquePeers = allPeers.filter(peer => {
+      const id = peer.peer_id || peer.id;
+      if (seenPeerIds.has(id)) return false;
+      seenPeerIds.add(id);
+      return true;
+    });
 
     // Process peers and get geolocation for each
     const nodes: ConnectedNode[] = await Promise.all(
-      peers.map(async (peer: any, idx: number) => {
+      uniquePeers.map(async (peer: any, idx: number) => {
         const ip = extractIP(peer.address || peer.ip || '');
         const geo = await getGeoLocation(ip);
         
-        // Determine stream based on port or protocol
-        let stream: 'A' | 'B' | 'C' = 'A';
+        // Use the stream tag we added, or determine from port
+        let stream: 'A' | 'B' | 'C' = peer._stream || 'A';
         const port = peer.port || 30303;
-        if (peer.protocol?.includes('stratum') || port === 3333) stream = 'B';
-        else if (peer.protocol?.includes('staking') || port === 28547) stream = 'C';
+        if (!peer._stream) {
+          if (peer.protocol?.includes('stratum') || port === 3333) stream = 'B';
+          else if (peer.protocol?.includes('staking') || port === 28547) stream = 'C';
+        }
 
         return {
           id: peer.peer_id || `peer-${idx}`,
@@ -187,8 +222,8 @@ export async function GET() {
     return NextResponse.json({ 
       nodes, 
       stats,
-      localPeerId: networkInfo?.local_peer_id || '',
-      listenAddresses: networkInfo?.listen_addresses || [],
+      localPeerId: streamA.localPeerId || streamC.localPeerId || '',
+      listenAddresses: [...streamA.listenAddresses, ...streamC.listenAddresses],
     });
   } catch (error) {
     console.error('Failed to fetch nodes:', error);

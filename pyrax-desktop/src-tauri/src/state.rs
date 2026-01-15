@@ -159,9 +159,9 @@ impl Network {
                 chain_id: 7972920,
             },
             Network::Devnet => NetworkEndpoints {
-                stream_a_rpc: "https://rpc.pyrax-devnet.org".to_string(),
+                stream_a_rpc: "http://209.38.137.105:28545".to_string(),
                 stream_b_stratum: "stratum+tcp://209.38.137.105:3333".to_string(),
-                stream_c_rpc: "https://staking.pyrax-devnet.org".to_string(),
+                stream_c_rpc: "http://209.38.137.105:28547".to_string(),
                 bootstrap_nodes: vec![
                     "/ip4/209.38.137.105/tcp/30303".to_string(),
                 ],

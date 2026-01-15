@@ -246,11 +246,21 @@ pub async fn start_node(
         };
         
         let rpc_addr = format!("0.0.0.0:{}", rpc_port);
-        let p2p_port = rpc_port + 21758; // P2P port offset (e.g., 28545 -> 50303)
+        // Use standard P2P port based on network
+        let p2p_port = match network {
+            crate::state::Network::Mainnet => 30303,
+            crate::state::Network::Testnet => 30304,
+            crate::state::Network::Devnet => 30305, // Slightly offset for local testing
+        };
         let p2p_addr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port); // libp2p multiaddr format
         let staking_port = rpc_port + 2; // Staking RPC (e.g., 28545 -> 28547)
         let staking_addr = format!("0.0.0.0:{}", staking_port);
-        let stratum_port = rpc_port - 25212; // Stratum port (e.g., 28545 -> 3333)
+        // Use standard stratum port based on network
+        let stratum_port = match network {
+            crate::state::Network::Mainnet => 3333,
+            crate::state::Network::Testnet => 3334,
+            crate::state::Network::Devnet => 3335,
+        };
         let stratum_addr = format!("0.0.0.0:{}", stratum_port);
         
         // Get bootstrap peers for this network
