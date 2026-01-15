@@ -231,11 +231,12 @@ jobs:
           docker network prune -f 2>/dev/null || true
           
           echo "=== BUILDING IMAGES (with cache) ==="
-          docker compose -f $COMPOSE_FILE build
+          # Build only web services (node is managed by systemd)
+          docker compose -f $COMPOSE_FILE build website faucet docs explorer marketing nginx postgres redis
           
           echo "=== STARTING WEB SERVICES ==="
-          # Start all services except pyrax-node (we use systemd for that)
-          docker compose -f $COMPOSE_FILE up -d --scale pyrax-node=0 2>/dev/null || docker compose -f $COMPOSE_FILE up -d
+          # Start only web services - NOT the node (we use systemd for that)
+          docker compose -f $COMPOSE_FILE up -d postgres redis website faucet docs explorer marketing nginx
           
           echo "=== WAITING FOR HEALTH CHECKS ==="
           sleep 15
@@ -266,7 +267,7 @@ jobs:
           Type=oneshot
           RemainAfterExit=yes
           WorkingDirectory=/opt/pyrax
-          ExecStart=/usr/bin/docker compose -f docker-compose.devnet.yml up -d --scale pyrax-node=0
+          ExecStart=/usr/bin/docker compose -f docker-compose.devnet.yml up -d postgres redis website faucet docs explorer marketing nginx
           ExecStop=/usr/bin/docker compose -f docker-compose.devnet.yml down
           
           [Install]
