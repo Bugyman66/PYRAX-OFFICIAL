@@ -76,6 +76,8 @@ export default function Dashboard() {
   const handleStartNode = async () => {
     try {
       await startNode();
+      // Also try to connect to remote bootnode for logs
+      invoke('start_remote_log_stream').catch(console.error);
     } catch (e) {
       console.error('Failed to start node:', e);
     }

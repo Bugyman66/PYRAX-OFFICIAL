@@ -12,6 +12,32 @@ use tracing::{info, error, warn};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
+/// Remote server log entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteLogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub category: String,
+    pub message: String,
+}
+
+/// Remote server status including logs
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RemoteServerStatus {
+    pub online: bool,
+    pub streams: StreamStatus,
+    pub peer_count: u32,
+    pub block_height: u64,
+    pub logs: Vec<RemoteLogEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamStatus {
+    pub stream_a_rpc: bool,
+    pub stream_b_stratum: bool,
+    pub stream_c_staking: bool,
+}
+
 #[derive(Clone, Serialize)]
 struct LogPayload {
     level: String,
@@ -251,16 +277,37 @@ pub async fn start_node(
         }
         
         // Set up log file for node output
-        let log_file_path = std::path::PathBuf::from(&data_dir).join("node.log");
+        let data_path = std::path::PathBuf::from(&data_dir);
+        let log_file_path = data_path.join("node.log");
+        
+        // Ensure data directory exists
+        if let Err(e) = std::fs::create_dir_all(&data_path) {
+            emit_log(&app, "error", "node", &format!("Failed to create data directory {:?}: {}", data_path, e));
+        }
+        
         emit_log(&app, "info", "node", &format!("Node logs will be written to: {:?}", log_file_path));
         
-        // Create/truncate log file
-        if let Ok(log_file) = File::create(&log_file_path) {
-            cmd.stdout(log_file.try_clone().unwrap_or_else(|_| File::create(&log_file_path).unwrap()))
-               .stderr(Stdio::from(log_file));
-        } else {
-            cmd.stdout(Stdio::piped())
-               .stderr(Stdio::piped());
+        // Create/truncate log file with error handling
+        match File::create(&log_file_path) {
+            Ok(log_file) => {
+                emit_log(&app, "info", "node", "Log file created successfully");
+                match log_file.try_clone() {
+                    Ok(stdout_file) => {
+                        cmd.stdout(stdout_file)
+                           .stderr(Stdio::from(log_file));
+                    }
+                    Err(e) => {
+                        emit_log(&app, "warn", "node", &format!("Failed to clone log file: {}, using piped output", e));
+                        cmd.stdout(Stdio::piped())
+                           .stderr(Stdio::piped());
+                    }
+                }
+            }
+            Err(e) => {
+                emit_log(&app, "error", "node", &format!("Failed to create log file: {}", e));
+                cmd.stdout(Stdio::piped())
+                   .stderr(Stdio::piped());
+            }
         }
         
         // On Windows, create the process without a window
@@ -653,5 +700,131 @@ pub async fn get_peers(
             direction: p.direction,
         }).collect()),
         Err(e) => Err(format!("Failed to get peers: {}", e)),
+    }
+}
+
+/// Get remote bootnode server status and logs
+#[tauri::command]
+pub async fn get_remote_server_logs(
+    app: AppHandle,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<RemoteServerStatus, String> {
+    let network = {
+        let app_state = state.lock();
+        app_state.network.clone()
+    };
+    
+    let status_url = match network {
+        crate::state::Network::Mainnet => "https://rpc.pyrax.org/status",
+        crate::state::Network::Testnet => "https://rpc.pyrax-testnet.org/status",
+        crate::state::Network::Devnet => "http://209.38.137.105:28545/status",
+    };
+    
+    emit_log(&app, "info", "rpc", &format!("Fetching remote server status from {}", status_url));
+    
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    
+    match client.get(status_url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<RemoteServerStatus>().await {
+                    Ok(status) => {
+                        // Emit each log entry to the UI
+                        for log in &status.logs {
+                            emit_log(&app, &log.level, &log.category, &format!("[REMOTE] {}", log.message));
+                        }
+                        Ok(status)
+                    }
+                    Err(e) => {
+                        // Server responded but not with expected format - try basic connectivity
+                        emit_log(&app, "warn", "rpc", &format!("Server responded but status format unknown: {}", e));
+                        Ok(RemoteServerStatus {
+                            online: true,
+                            streams: StreamStatus {
+                                stream_a_rpc: true,
+                                stream_b_stratum: false,
+                                stream_c_staking: false,
+                            },
+                            peer_count: 0,
+                            block_height: 0,
+                            logs: vec![],
+                        })
+                    }
+                }
+            } else {
+                emit_log(&app, "error", "rpc", &format!("Remote server returned status: {}", response.status()));
+                Err(format!("Remote server returned status: {}", response.status()))
+            }
+        }
+        Err(e) => {
+            emit_log(&app, "error", "rpc", &format!("Failed to connect to remote server: {}", e));
+            Err(format!("Failed to connect to remote server: {}", e))
+        }
+    }
+}
+
+/// Start streaming logs from remote bootnode
+#[tauri::command]
+pub async fn start_remote_log_stream(
+    app: AppHandle,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    let network = {
+        let app_state = state.lock();
+        app_state.network.clone()
+    };
+    
+    let rpc_url = get_remote_rpc_url(&network);
+    
+    emit_log(&app, "info", "node", &format!("Connecting to remote bootnode: {}", rpc_url));
+    
+    // Try to get chain info from remote RPC to verify connection
+    let rpc = RpcClient::new(rpc_url);
+    
+    if rpc.is_connected().await {
+        emit_log(&app, "info", "rpc", "✓ Stream A (RPC) - Connected to remote bootnode");
+        
+        match rpc.get_chain_info().await {
+            Ok(info) => {
+                emit_log(&app, "info", "block", &format!("Chain: {} | Height: {} | Hash: {}", 
+                    info.network, info.best_block_height, &info.best_block_hash[..16]));
+                emit_log(&app, "info", "node", &format!("Genesis: {}", &info.genesis_hash[..16]));
+                emit_log(&app, "info", "node", &format!("Difficulty: {}", info.difficulty));
+                
+                if info.syncing {
+                    emit_log(&app, "info", "node", "Node is syncing...");
+                } else {
+                    emit_log(&app, "info", "node", "Node is fully synced");
+                }
+            }
+            Err(e) => {
+                emit_log(&app, "warn", "rpc", &format!("Connected but failed to get chain info: {}", e));
+            }
+        }
+        
+        // Check stratum port (Stream B)
+        let stratum_port = match network {
+            crate::state::Network::Mainnet => 3333,
+            crate::state::Network::Testnet => 13333,
+            crate::state::Network::Devnet => 3333,
+        };
+        emit_log(&app, "info", "mining", &format!("Stream B (Stratum) - Port {} configured", stratum_port));
+        
+        // Check staking port (Stream C)
+        let staking_port = match network {
+            crate::state::Network::Mainnet => 8547,
+            crate::state::Network::Testnet => 18547,
+            crate::state::Network::Devnet => 28547,
+        };
+        emit_log(&app, "info", "staking", &format!("Stream C (Staking) - Port {} configured", staking_port));
+        
+        emit_log(&app, "info", "node", "Remote bootnode connection established");
+        Ok(())
+    } else {
+        emit_log(&app, "error", "rpc", &format!("Failed to connect to remote bootnode: {}", rpc_url));
+        Err(format!("Failed to connect to remote bootnode: {}", rpc_url))
     }
 }

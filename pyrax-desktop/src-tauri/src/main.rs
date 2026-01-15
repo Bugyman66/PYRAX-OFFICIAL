@@ -68,6 +68,10 @@ fn main() {
             commands::settings::set_data_dir,
             commands::settings::browse_directory,
             
+            // Remote logging commands
+            commands::node::get_remote_server_logs,
+            commands::node::start_remote_log_stream,
+            
             // Updater commands
             commands::updater::check_for_updates,
             commands::updater::install_update,
