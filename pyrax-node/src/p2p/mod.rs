@@ -267,6 +267,16 @@ impl Network {
     pub async fn run_with_broadcast(mut self, mut mined_rx: tokio::sync::mpsc::Receiver<Block>) {
         info!("P2P network running (with block broadcast)...");
         
+        let mut initial_sync_done = false;
+        let mut sync_delay_started = false;
+        let mut initial_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(3));
+        initial_sync_timer.tick().await;
+        
+        let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        periodic_sync_timer.tick().await;
+        
+        let mut last_requested_height: u64 = 0;
+        
         loop {
             tokio::select! {
                 event = self.swarm.select_next_some() => {
@@ -298,6 +308,11 @@ impl Network {
                                 client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
                                 best_height: 0,
                             }).await;
+                            
+                            if !sync_delay_started {
+                                sync_delay_started = true;
+                                info!("First peer connected, will request sync in 3 seconds");
+                            }
                         }
                         SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                             info!("Disconnected from peer: {} ({:?})", peer_id, cause);
@@ -322,6 +337,33 @@ impl Network {
                         info!("Broadcast block {} (height {}) to peers", block.hash(), block.height());
                     }
                 }
+                // Initial sync - request blocks from our tip + 1
+                _ = initial_sync_timer.tick(), if sync_delay_started && !initial_sync_done => {
+                    let our_height = self.db.get_tip().height;
+                    let peer_count = self.connected_peers.read().await.len();
+                    
+                    info!("Initial sync check (miner): our height={}, peers={}", our_height, peer_count);
+                    
+                    if peer_count > 0 {
+                        let start_height = our_height + 1;
+                        info!("Requesting blocks from height {} (we have {} blocks)", start_height, our_height);
+                        let _ = self.request_blocks(start_height, 100);
+                        last_requested_height = start_height;
+                        initial_sync_done = true;
+                    }
+                }
+                // Periodic sync - check every 30 seconds if peers have new blocks
+                _ = periodic_sync_timer.tick(), if initial_sync_done => {
+                    let our_height = self.db.get_tip().height;
+                    let peer_count = self.connected_peers.read().await.len();
+                    
+                    if peer_count > 0 && our_height >= last_requested_height {
+                        let start_height = our_height + 1;
+                        debug!("Periodic sync check (miner): requesting blocks from height {}", start_height);
+                        let _ = self.request_blocks(start_height, 100);
+                        last_requested_height = start_height;
+                    }
+                }
             }
         }
     }
@@ -330,10 +372,18 @@ impl Network {
     pub async fn run(mut self) {
         info!("P2P network running...");
         
-        let mut sync_requested = false;
+        let mut initial_sync_done = false;
         let mut sync_delay_started = false;
-        let mut sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(3));
-        sync_timer.tick().await; // Skip first tick
+        // Initial sync timer - fires 3 seconds after first peer connects
+        let mut initial_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(3));
+        initial_sync_timer.tick().await; // Skip first tick
+        
+        // Periodic sync timer - checks every 30 seconds for new blocks from peers
+        let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        periodic_sync_timer.tick().await; // Skip first tick
+        
+        // Track last synced height to avoid duplicate requests
+        let mut last_requested_height: u64 = 0;
         
         loop {
             tokio::select! {
@@ -368,7 +418,7 @@ impl Network {
                             }).await;
                             
                             // Start sync timer when first peer connects
-                            if !sync_delay_started && !sync_requested {
+                            if !sync_delay_started {
                                 sync_delay_started = true;
                                 info!("First peer connected, will request sync in 3 seconds");
                             }
@@ -388,14 +438,34 @@ impl Network {
                         _ => {}
                     }
                 }
-                _ = sync_timer.tick(), if sync_delay_started && !sync_requested => {
+                // Initial sync - request blocks from our tip + 1
+                _ = initial_sync_timer.tick(), if sync_delay_started && !initial_sync_done => {
                     let our_height = self.db.get_tip().height;
-                    info!("Sync timer fired, our height: {}", our_height);
+                    let peer_count = self.connected_peers.read().await.len();
                     
-                    if our_height == 0 {
-                        info!("Node at genesis, requesting blocks from height 1");
-                        let _ = self.request_blocks(1, 100);
-                        sync_requested = true;
+                    info!("Initial sync check: our height={}, peers={}", our_height, peer_count);
+                    
+                    if peer_count > 0 {
+                        // Always request blocks starting from our current height + 1
+                        // This works for both fresh nodes (height 0) and restarted nodes
+                        let start_height = our_height + 1;
+                        info!("Requesting blocks from height {} (we have {} blocks)", start_height, our_height);
+                        let _ = self.request_blocks(start_height, 100);
+                        last_requested_height = start_height;
+                        initial_sync_done = true;
+                    }
+                }
+                // Periodic sync - check every 30 seconds if peers have new blocks
+                _ = periodic_sync_timer.tick(), if initial_sync_done => {
+                    let our_height = self.db.get_tip().height;
+                    let peer_count = self.connected_peers.read().await.len();
+                    
+                    if peer_count > 0 && our_height >= last_requested_height {
+                        // We've caught up to what we requested, check for more
+                        let start_height = our_height + 1;
+                        debug!("Periodic sync check: requesting blocks from height {}", start_height);
+                        let _ = self.request_blocks(start_height, 100);
+                        last_requested_height = start_height;
                     }
                 }
             }
