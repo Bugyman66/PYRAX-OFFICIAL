@@ -113,25 +113,81 @@ jobs:
           (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
         shell: pwsh
 
-      - name: Verify signing key is set
+      - name: Write signing key to file
         shell: pwsh
         run: |
-          if ([string]::IsNullOrEmpty("${{ secrets.TAURI_PRIVATE_KEY }}")) {
-            Write-Error "TAURI_PRIVATE_KEY secret is not set! OTA updates require signing."
+          $keyContent = "${{ secrets.TAURI_PRIVATE_KEY }}"
+          if ([string]::IsNullOrEmpty($keyContent)) {
+            Write-Error "TAURI_PRIVATE_KEY secret is not set!"
             exit 1
           }
-          Write-Host "TAURI_PRIVATE_KEY is set (length: $("${{ secrets.TAURI_PRIVATE_KEY }}".Length) chars)"
+          # Write key to file (Tauri can read from file path)
+          $keyContent | Out-File -FilePath "$env:RUNNER_TEMP/tauri.key" -Encoding utf8 -NoNewline
+          Write-Host "Key written to $env:RUNNER_TEMP/tauri.key"
+          Write-Host "Key length: $($keyContent.Length) chars"
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app with signing
+        working-directory: pyrax-desktop
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ""
-        with:
-          projectPath: pyrax-desktop
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
+        run: |
+          Write-Host "Building Tauri app with signing enabled..."
+          Write-Host "TAURI_PRIVATE_KEY env var length: $($env:TAURI_PRIVATE_KEY.Length)"
+          npm run tauri build
+          
+      - name: List ALL generated bundle files
+        shell: pwsh
+        run: |
+          Write-Host "=== Listing ALL files in bundle directories ==="
+          Write-Host ""
+          Write-Host "--- NSIS directory ---"
+          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/nsis" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "$($_.FullName) - $($_.Length) bytes"
+          }
+          Write-Host ""
+          Write-Host "--- MSI directory ---"
+          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/msi" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "$($_.FullName) - $($_.Length) bytes"
+          }
+          Write-Host ""
+          Write-Host "--- Looking for .sig files anywhere ---"
+          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle" -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "FOUND SIG: $($_.FullName)"
+          }
+
+      - name: Upload NSIS installer to release
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = "${{ needs.create-release.outputs.version }}"
+          $releaseId = "${{ needs.create-release.outputs.release_id }}"
+          $nsisDir = "pyrax-desktop/src-tauri/target/release/bundle/nsis"
+          
+          # Find the exe file
+          $exeFile = Get-ChildItem -Path $nsisDir -Filter "*.exe" | Select-Object -First 1
+          if ($exeFile) {
+            Write-Host "Uploading: $($exeFile.Name)"
+            gh release upload "desktop-v$version" "$($exeFile.FullName)" --clobber
+          }
+          
+          # Find and upload .nsis.zip if it exists
+          $zipFile = Get-ChildItem -Path $nsisDir -Filter "*.nsis.zip" | Select-Object -First 1
+          if ($zipFile) {
+            Write-Host "Uploading: $($zipFile.Name)"
+            gh release upload "desktop-v$version" "$($zipFile.FullName)" --clobber
+          }
+          
+          # Find and upload .sig file if it exists
+          $sigFile = Get-ChildItem -Path $nsisDir -Filter "*.sig" | Select-Object -First 1
+          if ($sigFile) {
+            Write-Host "Uploading: $($sigFile.Name)"
+            gh release upload "desktop-v$version" "$($sigFile.FullName)" --clobber
+          } else {
+            Write-Host "WARNING: No .sig file found! Updater will not work."
+          }
 
   publish-release:
     needs: [create-release, build-tauri]
