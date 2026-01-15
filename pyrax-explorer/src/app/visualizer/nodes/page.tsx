@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useNetwork } from '@/context/NetworkContext'
-import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle } from 'lucide-react'
+import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Zap } from 'lucide-react'
 import { STREAMS, StreamType } from '@/lib/networks'
 
 const ComposableMap = dynamic(() => import('react-simple-maps').then(m => m.ComposableMap), { ssr: false })
@@ -29,12 +29,14 @@ interface ConnectedNode {
   lastSeen: number
   version: string
   blockHeight: number
+  latency: number
 }
 
 interface NodeStats {
   totalNodes: number
   byStream: Record<StreamType, number>
   byCountry: Record<string, number>
+  averageLatency: number
 }
 
 function cn(...classes: (string | boolean | undefined)[]) {
@@ -70,7 +72,7 @@ function getFlagEmoji(cc: string): string {
 export default function NodesVisualizerPage() {
   const { networkState } = useNetwork()
   const [nodes, setNodes] = useState<ConnectedNode[]>([])
-  const [stats, setStats] = useState<NodeStats>({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {} })
+  const [stats, setStats] = useState<NodeStats>({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
@@ -98,11 +100,11 @@ export default function NodesVisualizerPage() {
       const data = await res.json()
       if (data.error) setError(data.error)
       setNodes(data.nodes || [])
-      setStats(data.stats || { totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {} })
+      setStats(data.stats || { totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } catch (e) {
       setError(String(e))
       setNodes([])
-      setStats({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {} })
+      setStats({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } finally {
       setLoading(false)
     }
@@ -111,7 +113,10 @@ export default function NodesVisualizerPage() {
   const filteredNodes = useMemo(() => filterStream === 'all' ? nodes : nodes.filter(n => n.stream === filterStream), [nodes, filterStream])
   const totalPages = Math.ceil(filteredNodes.length / pageSize)
   const paginatedNodes = useMemo(() => filteredNodes.slice((page - 1) * pageSize, page * pageSize), [filteredNodes, page])
-  const mappableNodes = useMemo(() => nodes.filter(n => n.lat !== 0 || n.lon !== 0), [nodes])
+  const mappableNodes = useMemo(() => {
+    const filtered = filterStream === 'all' ? nodes : nodes.filter(n => n.stream === filterStream)
+    return filtered.filter(n => n.lat !== 0 || n.lon !== 0)
+  }, [nodes, filterStream])
   const countryHeatmap = useMemo(() => Object.entries(stats.byCountry).sort((a, b) => b[1] - a[1]).slice(0, 8), [stats.byCountry])
 
   return (
@@ -124,7 +129,7 @@ export default function NodesVisualizerPage() {
         <p className="text-stone-400">Real-time view of connected nodes across the PYRAX TriStream network</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-stone-900 rounded-xl p-4 border border-stone-800">
           <div className="flex items-center justify-between mb-2">
             <span className="text-stone-400 text-sm">Total Nodes</span>
@@ -132,6 +137,16 @@ export default function NodesVisualizerPage() {
           </div>
           <div className="text-3xl font-bold text-white">{stats.totalNodes}</div>
           <div className="text-xs text-stone-500 mt-1">Connected peers</div>
+        </div>
+        <div className="bg-stone-900 rounded-xl p-4 border border-stone-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-stone-400 text-sm">Avg Latency</span>
+            <Zap className="w-5 h-5 text-yellow-500" />
+          </div>
+          <div className="text-3xl font-bold text-white">
+            {stats.averageLatency > 0 ? `${stats.averageLatency}ms` : '--'}
+          </div>
+          <div className="text-xs text-stone-500 mt-1">Network response</div>
         </div>
         {(['A', 'B', 'C'] as StreamType[]).map(stream => {
           const info = STREAMS[stream]
@@ -236,6 +251,7 @@ export default function NodesVisualizerPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Peer ID</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Stream</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Latency</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Block Height</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Version</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Last Seen</th>
@@ -256,12 +272,17 @@ export default function NodesVisualizerPage() {
                       {node.stream} - {STREAMS[node.stream].algorithm}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-sm font-mono ${node.latency > 0 ? (node.latency < 100 ? 'text-green-400' : node.latency < 300 ? 'text-yellow-400' : 'text-red-400') : 'text-stone-500'}`}>
+                      {node.latency > 0 ? `${node.latency}ms` : '--'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3"><span className="text-sm text-stone-300 font-mono">#{node.blockHeight.toLocaleString()}</span></td>
                   <td className="px-4 py-3"><span className="text-sm text-stone-400">{node.version}</span></td>
                   <td className="px-4 py-3"><span className="text-sm text-stone-400">{formatTimeAgo(node.lastSeen)}</span></td>
                 </tr>
               )) : (
-                <tr><td colSpan={6} className="px-4 py-12 text-center">
+                <tr><td colSpan={7} className="px-4 py-12 text-center">
                   {loading ? <div className="flex items-center justify-center gap-2 text-stone-400"><RefreshCw className="w-5 h-5 animate-spin" /><span>Loading...</span></div> : <div className="text-stone-500">No nodes connected yet. Be the first to run a PYRAX node!</div>}
                 </td></tr>
               )}
