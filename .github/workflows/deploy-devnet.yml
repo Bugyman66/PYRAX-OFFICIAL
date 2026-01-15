@@ -145,9 +145,14 @@ jobs:
           cd /opt/pyrax
           cargo build --release -p pyrax-node
           
+          # Stop running service before replacing binary
+          echo "=== STOPPING PYRAX-NODE SERVICE ==="
+          systemctl stop pyrax-node 2>/dev/null || true
+          sleep 2
+          
           # Install binary (workspace root target directory)
           echo "=== INSTALLING PYRAX-NODE BINARY ==="
-          cp /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
+          cp -f /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
           chmod +x /usr/local/bin/pyrax-node
           echo "Installed: $(pyrax-node --version)"
           
