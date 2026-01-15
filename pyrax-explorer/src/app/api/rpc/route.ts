@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Use environment variable or detect if running in Docker
+const DEVNET_RPC = process.env.DEVNET_RPC_URL || 'http://209.38.137.105:28545';
+const TESTNET_RPC = process.env.TESTNET_RPC_URL || 'http://127.0.0.1:18545';
+const MAINNET_RPC = process.env.MAINNET_RPC_URL || 'http://127.0.0.1:8545';
+
 const RPC_ENDPOINTS: Record<string, string> = {
-  mainnet: 'http://127.0.0.1:8545',
-  testnet: 'http://127.0.0.1:18545',
-  devnet: 'http://127.0.0.1:28545',
+  mainnet: MAINNET_RPC,
+  testnet: TESTNET_RPC,
+  devnet: DEVNET_RPC,
 };
 
 export async function POST(request: NextRequest) {

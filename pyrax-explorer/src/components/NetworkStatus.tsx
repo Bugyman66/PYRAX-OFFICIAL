@@ -48,21 +48,30 @@ export default function NetworkStatus() {
         <ArrowPathIcon className={classNames('size-4', isChecking && 'animate-spin')} />
       </button>
 
-      {/* TriStream status indicators */}
+      {/* TriStream status indicators with pulsing dots */}
       <div className="hidden sm:flex items-center gap-1.5">
         {(['A', 'B', 'C'] as StreamType[]).map((streamId) => {
           const stream = networkState.streams[streamId]
           const streamInfo = STREAMS[streamId]
           const streamColors = getStatusColors(stream.status)
+          const isOnline = stream.status === 'connected'
           
           return (
             <div
               key={streamId}
-              className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-800/50"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-stone-800/50"
               title={`${streamInfo.name}: ${stream.status}${stream.latency ? ` (${stream.latency}ms)` : ''}`}
             >
               <span className="text-[10px] font-bold text-stone-500">{streamId}</span>
-              <span className={classNames('w-1.5 h-1.5 rounded-full', streamColors.dot)} />
+              <span className="relative flex h-2 w-2">
+                {isOnline && (
+                  <span className={classNames(
+                    'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+                    streamColors.ping
+                  )} />
+                )}
+                <span className={classNames('relative inline-flex rounded-full h-2 w-2', streamColors.dot)} />
+              </span>
             </div>
           )
         })}
