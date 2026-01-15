@@ -4,8 +4,7 @@ use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
-use std::fs::File;
+use std::fs;
 use tauri::{State, Manager, AppHandle};
 use tracing::{info, error, warn};
 
@@ -276,39 +275,17 @@ pub async fn start_node(
             cmd.arg("--peer").arg(*peer);
         }
         
-        // Set up log file for node output
-        let data_path = std::path::PathBuf::from(&data_dir);
-        let log_file_path = data_path.join("node.log");
-        
         // Ensure data directory exists
-        if let Err(e) = std::fs::create_dir_all(&data_path) {
+        let data_path = std::path::PathBuf::from(&data_dir);
+        if let Err(e) = fs::create_dir_all(&data_path) {
             emit_log(&app, "error", "node", &format!("Failed to create data directory {:?}: {}", data_path, e));
         }
+        emit_log(&app, "info", "node", &format!("Data directory: {:?}", data_path));
         
-        emit_log(&app, "info", "node", &format!("Node logs will be written to: {:?}", log_file_path));
-        
-        // Create/truncate log file with error handling
-        match File::create(&log_file_path) {
-            Ok(log_file) => {
-                emit_log(&app, "info", "node", "Log file created successfully");
-                match log_file.try_clone() {
-                    Ok(stdout_file) => {
-                        cmd.stdout(stdout_file)
-                           .stderr(Stdio::from(log_file));
-                    }
-                    Err(e) => {
-                        emit_log(&app, "warn", "node", &format!("Failed to clone log file: {}, using piped output", e));
-                        cmd.stdout(Stdio::piped())
-                           .stderr(Stdio::piped());
-                    }
-                }
-            }
-            Err(e) => {
-                emit_log(&app, "error", "node", &format!("Failed to create log file: {}", e));
-                cmd.stdout(Stdio::piped())
-                   .stderr(Stdio::piped());
-            }
-        }
+        // Use null for stdout/stderr - the node will run headless
+        // We'll get status updates via RPC instead
+        cmd.stdout(Stdio::null())
+           .stderr(Stdio::null());
         
         // On Windows, create the process without a window
         #[cfg(target_os = "windows")]
@@ -324,80 +301,6 @@ pub async fn start_node(
         match cmd.spawn() {
             Ok(child) => {
                 let pid = child.id();
-                
-                // Spawn a thread to continuously tail the log file and emit to UI
-                let app_for_log = app.clone();
-                let log_path = log_file_path.clone();
-                std::thread::spawn(move || {
-                    use std::io::{Seek, SeekFrom};
-                    
-                    // Wait for the file to be created
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                    
-                    let mut last_pos: u64 = 0;
-                    
-                    // Continuously tail the log file
-                    loop {
-                        match File::open(&log_path) {
-                            Ok(mut file) => {
-                                // Seek to where we left off
-                                if let Ok(metadata) = file.metadata() {
-                                    let file_len = metadata.len();
-                                    if file_len > last_pos {
-                                        let _ = file.seek(SeekFrom::Start(last_pos));
-                                        let reader = BufReader::new(&file);
-                                        
-                                        for line in reader.lines() {
-                                            if let Ok(line) = line {
-                                                if line.is_empty() { continue; }
-                                                
-                                                // Parse log level from the line
-                                                let level = if line.contains("ERROR") || line.contains("error") {
-                                                    "error"
-                                                } else if line.contains("WARN") || line.contains("warn") {
-                                                    "warn"
-                                                } else if line.contains("DEBUG") || line.contains("debug") {
-                                                    "debug"
-                                                } else {
-                                                    "info"
-                                                };
-                                                
-                                                // Determine category from content
-                                                let category = if line.contains("RPC") || line.contains("rpc") {
-                                                    "rpc"
-                                                } else if line.contains("P2P") || line.contains("peer") || line.contains("Peer") {
-                                                    "p2p"
-                                                } else if line.contains("Stratum") || line.contains("stratum") || line.contains("Stream B") {
-                                                    "mining"
-                                                } else if line.contains("Staking") || line.contains("staking") || line.contains("Stream C") {
-                                                    "staking"
-                                                } else if line.contains("block") || line.contains("Block") {
-                                                    "block"
-                                                } else {
-                                                    "node"
-                                                };
-                                                
-                                                let _ = app_for_log.emit_all("node-log", LogPayload {
-                                                    level: level.to_string(),
-                                                    category: category.to_string(),
-                                                    message: line,
-                                                });
-                                            }
-                                        }
-                                        last_pos = file_len;
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                // File doesn't exist yet or was deleted - stop tailing
-                                break;
-                            }
-                        }
-                        
-                        // Poll every 200ms for new content
-                        std::thread::sleep(std::time::Duration::from_millis(200));
-                    }
-                });
                 
                 emit_log(&app, "info", "node", &format!("Node started with PID: {}", pid));
                 emit_log(&app, "info", "p2p", &format!("P2P listening on {}", p2p_addr));
