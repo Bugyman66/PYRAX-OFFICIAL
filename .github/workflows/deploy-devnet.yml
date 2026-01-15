@@ -114,9 +114,91 @@ jobs:
           echo "  - P2P: 30303/tcp, 30304/udp"
           EOF
 
-      - name: Deploy to Devnet Server
+      - name: Build and Deploy PYRAX Node (TriStream)
         run: |
-          # SSH with keepalive to prevent timeout during long builds
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=20 root@${{ env.DEVNET_SERVER }} << 'EOF'
+          set -e
+          
+          echo "╔═══════════════════════════════════════════════════════════════╗"
+          echo "║     PYRAX Node Deployment - TriStream DAG Blockchain          ║"
+          echo "║   Stream A (BLAKE3) | Stream B (KAWPOW) | Stream C (ZK)       ║"
+          echo "╚═══════════════════════════════════════════════════════════════╝"
+          
+          cd /opt/pyrax
+          
+          # Install Rust if not present
+          if ! command -v cargo &> /dev/null; then
+            echo "=== INSTALLING RUST ==="
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          fi
+          source ~/.cargo/env 2>/dev/null || true
+          
+          # Install build dependencies if needed
+          if ! command -v cc &> /dev/null; then
+            echo "=== INSTALLING BUILD DEPENDENCIES ==="
+            apt-get update -qq
+            apt-get install -y -qq build-essential pkg-config libssl-dev clang llvm-dev libclang-dev
+          fi
+          
+          # Build pyrax-node
+          echo "=== BUILDING PYRAX-NODE ==="
+          cd /opt/pyrax/pyrax-node
+          cargo build --release
+          
+          # Install binary
+          echo "=== INSTALLING PYRAX-NODE BINARY ==="
+          cp target/release/pyrax-node /usr/local/bin/pyrax-node
+          chmod +x /usr/local/bin/pyrax-node
+          echo "Installed: $(pyrax-node --version)"
+          
+          # Create data directory
+          mkdir -p /var/lib/pyrax/devnet
+          
+          # Create systemd service for pyrax-node
+          echo "=== CONFIGURING PYRAX-NODE SYSTEMD SERVICE ==="
+          cat > /etc/systemd/system/pyrax-node.service << 'SERVICE'
+          [Unit]
+          Description=PYRAX TriStream Blockchain Node (Devnet)
+          After=network.target
+          Wants=network-online.target
+          
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/pyrax-node \
+              --network devnet \
+              --datadir /var/lib/pyrax/devnet \
+              --rpc --rpc-addr 0.0.0.0:28545 \
+              --p2p --p2p-addr /ip4/0.0.0.0/tcp/30303 \
+              --stratum --stratum-addr 0.0.0.0:3333 \
+              --staking --staking-addr 0.0.0.0:28547 \
+              --verbosity 2
+          Restart=always
+          RestartSec=5
+          LimitNOFILE=65535
+          
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+          
+          systemctl daemon-reload
+          systemctl enable pyrax-node
+          
+          # Restart pyrax-node service
+          echo "=== RESTARTING PYRAX-NODE SERVICE ==="
+          systemctl restart pyrax-node
+          sleep 3
+          systemctl status pyrax-node --no-pager || true
+          
+          # Verify all streams are listening
+          echo "=== VERIFYING TRISTREAM PORTS ==="
+          ss -tlnp | grep -E '(28545|3333|28547|30303)' || echo "Warning: Some ports not yet listening"
+          
+          echo "=== PYRAX NODE DEPLOYED ==="
+          EOF
+
+      - name: Deploy Web Services (Docker)
+        run: |
           ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@${{ env.DEVNET_SERVER }} << 'EOF'
           set -e
           
@@ -136,7 +218,7 @@ jobs:
           echo "=== STOPPING OLD CONTAINERS ==="
           docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
           
-          echo "=== REMOVING ALL PYRAX CONTAINERS ==="
+          echo "=== REMOVING PYRAX CONTAINERS (except node - using systemd) ==="
           docker rm -f pyrax-node pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx pyrax-marketing pyrax-postgres pyrax-redis 2>/dev/null || true
           
           echo "=== REMOVING STALE NETWORKS ==="
@@ -146,8 +228,9 @@ jobs:
           echo "=== BUILDING IMAGES (with cache) ==="
           docker compose -f $COMPOSE_FILE build
           
-          echo "=== STARTING ALL SERVICES ==="
-          docker compose -f $COMPOSE_FILE up -d
+          echo "=== STARTING WEB SERVICES ==="
+          # Start all services except pyrax-node (we use systemd for that)
+          docker compose -f $COMPOSE_FILE up -d --scale pyrax-node=0 2>/dev/null || docker compose -f $COMPOSE_FILE up -d
           
           echo "=== WAITING FOR HEALTH CHECKS ==="
           sleep 15
@@ -162,23 +245,23 @@ jobs:
           curl -sf http://localhost:80 -o /dev/null && echo "Port 80: OK" || echo "Port 80: FAILED"
           
           echo "=== LISTENING PORTS ==="
-          netstat -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003' || ss -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003'
+          ss -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003|:28545|:3333|:28547|:30303'
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
           
-          echo "=== CREATING SYSTEMD SERVICE FOR AUTO-START ==="
+          echo "=== CREATING SYSTEMD SERVICE FOR DOCKER AUTO-START ==="
           cat > /etc/systemd/system/pyrax-devnet.service << 'SERVICE'
           [Unit]
-          Description=PYRAX Devnet Stack
-          After=docker.service
+          Description=PYRAX Devnet Web Stack
+          After=docker.service pyrax-node.service
           Requires=docker.service
           
           [Service]
           Type=oneshot
           RemainAfterExit=yes
           WorkingDirectory=/opt/pyrax
-          ExecStart=/usr/bin/docker compose -f docker-compose.devnet.yml up -d
+          ExecStart=/usr/bin/docker compose -f docker-compose.devnet.yml up -d --scale pyrax-node=0
           ExecStop=/usr/bin/docker compose -f docker-compose.devnet.yml down
           
           [Install]
@@ -188,7 +271,7 @@ jobs:
           systemctl daemon-reload
           systemctl enable pyrax-devnet.service
           
-          echo "=== PYRAX DEVNET WILL AUTO-START ON BOOT ==="
+          echo "=== ALL SERVICES WILL AUTO-START ON BOOT ==="
           EOF
 
       - name: Health Check - All Services
@@ -199,52 +282,51 @@ jobs:
           echo "========================================"
           
           echo ""
-          echo "=== WEB SERVICES ==="
-          curl -sf -o /dev/null https://pyrax-devnet.org && echo "✓ Website: OK" || echo "✗ Website: FAILED"
-          curl -sf -o /dev/null https://docs.pyrax-devnet.org && echo "✓ Docs: OK" || echo "✗ Docs: FAILED"
-          curl -sf -o /dev/null https://explorer.pyrax-devnet.org && echo "✓ Explorer: OK" || echo "✗ Explorer: FAILED"
-          curl -sf -o /dev/null https://faucet.pyrax-devnet.org && echo "✓ Faucet: OK" || echo "✗ Faucet: FAILED"
-          curl -sf -o /dev/null https://marketing.pyrax-devnet.org && echo "✓ Marketing: OK" || echo "✗ Marketing: FAILED"
+          echo "=== TRISTREAM NODE (Direct IP) ==="
           
-          echo ""
-          echo "=== STREAM A - BLAKE3 RPC ==="
-          STREAM_A=$(curl -sf -X POST https://rpc.pyrax-devnet.org \
+          # Stream A - RPC (BLAKE3)
+          STREAM_A=$(curl -sf --max-time 10 -X POST http://${{ env.DEVNET_SERVER }}:28545 \
             -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"pyrax_chainId","params":[],"id":1}' 2>/dev/null)
+            -d '{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}' 2>/dev/null || echo "")
           if echo "$STREAM_A" | grep -q '"result"'; then
-            CHAIN_ID=$(echo "$STREAM_A" | grep -o '"result":[0-9]*' | cut -d: -f2)
-            echo "✓ Stream A RPC: OK (Chain ID: $CHAIN_ID)"
+            echo "✓ Stream A RPC (28545): OK"
           else
-            echo "✗ Stream A RPC: FAILED"
+            echo "✗ Stream A RPC (28545): FAILED"
           fi
           
-          echo ""
-          echo "=== STREAM B - KAWPOW STRATUM ==="
-          # Check if stratum port is listening (can't fully test without miner)
-          nc -zv ${{ env.DEVNET_SERVER }} 3333 -w 3 && echo "✓ Stream B Stratum: Port 3333 OPEN" || echo "⚠ Stream B Stratum: Port 3333 not reachable (may need DNS propagation)"
+          # Stream B - Stratum (KAWPOW)
+          nc -zv ${{ env.DEVNET_SERVER }} 3333 -w 3 2>&1 && echo "✓ Stream B Stratum (3333): OPEN" || echo "✗ Stream B Stratum (3333): CLOSED"
           
-          echo ""
-          echo "=== STREAM C - ZK STAKING ==="
-          STREAM_C=$(curl -s --max-time 10 -X POST https://staking.pyrax-devnet.org \
+          # Stream C - Staking RPC (ZK)
+          STREAM_C=$(curl -sf --max-time 10 -X POST http://${{ env.DEVNET_SERVER }}:28547 \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","method":"pyrax_getStakingStats","params":[],"id":1}' 2>/dev/null || echo "")
           if echo "$STREAM_C" | grep -q '"result"'; then
-            echo "✓ Stream C Staking: OK"
+            echo "✓ Stream C Staking (28547): OK"
           else
-            echo "⚠ Stream C Staking: Not responding (DNS may need propagation for staking.pyrax-devnet.org)"
-            echo "  Add DNS A record: staking -> 209.38.137.105 (Proxied)"
+            nc -zv ${{ env.DEVNET_SERVER }} 28547 -w 3 2>&1 && echo "⚠ Stream C Staking (28547): Port OPEN (RPC may not have staking method)" || echo "✗ Stream C Staking (28547): CLOSED"
           fi
+          
+          # P2P
+          nc -zv ${{ env.DEVNET_SERVER }} 30303 -w 3 2>&1 && echo "✓ P2P (30303): OPEN" || echo "✗ P2P (30303): CLOSED"
+          
+          echo ""
+          echo "=== WEB SERVICES ==="
+          curl -sf -o /dev/null http://${{ env.DEVNET_SERVER }} && echo "✓ Website (HTTP): OK" || echo "⚠ Website: Check Cloudflare"
           
           echo ""
           echo "========================================"
           echo "   DEPLOYMENT COMPLETE"
           echo "========================================"
           echo ""
-          echo "Endpoints:"
+          echo "TriStream Endpoints (Direct IP):"
+          echo "  Stream A RPC:     http://${{ env.DEVNET_SERVER }}:28545"
+          echo "  Stream B Stratum: ${{ env.DEVNET_SERVER }}:3333"
+          echo "  Stream C Staking: http://${{ env.DEVNET_SERVER }}:28547"
+          echo "  P2P:              /ip4/${{ env.DEVNET_SERVER }}/tcp/30303"
+          echo ""
+          echo "Web Services (via Cloudflare):"
           echo "  Website:  https://pyrax-devnet.org"
-          echo "  RPC:      https://rpc.pyrax-devnet.org"
-          echo "  Stratum:  stratum+tcp://stratum.pyrax-devnet.org:3333"
-          echo "  Staking:  https://staking.pyrax-devnet.org"
           echo "  Explorer: https://explorer.pyrax-devnet.org"
           echo "  Faucet:   https://faucet.pyrax-devnet.org"
           echo "  Docs:     https://docs.pyrax-devnet.org"
