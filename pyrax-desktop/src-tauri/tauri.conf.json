@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "PYRAX Desktop",
-    "version": "0.2.7"
+    "version": "0.2.8"
   },
   "tauri": {
     "allowlist": {
@@ -43,7 +43,7 @@
     },
     "bundle": {
       "active": true,
-      "targets": ["nsis"],
+      "targets": ["nsis", "updater"],
       "identifier": "org.pyrax.desktop",
       "icon": [
         "icons/32x32.png",
