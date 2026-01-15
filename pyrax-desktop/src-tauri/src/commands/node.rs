@@ -102,7 +102,7 @@ fn get_remote_rpc_url(network: &crate::state::Network) -> &'static str {
     match network {
         crate::state::Network::Mainnet => "https://rpc.pyrax.org",
         crate::state::Network::Testnet => "https://rpc.pyrax-testnet.org",
-        crate::state::Network::Devnet => "https://rpc.pyrax-devnet.org",
+        crate::state::Network::Devnet => "http://209.38.137.105:28545", // Digital Ocean bootnode
     }
 }
 
@@ -640,7 +640,7 @@ pub async fn get_remote_server_logs(
     let status_url = match network {
         crate::state::Network::Mainnet => "https://rpc.pyrax.org/status",
         crate::state::Network::Testnet => "https://rpc.pyrax-testnet.org/status",
-        crate::state::Network::Devnet => "http://209.38.137.105:28545/status",
+        crate::state::Network::Devnet => "http://209.38.137.105:28545", // Use RPC endpoint
     };
     
     emit_log(&app, "info", "rpc", &format!("Fetching remote server status from {}", status_url));
