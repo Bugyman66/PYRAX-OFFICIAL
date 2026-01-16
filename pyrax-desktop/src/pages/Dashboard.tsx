@@ -97,15 +97,15 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <div className="flex items-center gap-4">
           {/* Network Selector */}
-          <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
-            <Globe size={16} className="ml-2 text-gray-400" />
+          <div className="flex items-center gap-2 bg-dark-800 rounded-lg p-1">
+            <Globe size={16} className="ml-2 text-stone-400" />
             <button
               onClick={() => handleNetworkChange('testnet')}
               disabled={status?.running}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 selectedNetwork === 'testnet'
-                  ? 'bg-purple-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  ? 'bg-pyrax-600 text-white'
+                  : 'text-stone-400 hover:text-white hover:bg-dark-700'
               } ${status?.running ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Testnet
@@ -115,8 +115,8 @@ export default function Dashboard() {
               disabled={status?.running}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 selectedNetwork === 'devnet'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  ? 'bg-pyrax-600 text-white'
+                  : 'text-stone-400 hover:text-white hover:bg-dark-700'
               } ${status?.running ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               Devnet
@@ -149,7 +149,7 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          icon={<Blocks className="text-purple-400" />}
+          icon={<Blocks className="text-pyrax-400" />}
           label="Block Height"
           value={status && typeof status.blockHeight === 'number' ? status.blockHeight.toLocaleString() : '0'}
           subtext={status?.syncing ? `Syncing: ${(status?.syncProgress ?? 0).toFixed(1)}%` : 'Synced'}
@@ -167,7 +167,7 @@ export default function Dashboard() {
           subtext="PYRAX"
         />
         <StatCard
-          icon={<Zap className="text-yellow-400" />}
+          icon={<Zap className="text-pyrax-400" />}
           label="Hashrate"
           value={minerStatus?.running ? formatHashrate(minerStatus.hashrate) : '0 H/s'}
           subtext={minerStatus?.running ? 'Mining' : 'Idle'}
@@ -175,9 +175,9 @@ export default function Dashboard() {
       </div>
 
       {/* Node Status Panel */}
-      <div className="bg-gray-800 rounded-xl p-6">
+      <div className="bg-dark-800 rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Activity size={20} />
+          <Activity size={20} className="text-pyrax-400" />
           Node Status
         </h2>
         
@@ -203,12 +203,12 @@ export default function Dashboard() {
             )}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8 text-stone-400">
             <p>Node is not running</p>
             <button
               onClick={handleStartNode}
               disabled={nodeLoading}
-              className="mt-4 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+              className="mt-4 px-6 py-2 bg-pyrax-600 hover:bg-pyrax-700 rounded-lg transition-colors disabled:opacity-50"
             >
               {nodeLoading ? (
                 <RefreshCw className="animate-spin inline mr-2" size={16} />
@@ -253,13 +253,13 @@ function StatCard({ icon, label, value, subtext }: {
   subtext: string;
 }) {
   return (
-    <div className="bg-gray-800 rounded-xl p-4">
+    <div className="bg-dark-800 rounded-xl p-4">
       <div className="flex items-center gap-3 mb-2">
         {icon}
-        <span className="text-sm text-gray-400">{label}</span>
+        <span className="text-sm text-stone-400">{label}</span>
       </div>
       <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-gray-500 mt-1">{subtext}</div>
+      <div className="text-xs text-stone-500 mt-1">{subtext}</div>
     </div>
   );
 }
@@ -267,7 +267,7 @@ function StatCard({ icon, label, value, subtext }: {
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-xs text-stone-500">{label}</div>
       <div className="text-sm font-medium">{value}</div>
     </div>
   );
@@ -281,10 +281,10 @@ function QuickAction({ title, description, to }: {
   return (
     <Link
       to={to}
-      className="block bg-gray-800 hover:bg-gray-750 rounded-xl p-4 transition-colors border border-gray-700 hover:border-purple-500"
+      className="block bg-dark-800 hover:bg-dark-700 rounded-xl p-4 transition-colors border border-dark-600 hover:border-pyrax-500"
     >
       <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-gray-400 mt-1">{description}</p>
+      <p className="text-sm text-stone-400 mt-1">{description}</p>
     </Link>
   );
 }

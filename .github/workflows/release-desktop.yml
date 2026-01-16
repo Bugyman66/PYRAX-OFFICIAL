@@ -131,12 +131,11 @@ jobs:
         shell: pwsh
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          # For passwordless keys, set password to empty string explicitly in PowerShell
-          $env:TAURI_KEY_PASSWORD = ""
           Write-Host "Building Tauri app with signing enabled..."
           Write-Host "TAURI_PRIVATE_KEY env var length: $($env:TAURI_PRIVATE_KEY.Length)"
-          Write-Host "TAURI_KEY_PASSWORD is empty: $([string]::IsNullOrEmpty($env:TAURI_KEY_PASSWORD))"
+          Write-Host "TAURI_KEY_PASSWORD length: $($env:TAURI_KEY_PASSWORD.Length)"
           npm run tauri build
           
       - name: List ALL generated bundle files

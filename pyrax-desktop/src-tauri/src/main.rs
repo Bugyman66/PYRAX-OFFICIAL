@@ -60,6 +60,7 @@ fn main() {
             commands::explorer::get_block,
             commands::explorer::get_transaction,
             commands::explorer::get_recent_blocks,
+            commands::explorer::get_bootnode_info,
             
             // Settings commands
             commands::settings::get_settings,

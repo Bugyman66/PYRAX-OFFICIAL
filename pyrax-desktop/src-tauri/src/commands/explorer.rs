@@ -3,6 +3,7 @@ use crate::rpc::RpcClient;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Instant;
 use tauri::State;
 use tracing::{info, warn};
 
@@ -186,4 +187,85 @@ pub async fn get_recent_blocks(
     }
     
     Ok(blocks)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BootnodeInfo {
+    pub id: String,
+    pub url: String,
+    #[serde(rename = "latencyMs")]
+    pub latency_ms: u64,
+    pub city: String,
+    pub region: String,
+    pub country: String,
+    #[serde(rename = "countryCode")]
+    pub country_code: String,
+    pub stream: String,
+    pub online: bool,
+}
+
+// Bootnode configurations with location info
+fn get_bootnode_configs() -> Vec<(String, String, String, String, String, String, String)> {
+    vec![
+        // (id, url, city, region, country, country_code, stream)
+        ("node-us-east-1".to_string(), "https://rpc.pyrax-devnet.org".to_string(), "New York".to_string(), "NY".to_string(), "United States".to_string(), "US".to_string(), "A".to_string()),
+        ("node-us-west-1".to_string(), "https://rpc2.pyrax-devnet.org".to_string(), "San Francisco".to_string(), "CA".to_string(), "United States".to_string(), "US".to_string(), "A".to_string()),
+        ("node-eu-west-1".to_string(), "https://rpc-eu.pyrax-devnet.org".to_string(), "Frankfurt".to_string(), "HE".to_string(), "Germany".to_string(), "DE".to_string(), "B".to_string()),
+        ("node-asia-1".to_string(), "https://rpc-asia.pyrax-devnet.org".to_string(), "Singapore".to_string(), "".to_string(), "Singapore".to_string(), "SG".to_string(), "B".to_string()),
+        ("validator-1".to_string(), "https://validator.pyrax-devnet.org".to_string(), "London".to_string(), "".to_string(), "United Kingdom".to_string(), "GB".to_string(), "C".to_string()),
+    ]
+}
+
+#[tauri::command]
+pub async fn get_bootnode_info(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<BootnodeInfo>, String> {
+    let running = {
+        let app_state = state.lock();
+        app_state.node_running
+    };
+    
+    if !running {
+        return Err("Node is not running".to_string());
+    }
+    
+    let configs = get_bootnode_configs();
+    let mut bootnodes = Vec::new();
+    
+    for (id, url, city, region, country, country_code, stream) in configs {
+        // Measure latency by pinging the RPC endpoint
+        let start = Instant::now();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .unwrap_or_default();
+        
+        let (online, latency_ms) = match client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .body(r#"{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}"#)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let latency = start.elapsed().as_millis() as u64;
+                (response.status().is_success(), latency)
+            }
+            Err(_) => (false, 0),
+        };
+        
+        bootnodes.push(BootnodeInfo {
+            id,
+            url,
+            latency_ms,
+            city,
+            region,
+            country,
+            country_code,
+            stream,
+            online,
+        });
+    }
+    
+    Ok(bootnodes)
 }

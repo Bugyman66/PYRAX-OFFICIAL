@@ -11,6 +11,8 @@ import {
 import { useNodeStore } from '../stores/nodeStore';
 import { cn } from '../lib/utils';
 
+const APP_VERSION = '0.2.12';
+
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/wallet', icon: Wallet, label: 'Wallet' },
@@ -23,15 +25,18 @@ export default function Layout() {
   const { status } = useNodeStore();
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-dark-900 text-stone-100">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+      <aside className="w-64 bg-dark-800 border-r border-dark-600 flex flex-col">
         {/* Logo */}
-        <div className="p-4 border-b border-gray-700">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-            PYRAX
-          </h1>
-          <p className="text-xs text-gray-400 mt-1">Desktop Wallet & Node</p>
+        <div className="p-4 border-b border-dark-600">
+          <div className="flex items-center gap-3">
+            <img src="/pyrax-logo.png" alt="PYRAX" className="w-10 h-10 object-contain" />
+            <div>
+              <h1 className="text-xl font-bold gradient-text">PYRAX</h1>
+              <p className="text-xs text-stone-500">v{APP_VERSION}</p>
+            </div>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -44,8 +49,8 @@ export default function Layout() {
                 cn(
                   'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
                   isActive
-                    ? 'bg-purple-600 text-white'
-                    : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                    ? 'bg-pyrax-600 text-white'
+                    : 'text-stone-400 hover:bg-dark-700 hover:text-white'
                 )
               }
             >
@@ -56,7 +61,7 @@ export default function Layout() {
         </nav>
 
         {/* Node Status */}
-        <div className="p-4 border-t border-gray-700">
+        <div className="p-4 border-t border-dark-600">
           <div className="flex items-center gap-2 text-sm">
             {status?.running ? (
               status?.connected ? (
@@ -66,8 +71,8 @@ export default function Layout() {
                 </>
               ) : (
                 <>
-                  <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />
-                  <span className="text-yellow-400">Connecting...</span>
+                  <Loader2 className="w-3 h-3 text-pyrax-500 animate-spin" />
+                  <span className="text-pyrax-400">Connecting...</span>
                 </>
               )
             ) : (
@@ -78,7 +83,7 @@ export default function Layout() {
             )}
           </div>
           {status?.running && status?.connected && (
-            <div className="mt-2 text-xs text-gray-500">
+            <div className="mt-2 text-xs text-stone-500">
               <div>Block: #{status.blockHeight.toLocaleString()}</div>
               <div>Peers: {status.peerCount}</div>
               <div>Network: {status.network}</div>
@@ -88,7 +93,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-dark-900">
         <Outlet />
       </main>
     </div>

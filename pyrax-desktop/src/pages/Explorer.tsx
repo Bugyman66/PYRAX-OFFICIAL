@@ -3,6 +3,7 @@ import { Search, Blocks, ArrowRight, Clock, Hash } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { useNodeStore } from '../stores/nodeStore';
 import { truncateHash, formatTimeAgo } from '../lib/utils';
+import NetworkNodes from '../components/NetworkNodes';
 
 interface Block {
   number: string;
@@ -77,7 +78,7 @@ export default function Explorer() {
   if (!status?.connected) {
     return (
       <div className="p-6">
-        <div className="text-center py-12 text-gray-400">
+        <div className="text-center py-12 text-stone-400">
           <Blocks size={64} className="mx-auto mb-4 opacity-50" />
           <p>Connect to a node to explore the blockchain</p>
         </div>
@@ -92,57 +93,60 @@ export default function Explorer() {
       {/* Search Bar */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Search by block number, hash, or transaction..."
-            className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:border-purple-500 outline-none"
+            className="w-full pl-10 pr-4 py-3 bg-dark-800 border border-dark-600 rounded-lg focus:border-pyrax-500 outline-none"
           />
         </div>
         <button
           onClick={handleSearch}
           disabled={loading}
-          className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+          className="px-6 py-3 bg-pyrax-600 hover:bg-pyrax-700 rounded-lg transition-colors disabled:opacity-50"
         >
           Search
         </button>
       </div>
 
+      {/* Network Nodes */}
+      <NetworkNodes />
+
       {/* Selected Block Details */}
       {selectedBlock && (
-        <div className="bg-gray-800 rounded-xl p-6">
+        <div className="bg-dark-800 rounded-xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Block #{parseInt(selectedBlock.number, 16).toLocaleString()}</h2>
-            <button onClick={() => setSelectedBlock(null)} className="text-gray-400 hover:text-white">
+            <button onClick={() => setSelectedBlock(null)} className="text-stone-400 hover:text-white">
               ✕
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-gray-500">Hash</div>
+              <div className="text-stone-500">Hash</div>
               <div className="font-mono">{truncateHash(selectedBlock.hash, 16)}</div>
             </div>
             <div>
-              <div className="text-gray-500">Parent Hash</div>
+              <div className="text-stone-500">Parent Hash</div>
               <div className="font-mono">{truncateHash(selectedBlock.parentHash, 16)}</div>
             </div>
             <div>
-              <div className="text-gray-500">Timestamp</div>
+              <div className="text-stone-500">Timestamp</div>
               <div>{new Date(parseInt(selectedBlock.timestamp, 16) * 1000).toLocaleString()}</div>
             </div>
             <div>
-              <div className="text-gray-500">Miner</div>
+              <div className="text-stone-500">Miner</div>
               <div className="font-mono">{truncateHash(selectedBlock.miner, 10)}</div>
             </div>
             <div>
-              <div className="text-gray-500">Transactions</div>
+              <div className="text-stone-500">Transactions</div>
               <div>{selectedBlock.transactionCount}</div>
             </div>
             <div>
-              <div className="text-gray-500">Size</div>
+              <div className="text-stone-500">Size</div>
               <div>{parseInt(selectedBlock.size, 16).toLocaleString()} bytes</div>
             </div>
           </div>
@@ -150,37 +154,37 @@ export default function Explorer() {
       )}
 
       {/* Recent Blocks */}
-      <div className="bg-gray-800 rounded-xl p-6">
+      <div className="bg-dark-800 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Blocks size={20} />
+            <Blocks size={20} className="text-pyrax-400" />
             Recent Blocks
           </h2>
           <button
             onClick={fetchRecentBlocks}
-            className="text-sm text-purple-400 hover:text-purple-300"
+            className="text-sm text-pyrax-400 hover:text-pyrax-300"
           >
             Refresh
           </button>
         </div>
         
         {recentBlocks.length === 0 ? (
-          <p className="text-center py-8 text-gray-400">No blocks found</p>
+          <p className="text-center py-8 text-stone-400">No blocks found</p>
         ) : (
           <div className="space-y-2">
             {recentBlocks.map((block) => (
               <div
                 key={block.hash}
                 onClick={() => setSelectedBlock(block)}
-                className="flex items-center justify-between p-4 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-650 transition-colors"
+                className="flex items-center justify-between p-4 bg-dark-700 rounded-lg cursor-pointer hover:bg-dark-600 transition-colors"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-purple-600/20 rounded-lg flex items-center justify-center">
-                    <Blocks className="text-purple-400" size={24} />
+                  <div className="w-12 h-12 bg-pyrax-600/20 rounded-lg flex items-center justify-center">
+                    <Blocks className="text-pyrax-400" size={24} />
                   </div>
                   <div>
                     <div className="font-semibold">Block #{parseInt(block.number, 16).toLocaleString()}</div>
-                    <div className="text-sm text-gray-400 flex items-center gap-2">
+                    <div className="text-sm text-stone-400 flex items-center gap-2">
                       <Clock size={14} />
                       {formatTimeAgo(parseInt(block.timestamp, 16))}
                     </div>
@@ -188,9 +192,9 @@ export default function Explorer() {
                 </div>
                 <div className="text-right">
                   <div className="text-sm">{block.transactionCount} txs</div>
-                  <div className="text-xs text-gray-500 font-mono">{truncateHash(block.hash)}</div>
+                  <div className="text-xs text-stone-500 font-mono">{truncateHash(block.hash)}</div>
                 </div>
-                <ArrowRight className="text-gray-500" size={20} />
+                <ArrowRight className="text-stone-500" size={20} />
               </div>
             ))}
           </div>
