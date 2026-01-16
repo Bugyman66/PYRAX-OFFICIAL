@@ -16,6 +16,8 @@ interface ConnectedNode {
   version: string;
   blockHeight: number;
   latency: number; // latency in ms to bootnode
+  isBootnode?: boolean; // true if this is a bootnode
+  online?: boolean; // connection status
 }
 
 interface GeoLocation {
@@ -41,6 +43,23 @@ const STREAM_ENDPOINTS = {
   B: process.env.STREAM_B_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28545' : 'http://209.38.137.105:28545'),
   C: process.env.STREAM_C_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28547' : 'http://209.38.137.105:28547'),
 };
+
+// Bootnode configurations - these are always shown regardless of P2P connections
+const BOOTNODES = [
+  {
+    id: 'bootnode-nyc-1',
+    ip: '209.38.137.105',
+    port: 30303,
+    rpcPort: 28545,
+    country: 'United States',
+    countryCode: 'US',
+    city: 'New York',
+    lat: 40.7128,
+    lon: -74.0060,
+    stream: 'A' as const,
+    isBootnode: true,
+  },
+];
 
 // Cache for IP geolocation to avoid repeated API calls
 const geoCache = new Map<string, GeoLocation>();
@@ -185,6 +204,38 @@ async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Prom
   }
 }
 
+// Check if bootnode RPC is online
+async function checkBootnodeStatus(rpcUrl: string): Promise<{ online: boolean; latency: number; blockHeight: number; version: string }> {
+  try {
+    const start = performance.now();
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'pyrax_getChainInfo',
+        params: [],
+        id: 1,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const latency = Math.round(performance.now() - start);
+      return {
+        online: true,
+        latency,
+        blockHeight: data.result?.block_height || data.result?.blockNumber || 0,
+        version: data.result?.version || '0.1.0',
+      };
+    }
+  } catch {
+    // Bootnode offline
+  }
+  return { online: false, latency: -1, blockHeight: 0, version: '0.1.0' };
+}
+
 export async function GET() {
   try {
     // Fetch peers from all 3 streams in parallel
@@ -206,7 +257,7 @@ export async function GET() {
     });
 
     // Process peers and get geolocation for each
-    const nodes: ConnectedNode[] = await Promise.all(
+    const peerNodes: ConnectedNode[] = await Promise.all(
       uniquePeers.map(async (peer: any, idx: number) => {
         const ip = extractIP(peer.address || peer.ip || '');
         const geo = await getGeoLocation(ip);
@@ -240,9 +291,42 @@ export async function GET() {
           version: peer.version || '0.1.0',
           blockHeight: peer.block_height || 0,
           latency: variance,
+          isBootnode: false,
+          online: true,
         };
       })
     );
+
+    // Add bootnodes to the list (check their status)
+    const bootnodeNodes: ConnectedNode[] = await Promise.all(
+      BOOTNODES.map(async (bn) => {
+        const rpcUrl = `http://${bn.ip}:${bn.rpcPort}`;
+        const status = await checkBootnodeStatus(rpcUrl);
+        
+        return {
+          id: bn.id,
+          peerId: bn.id,
+          ip: bn.ip,
+          port: bn.port,
+          country: bn.country,
+          countryCode: bn.countryCode,
+          city: bn.city,
+          lat: bn.lat,
+          lon: bn.lon,
+          stream: bn.stream,
+          connectedAt: Date.now() - 86400000, // Bootnodes are always "connected"
+          lastSeen: Date.now(),
+          version: status.version,
+          blockHeight: status.blockHeight,
+          latency: status.latency,
+          isBootnode: true,
+          online: status.online,
+        };
+      })
+    );
+
+    // Combine bootnodes first, then peer nodes (bootnodes at top)
+    const nodes = [...bootnodeNodes, ...peerNodes];
 
     // Calculate average latency
     const validLatencies = nodes.filter(n => n.latency > 0).map(n => n.latency);

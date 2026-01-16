@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useNetwork } from '@/context/NetworkContext'
-import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Zap } from 'lucide-react'
+import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Zap, Wifi, WifiOff } from 'lucide-react'
 import { STREAMS, StreamType } from '@/lib/networks'
 
 const ComposableMap = dynamic(() => import('react-simple-maps').then(m => m.ComposableMap), { ssr: false })
@@ -30,6 +30,8 @@ interface ConnectedNode {
   version: string
   blockHeight: number
   latency: number
+  isBootnode?: boolean
+  online?: boolean
 }
 
 interface NodeStats {
@@ -187,22 +189,31 @@ export default function NodesVisualizerPage() {
                     <Geography key={geo.rsmKey} geography={geo} fill="#27272a" stroke="#3f3f46" strokeWidth={0.5} style={{ default: { outline: 'none' }, hover: { fill: '#3f3f46', outline: 'none' }, pressed: { outline: 'none' } }} />
                   ))}
                 </Geographies>
-                {mappableNodes.map(node => (
-                  <Marker key={node.id} coordinates={[node.lon, node.lat]}>
-                    <circle r={10} fill={getStreamColor(node.stream)} opacity={0.2} className="animate-ping" />
-                    <circle r={6} fill={getStreamColor(node.stream)} opacity={0.4} />
-                    <circle r={3} fill={getStreamColor(node.stream)} />
-                    <title>{node.city}, {node.country} - Stream {node.stream}</title>
-                  </Marker>
-                ))}
+                {mappableNodes.map(node => {
+                  // Bootnodes get red color, others get stream color
+                  const markerColor = node.isBootnode ? '#ef4444' : getStreamColor(node.stream)
+                  const markerSize = node.isBootnode ? 5 : 3
+                  return (
+                    <Marker key={node.id} coordinates={[node.lon, node.lat]}>
+                      <circle r={markerSize * 3} fill={markerColor} opacity={0.2} className="animate-ping" />
+                      <circle r={markerSize * 2} fill={markerColor} opacity={0.4} />
+                      <circle r={markerSize} fill={markerColor} />
+                      <title>{node.isBootnode ? '🔴 BOOTNODE: ' : ''}{node.city}, {node.country} - Stream {node.stream}</title>
+                    </Marker>
+                  )
+                })}
               </ZoomableGroup>
             </ComposableMap>
           ) : (
             <div className="flex items-center justify-center h-full"><RefreshCw className="w-8 h-8 animate-spin text-stone-600" /></div>
           )}
           <div className="absolute bottom-4 left-4 bg-stone-900/95 rounded-lg p-3 border border-stone-700">
-            <div className="text-xs text-stone-400 mb-2">Stream Types</div>
-            <div className="flex gap-4">
+            <div className="text-xs text-stone-400 mb-2">Node Types</div>
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-red-500" />
+                <span className="text-xs text-stone-300 font-medium">Bootnode</span>
+              </div>
               {(['A', 'B', 'C'] as StreamType[]).map(s => (
                 <div key={s} className="flex items-center gap-1.5">
                   <span className="w-3 h-3 rounded-full" style={{ backgroundColor: getStreamColor(s) }} />
@@ -248,41 +259,62 @@ export default function NodesVisualizerPage() {
           <table className="w-full">
             <thead className="bg-stone-800/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Peer ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Stream</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Latency</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Block Height</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Version</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Last Seen</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase text-right">Latency</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-800">
-              {paginatedNodes.length > 0 ? paginatedNodes.map(node => (
-                <tr key={node.id} className="hover:bg-stone-800/30">
-                  <td className="px-4 py-3"><span className="font-mono text-sm text-stone-300">{node.peerId.slice(0, 8)}...{node.peerId.slice(-6)}</span></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{getFlagEmoji(node.countryCode)}</span>
-                      <div><div className="text-sm text-white">{node.city || 'Unknown'}</div><div className="text-xs text-stone-500">{node.country || 'Unknown'}</div></div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${getStreamColor(node.stream)}20`, color: getStreamColor(node.stream) }}>
-                      {node.stream} - {STREAMS[node.stream].algorithm}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-sm font-mono ${node.latency > 0 ? (node.latency < 100 ? 'text-green-400' : node.latency < 300 ? 'text-yellow-400' : 'text-red-400') : 'text-stone-500'}`}>
-                      {node.latency > 0 ? `${node.latency}ms` : '--'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-300 font-mono">#{node.blockHeight.toLocaleString()}</span></td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-400">{node.version}</span></td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-400">{formatTimeAgo(node.lastSeen)}</span></td>
-                </tr>
-              )) : (
-                <tr><td colSpan={7} className="px-4 py-12 text-center">
+              {paginatedNodes.length > 0 ? paginatedNodes.map(node => {
+                const isOnline = node.online !== false
+                const isBootnode = node.isBootnode === true
+                return (
+                  <tr key={node.id} className={cn('hover:bg-stone-800/30', isBootnode && 'bg-red-900/10 border-l-2 border-red-500')}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {isOnline ? (
+                          <Wifi className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <WifiOff className="w-4 h-4 text-red-400" />
+                        )}
+                        <span className={isOnline ? 'text-green-400 text-sm' : 'text-red-400 text-sm'}>
+                          {isOnline ? 'Online' : 'Offline'}
+                        </span>
+                        {isBootnode && (
+                          <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium">
+                            BOOTNODE
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getFlagEmoji(node.countryCode)}</span>
+                        <div>
+                          <div className="text-sm text-white">{node.city || 'Unknown'}</div>
+                          <div className="text-xs text-stone-500">{node.country || 'Unknown'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${getStreamColor(node.stream)}20`, color: getStreamColor(node.stream) }}>
+                        {STREAMS[node.stream].algorithm}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono text-pyrax-400">v{node.version}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`text-sm font-mono ${node.latency > 0 ? (node.latency < 50 ? 'text-green-400' : node.latency < 100 ? 'text-yellow-400' : node.latency < 200 ? 'text-orange-400' : 'text-red-400') : 'text-stone-500'}`}>
+                        {isOnline && node.latency > 0 ? `${node.latency}ms` : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              }) : (
+                <tr><td colSpan={5} className="px-4 py-12 text-center">
                   {loading ? <div className="flex items-center justify-center gap-2 text-stone-400"><RefreshCw className="w-5 h-5 animate-spin" /><span>Loading...</span></div> : <div className="text-stone-500">No nodes connected yet. Be the first to run a PYRAX node!</div>}
                 </td></tr>
               )}
