@@ -34,12 +34,12 @@ interface NodeStats {
 }
 
 // RPC endpoints for all 3 streams
-// When running in Docker, use internal service name 'node'
-// When running standalone, use direct IP with port 28545
+// Node runs via systemd on host - use Docker host gateway IP (172.17.0.1) in production
+// When running standalone/dev, use direct server IP
 const STREAM_ENDPOINTS = {
-  A: process.env.STREAM_A_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8545' : 'http://209.38.137.105:28545'),
-  B: process.env.STREAM_B_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8545' : 'http://209.38.137.105:28545'),
-  C: process.env.STREAM_C_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8547' : 'http://209.38.137.105:28547'),
+  A: process.env.STREAM_A_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28545' : 'http://209.38.137.105:28545'),
+  B: process.env.STREAM_B_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28545' : 'http://209.38.137.105:28545'),
+  C: process.env.STREAM_C_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28547' : 'http://209.38.137.105:28547'),
 };
 
 // Cache for IP geolocation to avoid repeated API calls

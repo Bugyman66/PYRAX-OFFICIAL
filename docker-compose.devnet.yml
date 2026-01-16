@@ -4,38 +4,10 @@
 # Domain: pyrax-devnet.org
 
 services:
-  # PYRAX Blockchain Node - TriStream DAG
-  # Stream A: BLAKE3 PoW (RPC 8545)
-  # Stream B: KAWPOW GPU Mining (Stratum 3333)
-  # Stream C: ZK Staking (RPC 8547)
-  node:
-    build:
-      context: .
-      dockerfile: pyrax-node/Dockerfile
-    container_name: pyrax-node
-    restart: unless-stopped
-    ports:
-      - "30303:30303"      # P2P TCP
-      - "30304:30304/udp"  # P2P UDP
-      - "3333:3333"        # Stream B Stratum (GPU mining) - direct access for miners
-    expose:
-      - "8545"  # Stream A RPC (internal, proxied via nginx)
-      - "8546"  # WebSocket (internal)
-      - "8547"  # Stream C Staking RPC (internal, proxied via nginx)
-    environment:
-      - RUST_LOG=info
-      - PYRAX_NETWORK=devnet
-    volumes:
-      - node-data:/app/data
-      - dag-cache:/app/dag_cache
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8545"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - pyrax-network
+  # NOTE: PYRAX Node runs via systemd on host, NOT Docker
+  # See: /etc/systemd/system/pyrax-node.service
+  # Ports on host: 28545 (RPC), 3333 (Stratum), 28547 (Staking), 30303 (P2P)
+  # Docker containers access host node via 172.17.0.1
 
   # PostgreSQL Database
   postgres:
@@ -183,6 +155,8 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_NETWORK=devnet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3003"]
       interval: 30s
@@ -202,6 +176,8 @@ services:
     volumes:
       - ./deployment/nginx/devnet.conf:/etc/nginx/nginx.conf:ro
       - nginx-cache:/var/cache/nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - website
       - faucet
@@ -219,5 +195,3 @@ volumes:
   nginx-cache:
   postgres-data:
   redis-data:
-  node-data:
-  dag-cache:
