@@ -43,6 +43,8 @@ pub struct Settings {
     pub p2p_port: u16,
     pub max_peers: u32,
     pub theme: Theme,
+    /// Log verbosity level: 0=error, 1=warn, 2=info, 3=debug, 4=trace
+    pub log_verbosity: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -94,6 +96,7 @@ impl Default for Settings {
             p2p_port: 30303,
             max_peers: 50,
             theme: Theme::System,
+            log_verbosity: 3, // Default to debug level for detailed logs
         }
     }
 }

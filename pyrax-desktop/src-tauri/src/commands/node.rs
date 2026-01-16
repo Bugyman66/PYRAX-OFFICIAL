@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::process::{Command, Stdio};
 use std::fs;
+use std::io::{BufRead, BufReader};
 use tauri::{State, Manager, AppHandle};
 use tracing::{info, error, warn};
 
@@ -50,6 +51,59 @@ fn emit_log(app: &AppHandle, level: &str, category: &str, message: &str) {
         category: category.to_string(),
         message: message.to_string(),
     });
+}
+
+/// Parse pyrax-node tracing log format
+/// Example: "2026-01-16T05:12:43.406091Z  INFO Connected to peer: 12D3KooW..."
+/// Returns (level, category, message)
+fn parse_node_log(line: &str) -> (String, String, String) {
+    // Tracing format: TIMESTAMP LEVEL [target] message
+    // or: TIMESTAMP LEVEL message
+    let line = line.trim();
+    
+    // Skip timestamp (ISO 8601 format)
+    let parts: Vec<&str> = line.splitn(3, ' ').collect();
+    if parts.len() < 2 {
+        return ("info".to_string(), "node".to_string(), line.to_string());
+    }
+    
+    // Extract level (INFO, WARN, ERROR, DEBUG, TRACE)
+    let level_str = parts.get(1).unwrap_or(&"INFO").trim();
+    let level = match level_str.to_uppercase().as_str() {
+        "INFO" => "info",
+        "WARN" | "WARNING" => "warn",
+        "ERROR" => "error",
+        "DEBUG" | "TRACE" => "debug",
+        _ => "info",
+    };
+    
+    // Get message (rest of line after level)
+    let message = parts.get(2).unwrap_or(&line).trim().to_string();
+    
+    // Detect category from message content
+    let category = if message.contains("peer") || message.contains("Peer") || 
+                      message.contains("P2P") || message.contains("Kademlia") ||
+                      message.contains("Connected to") || message.contains("Disconnected") ||
+                      message.contains("mDNS") || message.contains("DHT") {
+        "p2p"
+    } else if message.contains("block") || message.contains("Block") || 
+              message.contains("height") || message.contains("sync") {
+        "block"
+    } else if message.contains("RPC") || message.contains("rpc") ||
+              message.contains("JSON") || message.contains("request") {
+        "rpc"
+    } else if message.contains("mining") || message.contains("Mining") ||
+              message.contains("Stratum") || message.contains("worker") ||
+              message.contains("Worker") || message.contains("KAWPOW") {
+        "mining"
+    } else if message.contains("staking") || message.contains("Staking") ||
+              message.contains("stake") || message.contains("ZK") {
+        "staking"
+    } else {
+        "node"
+    };
+    
+    (level.to_string(), category.to_string(), message)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,7 +238,7 @@ pub async fn start_node(
     app: AppHandle,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<NodeStatus, String> {
-    let (network, rpc_port, data_dir) = {
+    let (network, rpc_port, data_dir, log_verbosity) = {
         let app_state = state.lock();
         if app_state.node_running {
             return Err("Node is already running".to_string());
@@ -193,6 +247,7 @@ pub async fn start_node(
             app_state.network.clone(),
             get_rpc_port(&app_state.network),
             app_state.data_dir.clone(),
+            app_state.settings.log_verbosity,
         )
     };
     
@@ -274,7 +329,7 @@ pub async fn start_node(
            .arg("--staking")
            .arg("--staking-addr").arg(&staking_addr)
            .arg("--datadir").arg(&data_dir)
-           .arg("--verbosity").arg("3"); // Enable debug logging
+           .arg("--verbosity").arg(log_verbosity.to_string());
         
         // Add first bootstrap peer (--peer only takes one)
         if let Some(peer) = bootstrap_peers.first() {
@@ -288,10 +343,9 @@ pub async fn start_node(
         }
         emit_log(&app, "info", "node", &format!("Data directory: {:?}", data_path));
         
-        // Use null for stdout/stderr - the node will run headless
-        // We'll get status updates via RPC instead
-        cmd.stdout(Stdio::null())
-           .stderr(Stdio::null());
+        // Capture stdout/stderr to stream logs to UI
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped());
         
         // On Windows, create the process without a window and detached
         #[cfg(target_os = "windows")]
@@ -309,6 +363,35 @@ pub async fn start_node(
         match cmd.spawn() {
             Ok(mut child) => {
                 let pid = child.id();
+                
+                // Spawn background thread to stream stdout logs to UI
+                if let Some(stdout) = child.stdout.take() {
+                    let app_clone = app.clone();
+                    std::thread::spawn(move || {
+                        let reader = BufReader::new(stdout);
+                        for line in reader.lines() {
+                            if let Ok(line) = line {
+                                // Parse tracing log format: "2026-01-16T05:12:43.406091Z  INFO message"
+                                let (level, category, message) = parse_node_log(&line);
+                                emit_log(&app_clone, &level, &category, &message);
+                            }
+                        }
+                    });
+                }
+                
+                // Spawn background thread to stream stderr logs to UI
+                if let Some(stderr) = child.stderr.take() {
+                    let app_clone = app.clone();
+                    std::thread::spawn(move || {
+                        let reader = BufReader::new(stderr);
+                        for line in reader.lines() {
+                            if let Ok(line) = line {
+                                let (level, category, message) = parse_node_log(&line);
+                                emit_log(&app_clone, &level, &category, &message);
+                            }
+                        }
+                    });
+                }
                 
                 // Give the process a moment to start, then verify it's running
                 std::thread::sleep(std::time::Duration::from_millis(500));
