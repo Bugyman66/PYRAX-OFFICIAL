@@ -155,8 +155,8 @@ jobs:
             exit 1
           }
           
-          # Verify build produced output
-          $bundleDir = "src-tauri/target/release/bundle/nsis"
+          # Verify build produced output - check workspace root target dir
+          $bundleDir = "../target/release/bundle/nsis"
           if (-not (Test-Path $bundleDir)) {
             Write-Error "Build completed but no NSIS bundle directory found at $bundleDir"
             exit 1
@@ -175,17 +175,17 @@ jobs:
           Write-Host "=== Listing ALL files in bundle directories ==="
           Write-Host ""
           Write-Host "--- NSIS directory ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/nsis" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+          Get-ChildItem -Path "target/release/bundle/nsis" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "$($_.FullName) - $($_.Length) bytes"
           }
           Write-Host ""
           Write-Host "--- MSI directory ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/msi" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+          Get-ChildItem -Path "target/release/bundle/msi" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "$($_.FullName) - $($_.Length) bytes"
           }
           Write-Host ""
           Write-Host "--- Looking for .sig files anywhere ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle" -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | ForEach-Object {
+          Get-ChildItem -Path "target/release/bundle" -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "FOUND SIG: $($_.FullName)"
           }
 
@@ -198,8 +198,8 @@ jobs:
           
           Write-Host "=== Searching for bundle files ==="
           
-          # Find bundle directory - check multiple possible locations
-          $bundleBase = "pyrax-desktop/src-tauri/target/release/bundle"
+          # Find bundle directory - workspace root target
+          $bundleBase = "target/release/bundle"
           
           if (-not (Test-Path $bundleBase)) {
             Write-Host "Bundle directory not found at: $bundleBase"
