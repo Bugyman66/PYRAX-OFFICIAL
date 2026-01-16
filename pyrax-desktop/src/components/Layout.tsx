@@ -11,7 +11,7 @@ import {
 import { useNodeStore } from '../stores/nodeStore';
 import { cn } from '../lib/utils';
 
-const APP_VERSION = '0.2.13';
+const APP_VERSION = '0.2.14';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
