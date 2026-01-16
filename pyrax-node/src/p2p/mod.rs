@@ -9,7 +9,7 @@ mod registry;
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
 
 use libp2p::{
-    gossipsub, identify, mdns, noise, ping,
+    gossipsub, identify, kad, mdns, noise, ping,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm,
 };
@@ -84,6 +84,7 @@ pub struct PyraxBehaviour {
     pub mdns: mdns::tokio::Behaviour,
     pub identify: identify::Behaviour,
     pub ping: ping::Behaviour,
+    pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 /// P2P Network manager
@@ -155,7 +156,17 @@ impl Network {
                         .with_timeout(Duration::from_secs(20))
                 );
 
-                PyraxBehaviour { gossipsub, mdns, identify, ping }
+                // Kademlia DHT for peer discovery
+                let store = kad::store::MemoryStore::new(local_peer_id);
+                let mut kademlia_config = kad::Config::default();
+                kademlia_config.set_protocol_names(vec![
+                    libp2p::StreamProtocol::try_from_owned(format!("/pyrax/{}/kad/1.0.0", network_id.name())).unwrap()
+                ]);
+                // Bootstrap more aggressively
+                kademlia_config.set_query_timeout(Duration::from_secs(60));
+                let kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
+
+                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia }
             })?
             // Increase idle timeout to 5 minutes to prevent premature disconnections
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
@@ -198,8 +209,33 @@ impl Network {
     /// Connect to a peer
     pub fn dial(&mut self, addr: &str) -> anyhow::Result<()> {
         let multiaddr: Multiaddr = addr.parse()?;
-        self.swarm.dial(multiaddr)?;
+        self.swarm.dial(multiaddr.clone())?;
+        
+        // Extract peer ID from multiaddr if present and add to Kademlia
+        if let Some(peer_id) = Self::extract_peer_id(&multiaddr) {
+            self.swarm.behaviour_mut().kademlia.add_address(&peer_id, multiaddr);
+            info!("Added bootstrap peer {} to Kademlia", peer_id);
+        }
         Ok(())
+    }
+
+    /// Extract peer ID from a multiaddr containing /p2p/<peer_id>
+    fn extract_peer_id(addr: &Multiaddr) -> Option<PeerId> {
+        addr.iter().find_map(|p| {
+            if let libp2p::multiaddr::Protocol::P2p(peer_id) = p {
+                Some(peer_id)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Bootstrap Kademlia DHT for peer discovery
+    pub fn bootstrap_kademlia(&mut self) {
+        info!("Starting Kademlia DHT bootstrap for peer discovery...");
+        if let Err(e) = self.swarm.behaviour_mut().kademlia.bootstrap() {
+            warn!("Kademlia bootstrap failed: {:?}", e);
+        }
     }
 
     /// Subscribe to gossipsub topics
@@ -441,7 +477,7 @@ impl Network {
                             
                             self.peer_registry.add_peer(ConnectedPeer {
                                 peer_id: peer_id.to_string(),
-                                address: addr_str,
+                                address: addr_str.clone(),
                                 ip,
                                 port,
                                 direction,
@@ -451,10 +487,21 @@ impl Network {
                                 best_height: 0,
                             }).await;
                             
-                            // Start sync timer when first peer connects
+                            // Add peer to Kademlia DHT for discovery
+                            if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+                                self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+                                info!("Added peer {} to Kademlia DHT", peer_id);
+                            }
+                            
+                            // Start sync timer and Kademlia bootstrap when first peer connects
                             if !sync_delay_started {
                                 sync_delay_started = true;
                                 info!("First peer connected, will request sync in 3 seconds");
+                                // Start Kademlia bootstrap to discover more peers
+                                info!("Starting Kademlia DHT bootstrap for peer discovery...");
+                                if let Err(e) = self.swarm.behaviour_mut().kademlia.bootstrap() {
+                                    warn!("Kademlia bootstrap failed: {:?}", e);
+                                }
                             }
                         }
                         SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
@@ -567,8 +614,34 @@ impl Network {
                         self.peer_registry.update_peer_seen(&peer.to_string()).await;
                     }
                     Err(e) => {
-                        warn!("Ping to {} failed: {:?}", peer, e);
+                        // Don't warn on unsupported - older clients may not have ping
+                        debug!("Ping to {} failed: {:?}", peer, e);
                     }
+                }
+            }
+            PyraxBehaviourEvent::Kademlia(event) => {
+                match event {
+                    kad::Event::RoutingUpdated { peer, addresses, .. } => {
+                        info!("Kademlia: Routing updated for peer {} with {} addresses", peer, addresses.len());
+                    }
+                    kad::Event::OutboundQueryProgressed { result, .. } => {
+                        match result {
+                            kad::QueryResult::GetClosestPeers(Ok(ok)) => {
+                                info!("Kademlia: Found {} closest peers", ok.peers.len());
+                                for peer in ok.peers {
+                                    debug!("  - Discovered peer: {}", peer);
+                                }
+                            }
+                            kad::QueryResult::Bootstrap(Ok(ok)) => {
+                                info!("Kademlia: Bootstrap step completed, {} remaining", ok.num_remaining);
+                            }
+                            kad::QueryResult::Bootstrap(Err(e)) => {
+                                warn!("Kademlia: Bootstrap failed: {:?}", e);
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
                 }
             }
             _ => {}
