@@ -42,6 +42,36 @@ export default function Dashboard() {
     };
   }, [addLog]);
 
+  // Listen for watchdog events (auto-reconnect)
+  useEffect(() => {
+    const unlistenDisconnected = listen<{ reason: string; will_restart: boolean }>('node-disconnected', (event) => {
+      addLog('warn', 'node', `Node disconnected: ${event.payload.reason}`);
+      if (event.payload.will_restart) {
+        addLog('info', 'node', 'Auto-restart pending...');
+      }
+    });
+
+    const unlistenRestart = listen<{ reason: string }>('node-restart-requested', async (event) => {
+      addLog('info', 'node', `Auto-restart triggered: ${event.payload.reason}`);
+      try {
+        await startNode();
+        addLog('info', 'node', 'Node restarted successfully');
+      } catch (e) {
+        addLog('error', 'node', `Failed to restart node: ${e}`);
+      }
+    });
+
+    const unlistenNetworkError = listen<{ reason: string; duration_seconds: number }>('node-network-error', (event) => {
+      addLog('error', 'node', `Network error: ${event.payload.reason} (${event.payload.duration_seconds}s)`);
+    });
+
+    return () => {
+      unlistenDisconnected.then((fn) => fn());
+      unlistenRestart.then((fn) => fn());
+      unlistenNetworkError.then((fn) => fn());
+    };
+  }, [startNode, addLog]);
+
   useEffect(() => {
     // Load current network setting
     invoke<{ network: string }>('get_settings').then((settings) => {
@@ -157,7 +187,7 @@ export default function Dashboard() {
         <StatCard
           icon={<Users className="text-blue-400" />}
           label="Connected Peers"
-          value={status && typeof status.peerCount === 'number' ? status.peerCount.toString() : '0'}
+          value={`${status && typeof status.peerCount === 'number' ? status.peerCount : 0}/50`}
           subtext={status?.network || 'Not connected'}
         />
         <StatCard
@@ -186,7 +216,7 @@ export default function Dashboard() {
             <InfoItem label="Status" value={status.connected ? 'Connected' : 'Connecting...'} />
             <InfoItem label="Network" value={status.network || 'Unknown'} />
             <InfoItem label="Version" value={status.version || '0.1.0'} />
-            <InfoItem label="Peers" value={String(status.peerCount || 0)} />
+            <InfoItem label="Peers" value={`${status.peerCount || 0}/50`} />
             {chainInfo && (
               <>
                 <InfoItem label="Chain ID" value={String(chainInfo.chainId)} />

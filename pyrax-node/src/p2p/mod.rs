@@ -653,12 +653,11 @@ impl Network {
                         info!("Kademlia: Routing updated for peer {} with {} addresses", peer, addresses.len());
                         // Try to connect to this peer if we're not already connected
                         let connected = self.connected_peers.read().await.contains_key(&peer);
-                        if !connected && addresses.len() > 0 {
-                            if let Some(addr) = addresses.first() {
-                                info!("Kademlia: Dialing newly discovered peer {} at {}", peer, addr);
-                                if let Err(e) = self.swarm.dial(addr.clone()) {
-                                    debug!("Failed to dial discovered peer {}: {:?}", peer, e);
-                                }
+                        if !connected && !addresses.is_empty() {
+                            // Dial the peer directly - swarm will use known addresses
+                            info!("Kademlia: Dialing newly discovered peer {}", peer);
+                            if let Err(e) = self.swarm.dial(peer) {
+                                debug!("Failed to dial discovered peer {}: {:?}", peer, e);
                             }
                         }
                     }
@@ -670,14 +669,10 @@ impl Network {
                                 for peer_id in &ok.peers {
                                     let connected = self.connected_peers.read().await.contains_key(peer_id);
                                     if !connected {
-                                        // Get addresses for this peer from Kademlia
-                                        if let Some(addrs) = self.swarm.behaviour_mut().kademlia.addresses_of_peer(peer_id) {
-                                            if let Some(addr) = addrs.first() {
-                                                info!("Kademlia: Dialing discovered peer {} at {}", peer_id, addr);
-                                                if let Err(e) = self.swarm.dial(addr.clone()) {
-                                                    debug!("Failed to dial {}: {:?}", peer_id, e);
-                                                }
-                                            }
+                                        // Dial the peer directly - swarm will use addresses from Kademlia routing table
+                                        info!("Kademlia: Dialing discovered peer {}", peer_id);
+                                        if let Err(e) = self.swarm.dial(peer_id.clone()) {
+                                            debug!("Failed to dial {}: {:?}", peer_id, e);
                                         }
                                     }
                                 }
