@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import { Download, X, RefreshCw, Sparkles } from 'lucide-react';
+import { Download, X, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 
 interface UpdateInfo {
   available: boolean;
@@ -12,12 +12,13 @@ interface UpdateInfo {
 
 export default function UpdateNotification() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true); // Start true to show loading on launch
+  const [initialCheck, setInitialCheck] = useState(true);
   const [installing, setInstalling] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const checkForUpdates = async () => {
+  const checkForUpdates = async (isInitial = false) => {
     setChecking(true);
     setError(null);
     try {
@@ -31,6 +32,7 @@ export default function UpdateNotification() {
       setError(String(e));
     } finally {
       setChecking(false);
+      if (isInitial) setInitialCheck(false);
     }
   };
 
@@ -47,13 +49,25 @@ export default function UpdateNotification() {
   };
 
   useEffect(() => {
-    // Check for updates on mount
-    checkForUpdates();
+    // Check for updates immediately on app launch
+    checkForUpdates(true);
     
     // Check every 30 minutes
-    const interval = setInterval(checkForUpdates, 30 * 60 * 1000);
+    const interval = setInterval(() => checkForUpdates(false), 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Show checking indicator on initial app launch
+  if (initialCheck && checking) {
+    return (
+      <div className="fixed top-4 right-4 z-[9999] animate-fade-in">
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/90 rounded-lg border border-gray-700 shadow-lg">
+          <Loader2 size={16} className="animate-spin text-purple-400" />
+          <span className="text-sm text-gray-300">Checking for updates...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (dismissed || !updateInfo?.available) {
     return null;
