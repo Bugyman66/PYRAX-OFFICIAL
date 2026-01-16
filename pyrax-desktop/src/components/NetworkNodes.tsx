@@ -5,6 +5,8 @@ import { useNodeStore, BootnodeInfo } from '../stores/nodeStore';
 
 // Country code to flag emoji
 function getFlag(countryCode: string): string {
+  // Special case for local node
+  if (countryCode === '🖥️') return '🖥️';
   if (!countryCode || countryCode.length !== 2) return '🌐';
   const codePoints = countryCode
     .toUpperCase()
@@ -137,8 +139,9 @@ export default function NetworkNodes() {
             <tbody className="divide-y divide-dark-700">
               {bootnodes.map((node) => {
                 const streamInfo = getStreamLabel(node.stream);
+                const isLocalNode = node.id === 'this-node';
                 return (
-                  <tr key={node.id} className="hover:bg-dark-700/50">
+                  <tr key={node.id} className={`hover:bg-dark-700/50 ${isLocalNode ? 'bg-pyrax-900/20 border-l-2 border-pyrax-500' : ''}`}>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
                         {node.online ? (
@@ -149,6 +152,11 @@ export default function NetworkNodes() {
                         <span className={node.online ? 'text-green-400' : 'text-red-400'}>
                           {node.online ? 'Online' : 'Offline'}
                         </span>
+                        {isLocalNode && (
+                          <span className="text-xs bg-pyrax-500/20 text-pyrax-400 px-2 py-0.5 rounded-full">
+                            YOU
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="py-3">

@@ -204,15 +204,12 @@ pub struct BootnodeInfo {
     pub online: bool,
 }
 
-// Bootnode configurations with location info
+// Bootnode configurations with location info - ACTUAL production bootnodes
 fn get_bootnode_configs() -> Vec<(String, String, String, String, String, String, String)> {
     vec![
         // (id, url, city, region, country, country_code, stream)
-        ("node-us-east-1".to_string(), "https://rpc.pyrax-devnet.org".to_string(), "New York".to_string(), "NY".to_string(), "United States".to_string(), "US".to_string(), "A".to_string()),
-        ("node-us-west-1".to_string(), "https://rpc2.pyrax-devnet.org".to_string(), "San Francisco".to_string(), "CA".to_string(), "United States".to_string(), "US".to_string(), "A".to_string()),
-        ("node-eu-west-1".to_string(), "https://rpc-eu.pyrax-devnet.org".to_string(), "Frankfurt".to_string(), "HE".to_string(), "Germany".to_string(), "DE".to_string(), "B".to_string()),
-        ("node-asia-1".to_string(), "https://rpc-asia.pyrax-devnet.org".to_string(), "Singapore".to_string(), "".to_string(), "Singapore".to_string(), "SG".to_string(), "B".to_string()),
-        ("validator-1".to_string(), "https://validator.pyrax-devnet.org".to_string(), "London".to_string(), "".to_string(), "United Kingdom".to_string(), "GB".to_string(), "C".to_string()),
+        // Primary bootnode - DigitalOcean NYC
+        ("bootnode-nyc-1".to_string(), "http://209.38.137.105:28545".to_string(), "New York".to_string(), "NY".to_string(), "United States".to_string(), "US".to_string(), "A".to_string()),
     ]
 }
 
@@ -220,30 +217,56 @@ fn get_bootnode_configs() -> Vec<(String, String, String, String, String, String
 pub async fn get_bootnode_info(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<Vec<BootnodeInfo>, String> {
-    let running = {
+    let (running, rpc_port) = {
         let app_state = state.lock();
-        app_state.node_running
+        (app_state.node_running, app_state.rpc_port)
     };
     
     if !running {
         return Err("Node is not running".to_string());
     }
     
-    let configs = get_bootnode_configs();
     let mut bootnodes = Vec::new();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_default();
     
+    // First, add the user's own local node (THIS NODE)
+    let local_url = format!("http://127.0.0.1:{}", rpc_port);
+    let start = Instant::now();
+    let local_online = match client
+        .post(&local_url)
+        .header("Content-Type", "application/json")
+        .body(r#"{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}"#)
+        .send()
+        .await
+    {
+        Ok(response) => response.status().is_success(),
+        Err(_) => false,
+    };
+    let local_latency = start.elapsed().as_millis() as u64;
+    
+    bootnodes.push(BootnodeInfo {
+        id: "this-node".to_string(),
+        url: local_url,
+        latency_ms: local_latency,
+        city: "Local".to_string(),
+        region: "".to_string(),
+        country: "This Machine".to_string(),
+        country_code: "🖥️".to_string(), // Special marker for local
+        stream: "A".to_string(),
+        online: local_online,
+    });
+    
+    // Then add remote bootnodes
+    let configs = get_bootnode_configs();
     for (id, url, city, region, country, country_code, stream) in configs {
-        // Measure latency by pinging the RPC endpoint
         let start = Instant::now();
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .unwrap_or_default();
-        
         let (online, latency_ms) = match client
             .post(&url)
             .header("Content-Type", "application/json")
-            .body(r#"{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}"#)
+            .body(r#"{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}"#)
             .send()
             .await
         {
