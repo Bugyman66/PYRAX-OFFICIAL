@@ -34,10 +34,12 @@ interface NodeStats {
 }
 
 // RPC endpoints for all 3 streams
+// When running in Docker, use internal service name 'node'
+// When running standalone, use direct IP with port 28545
 const STREAM_ENDPOINTS = {
-  A: process.env.STREAM_A_RPC || 'http://209.38.137.105:28545',  // BLAKE3 PoW
-  B: process.env.STREAM_B_RPC || 'http://209.38.137.105:28545',  // KAWPOW (shares RPC with A for peer info)
-  C: process.env.STREAM_C_RPC || 'http://209.38.137.105:28547',  // ZK Staking
+  A: process.env.STREAM_A_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8545' : 'http://209.38.137.105:28545'),
+  B: process.env.STREAM_B_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8545' : 'http://209.38.137.105:28545'),
+  C: process.env.STREAM_C_RPC || (process.env.NODE_ENV === 'production' ? 'http://node:8547' : 'http://209.38.137.105:28547'),
 };
 
 // Cache for IP geolocation to avoid repeated API calls

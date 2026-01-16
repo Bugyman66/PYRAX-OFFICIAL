@@ -60,6 +60,6 @@ USER pyrax
 # 30304 - P2P UDP
 EXPOSE 8545 8546 8547 3333 30303 30304/udp
 
-# Default command - Enable all streams
+# Default command - Enable all streams with P2P networking
 ENTRYPOINT ["pyrax-node"]
-CMD ["--network", "devnet", "--rpc", "--rpc-addr", "0.0.0.0:8545", "--stratum", "--stratum-addr", "0.0.0.0:3333", "--staking", "--staking-addr", "0.0.0.0:8547", "--datadir", "/app/data"]
+CMD ["--network", "devnet", "--rpc", "--rpc-addr", "0.0.0.0:8545", "--p2p", "--p2p-addr", "/ip4/0.0.0.0/tcp/30303", "--stratum", "--stratum-addr", "0.0.0.0:3333", "--staking", "--staking-addr", "0.0.0.0:8547", "--datadir", "/app/data", "--verbosity", "3"]
