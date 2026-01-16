@@ -9,7 +9,7 @@ mod registry;
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
 
 use libp2p::{
-    gossipsub, identify, mdns, noise,
+    gossipsub, identify, mdns, noise, ping,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm,
 };
@@ -83,6 +83,7 @@ pub struct PyraxBehaviour {
     pub gossipsub: gossipsub::Behaviour,
     pub mdns: mdns::tokio::Behaviour,
     pub identify: identify::Behaviour,
+    pub ping: ping::Behaviour,
 }
 
 /// P2P Network manager
@@ -93,6 +94,7 @@ pub struct Network {
     network_id: NetworkId,
     connected_peers: Arc<RwLock<HashMap<PeerId, PeerInfo>>>,
     peer_registry: PeerRegistry,
+    bootstrap_peers: Vec<String>,
     // Channels for received blocks/txs
     block_tx: mpsc::Sender<Block>,
     block_rx: Option<mpsc::Receiver<Block>>,
@@ -146,9 +148,17 @@ impl Network {
                     )
                 );
 
-                PyraxBehaviour { gossipsub, mdns, identify }
+                // Ping for keep-alive (every 15 seconds, timeout after 20 seconds)
+                let ping = ping::Behaviour::new(
+                    ping::Config::new()
+                        .with_interval(Duration::from_secs(15))
+                        .with_timeout(Duration::from_secs(20))
+                );
+
+                PyraxBehaviour { gossipsub, mdns, identify, ping }
             })?
-            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+            // Increase idle timeout to 5 minutes to prevent premature disconnections
+            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
 
         // Create channels
@@ -165,6 +175,7 @@ impl Network {
             network_id,
             connected_peers: Arc::new(RwLock::new(HashMap::new())),
             peer_registry,
+            bootstrap_peers: config.bootstrap_peers,
             block_tx,
             block_rx: Some(block_rx),
             tx_tx,
@@ -275,6 +286,10 @@ impl Network {
         let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
         periodic_sync_timer.tick().await;
         
+        // Bootstrap reconnection timer - checks every 60 seconds if we need to reconnect
+        let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
+        bootstrap_timer.tick().await;
+        
         let mut last_requested_height: u64 = 0;
         
         loop {
@@ -364,6 +379,21 @@ impl Network {
                         last_requested_height = start_height;
                     }
                 }
+                // Bootstrap reconnection - ensure we stay connected to bootstrap peers
+                _ = bootstrap_timer.tick() => {
+                    let peer_count = self.connected_peers.read().await.len();
+                    if peer_count == 0 && !self.bootstrap_peers.is_empty() {
+                        info!("No peers connected, attempting to reconnect to bootstrap peers...");
+                        for peer_addr in &self.bootstrap_peers {
+                            info!("Redialing bootstrap peer: {}", peer_addr);
+                            if let Ok(addr) = peer_addr.parse::<Multiaddr>() {
+                                if let Err(e) = self.swarm.dial(addr) {
+                                    warn!("Failed to redial {}: {:?}", peer_addr, e);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -381,6 +411,10 @@ impl Network {
         // Periodic sync timer - checks every 30 seconds for new blocks from peers
         let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
         periodic_sync_timer.tick().await; // Skip first tick
+        
+        // Bootstrap reconnection timer - checks every 60 seconds if we need to reconnect
+        let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
+        bootstrap_timer.tick().await; // Skip first tick
         
         // Track last synced height to avoid duplicate requests
         let mut last_requested_height: u64 = 0;
@@ -468,6 +502,21 @@ impl Network {
                         last_requested_height = start_height;
                     }
                 }
+                // Bootstrap reconnection - ensure we stay connected to bootstrap peers
+                _ = bootstrap_timer.tick() => {
+                    let peer_count = self.connected_peers.read().await.len();
+                    if peer_count == 0 && !self.bootstrap_peers.is_empty() {
+                        info!("No peers connected, attempting to reconnect to bootstrap peers...");
+                        for peer_addr in &self.bootstrap_peers {
+                            info!("Redialing bootstrap peer: {}", peer_addr);
+                            if let Ok(addr) = peer_addr.parse::<Multiaddr>() {
+                                if let Err(e) = self.swarm.dial(addr) {
+                                    warn!("Failed to redial {}: {:?}", peer_addr, e);
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -502,9 +551,24 @@ impl Network {
                 info!("Identified peer {}: {} ({})", 
                     peer_id, info.protocol_version, info.agent_version);
                 
+                // Update peer version in registry
+                self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
+                
                 // Add peer's listen addresses
                 for addr in info.listen_addrs {
                     self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                }
+            }
+            PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
+                match result {
+                    Ok(rtt) => {
+                        debug!("Ping to {} successful: {:?}", peer, rtt);
+                        // Update last seen time on successful ping
+                        self.peer_registry.update_peer_seen(&peer.to_string()).await;
+                    }
+                    Err(e) => {
+                        warn!("Ping to {} failed: {:?}", peer, e);
+                    }
                 }
             }
             _ => {}

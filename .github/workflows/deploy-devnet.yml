@@ -336,4 +336,5 @@ jobs:
           echo "  Explorer: https://explorer.pyrax-devnet.org"
           echo "  Faucet:   https://faucet.pyrax-devnet.org"
           echo "  Docs:     https://docs.pyrax-devnet.org"
+          echo "  Marketing: https://marketing.pyrax-devnet.org"
           echo ""

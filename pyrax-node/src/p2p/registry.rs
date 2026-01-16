@@ -104,6 +104,14 @@ impl PeerRegistry {
         }
     }
 
+    /// Update peer's client version
+    pub async fn update_peer_version(&self, peer_id: &str, version: &str) {
+        if let Some(peer) = self.inner.peers.write().await.get_mut(peer_id) {
+            peer.client_version = version.to_string();
+            peer.last_seen = Instant::now();
+        }
+    }
+
     /// Get all connected peers
     pub async fn get_peers(&self) -> Vec<ConnectedPeer> {
         self.inner.peers.read().await.values().cloned().collect()
