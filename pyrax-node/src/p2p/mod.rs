@@ -653,7 +653,7 @@ impl Network {
                         info!("Kademlia: Routing updated for peer {} with {} addresses", peer, addresses.len());
                         // Try to connect to this peer if we're not already connected
                         let connected = self.connected_peers.read().await.contains_key(&peer);
-                        if !connected && !addresses.is_empty() {
+                        if !connected && addresses.len() > 0 {
                             // Dial the peer directly - swarm will use known addresses
                             info!("Kademlia: Dialing newly discovered peer {}", peer);
                             if let Err(e) = self.swarm.dial(peer) {
