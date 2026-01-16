@@ -447,31 +447,3 @@ pub fn difficulty_to_target(difficulty: u64) -> H256 {
     H256(bytes)
 }
 
-/// Genesis block for a network
-pub fn genesis_block(network: NetworkId) -> Block {
-    let timestamp = match network {
-        NetworkId::MAINNET => 1735689600, // 2025-01-01 00:00:00 UTC
-        NetworkId::TESTNET => 1735689600,
-        NetworkId::DEVNET => 1735689600,
-        _ => 1735689600,
-    };
-    
-    let header = BlockHeader {
-        version: 1,
-        stream: 0, // Stream A
-        parent_hash: H256::zero(),
-        merkle_root: H256::zero(),
-        utxo_commitment: H256::zero(),
-        timestamp,
-        difficulty: 1, // Easy for genesis
-        nonce: 0,
-        extra_nonce: 0,
-        height: 0,
-        beneficiary: Address::ZERO,
-    };
-    
-    Block {
-        header,
-        transactions: vec![],
-    }
-}

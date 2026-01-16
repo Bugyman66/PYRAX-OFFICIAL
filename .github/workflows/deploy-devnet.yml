@@ -143,18 +143,40 @@ jobs:
           # Build pyrax-node (workspace build - binary goes to workspace root target/)
           echo "=== BUILDING PYRAX-NODE ==="
           cd /opt/pyrax
+          
+          # Clean old build artifacts to force fresh compilation with updated dependencies
+          echo "Cleaning old build artifacts..."
+          cargo clean -p pyrax-node 2>/dev/null || true
+          rm -f /opt/pyrax/target/release/pyrax-node
+          
+          # Update dependencies and build fresh
+          cargo update -p libp2p -p libp2p-kad 2>/dev/null || true
           cargo build --release -p pyrax-node
           
-          # Stop running service before replacing binary
+          # Stop running service and kill any orphan processes before replacing binary
           echo "=== STOPPING PYRAX-NODE SERVICE ==="
           systemctl stop pyrax-node 2>/dev/null || true
           sleep 2
+          # Kill any orphan pyrax-node processes
+          pkill -9 -f pyrax-node 2>/dev/null || true
+          sleep 1
+          
+          # Verify no old process is running
+          if pgrep -f pyrax-node; then
+            echo "ERROR: pyrax-node still running after kill!"
+            pkill -9 -f pyrax-node || true
+            sleep 2
+          fi
           
           # Install binary (workspace root target directory)
           echo "=== INSTALLING PYRAX-NODE BINARY ==="
           cp -f /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
           chmod +x /usr/local/bin/pyrax-node
           echo "Installed: $(pyrax-node --version)"
+          
+          # Show libp2p version from Cargo.lock for verification
+          echo "=== DEPENDENCY VERSIONS ==="
+          grep -A1 'name = "libp2p"' /opt/pyrax/Cargo.lock | head -4 || true
           
           # CRITICAL: Wipe old data to regenerate genesis with current code
           echo "=== WIPING OLD CHAIN DATA FOR FRESH GENESIS ==="
