@@ -155,71 +155,83 @@ jobs:
           }
           Write-Host "Tauri build completed successfully"
           
-      - name: Upload bundle files to release
+      - name: Find bundle files
+        id: find-bundle
         shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $version = "${{ needs.create-release.outputs.version }}"
           $workspace = $env:GITHUB_WORKSPACE
-          
-          Write-Host "Workspace: $workspace"
-          Write-Host "Version: $version"
-          
-          # Use absolute path to bundle directory
           $bundleDir = Join-Path $workspace "target\release\bundle\nsis"
           
-          Write-Host "Looking for bundle at: $bundleDir"
+          Write-Host "=== DEBUG: Looking for bundle files ==="
+          Write-Host "Workspace: $workspace"
+          Write-Host "Bundle dir: $bundleDir"
           
           if (-not (Test-Path $bundleDir)) {
-            Write-Host "ERROR: Bundle directory not found!"
-            Write-Host "Listing workspace root:"
-            Get-ChildItem -Path $workspace -Depth 1 | ForEach-Object { Write-Host $_.FullName }
-            Write-Host ""
-            Write-Host "Looking for any 'target' directory:"
-            Get-ChildItem -Path $workspace -Directory -Recurse -Filter "target" -Depth 3 | ForEach-Object { Write-Host $_.FullName }
+            Write-Host "Bundle dir not found! Searching..."
+            Get-ChildItem -Path $workspace -Recurse -Filter "*.exe" -Depth 6 | Where-Object { $_.FullName -like "*bundle*" } | ForEach-Object {
+              Write-Host "Found: $($_.FullName)"
+            }
             exit 1
           }
           
-          Write-Host "Bundle directory found! Contents:"
+          Write-Host "Bundle directory contents:"
           Get-ChildItem -Path $bundleDir | ForEach-Object {
             Write-Host "  $($_.Name) - $($_.Length) bytes"
           }
           
-          # Upload each file type
-          $uploaded = 0
+          # Find files and set outputs
+          $exe = Get-ChildItem -Path $bundleDir -Filter "*setup*.exe" | Select-Object -First 1
+          $zip = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip" | Select-Object -First 1
+          $sig = Get-ChildItem -Path $bundleDir -Filter "*.sig" | Select-Object -First 1
           
-          # Upload .exe installer
-          $exeFiles = Get-ChildItem -Path $bundleDir -Filter "*.exe"
-          foreach ($exe in $exeFiles) {
-            Write-Host "Uploading: $($exe.Name)"
-            gh release upload "desktop-v$version" $exe.FullName --clobber
-            if ($LASTEXITCODE -eq 0) { $uploaded++ } else { Write-Host "Failed to upload $($exe.Name)" }
+          if ($exe) {
+            Write-Host "EXE: $($exe.FullName)"
+            "exe_path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "exe_name=$($exe.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
-          
-          # Upload .nsis.zip (for OTA updates)
-          $zipFiles = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip"
-          foreach ($zip in $zipFiles) {
-            Write-Host "Uploading: $($zip.Name)"
-            gh release upload "desktop-v$version" $zip.FullName --clobber
-            if ($LASTEXITCODE -eq 0) { $uploaded++ } else { Write-Host "Failed to upload $($zip.Name)" }
+          if ($zip) {
+            Write-Host "ZIP: $($zip.FullName)"
+            "zip_path=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "zip_name=$($zip.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
-          
-          # Upload .sig signature files (required for OTA)
-          $sigFiles = Get-ChildItem -Path $bundleDir -Filter "*.sig"
-          foreach ($sig in $sigFiles) {
-            Write-Host "Uploading: $($sig.Name)"
-            gh release upload "desktop-v$version" $sig.FullName --clobber
-            if ($LASTEXITCODE -eq 0) { $uploaded++ } else { Write-Host "Failed to upload $($sig.Name)" }
+          if ($sig) {
+            Write-Host "SIG: $($sig.FullName)"
+            "sig_path=$($sig.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            "sig_name=$($sig.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
-          
-          if ($uploaded -eq 0) {
-            Write-Error "No files were uploaded!"
-            exit 1
-          }
-          
-          Write-Host ""
-          Write-Host "Successfully uploaded $uploaded file(s) to release"
+
+      - name: Upload EXE to release
+        if: steps.find-bundle.outputs.exe_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle.outputs.exe_path }}
+          asset_name: ${{ steps.find-bundle.outputs.exe_name }}
+          asset_content_type: application/octet-stream
+
+      - name: Upload NSIS ZIP to release
+        if: steps.find-bundle.outputs.zip_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle.outputs.zip_path }}
+          asset_name: ${{ steps.find-bundle.outputs.zip_name }}
+          asset_content_type: application/zip
+
+      - name: Upload signature to release
+        if: steps.find-bundle.outputs.sig_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle.outputs.sig_path }}
+          asset_name: ${{ steps.find-bundle.outputs.sig_name }}
+          asset_content_type: text/plain
 
   publish-release:
     needs: [create-release, build-tauri]
