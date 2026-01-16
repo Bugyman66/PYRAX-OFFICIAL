@@ -113,28 +113,6 @@ jobs:
           (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
         shell: pwsh
 
-      - name: Download Visual C++ Redistributables
-        shell: pwsh
-        run: |
-          Write-Host "Downloading Visual C++ Redistributables for bundling..."
-          $resourcesDir = "pyrax-desktop/src-tauri/resources"
-          
-          # Download VC++ 2015-2022 Redistributable x64
-          $vcRedistX64Url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
-          $vcRedistX64Path = "$resourcesDir/vc_redist.x64.exe"
-          Write-Host "Downloading VC++ Redistributable x64..."
-          Invoke-WebRequest -Uri $vcRedistX64Url -OutFile $vcRedistX64Path -UseBasicParsing
-          Write-Host "Downloaded: $vcRedistX64Path ($(Get-Item $vcRedistX64Path).Length bytes)"
-          
-          # Download VC++ 2015-2022 Redistributable x86
-          $vcRedistX86Url = "https://aka.ms/vs/17/release/vc_redist.x86.exe"
-          $vcRedistX86Path = "$resourcesDir/vc_redist.x86.exe"
-          Write-Host "Downloading VC++ Redistributable x86..."
-          Invoke-WebRequest -Uri $vcRedistX86Url -OutFile $vcRedistX86Path -UseBasicParsing
-          Write-Host "Downloaded: $vcRedistX86Path ($(Get-Item $vcRedistX86Path).Length bytes)"
-          
-          Write-Host "VC++ Redistributables downloaded successfully!"
-
       - name: Write signing key to file
         shell: pwsh
         run: |

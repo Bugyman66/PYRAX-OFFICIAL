@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "PYRAX Desktop",
-    "version": "0.2.14"
+    "version": "0.2.15"
   },
   "tauri": {
     "allowlist": {
@@ -53,9 +53,7 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "resources/pyrax-node.exe",
-        "resources/vc_redist.x64.exe",
-        "resources/vc_redist.x86.exe"
+        "resources/pyrax-node.exe"
       ],
       "windows": {
         "certificateThumbprint": null,
@@ -70,8 +68,7 @@
           "headerImage": "icons/128x128.png",
           "sidebarImage": "icons/icon.png",
           "displayLanguageSelector": false,
-          "license": null,
-          "installerHooks": "./windows/hooks.nsh"
+          "license": null
         }
       },
       "publisher": "PYRAX Chain",

@@ -222,35 +222,48 @@ pub async fn get_bootnode_info(
         (app_state.node_running, app_state.rpc_port)
     };
     
-    if !running {
-        return Err("Node is not running".to_string());
-    }
+    info!("get_bootnode_info called: running={}, rpc_port={}", running, rpc_port);
     
+    // Always return nodes even if not fully running - just mark local as offline
     let mut bootnodes = Vec::new();
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(3))
         .build()
         .unwrap_or_default();
     
-    // First, add the user's own local node (THIS NODE)
+    // First, add the user's own local node (THIS NODE) - ALWAYS show this
     let local_url = format!("http://127.0.0.1:{}", rpc_port);
     let start = Instant::now();
-    let local_online = match client
-        .post(&local_url)
-        .header("Content-Type", "application/json")
-        .body(r#"{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}"#)
-        .send()
-        .await
-    {
-        Ok(response) => response.status().is_success(),
-        Err(_) => false,
+    let local_online = if running {
+        match client
+            .post(&local_url)
+            .header("Content-Type", "application/json")
+            .body(r#"{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}"#)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let success = response.status().is_success();
+                info!("Local node RPC check: status={}, success={}", response.status(), success);
+                success
+            }
+            Err(e) => {
+                warn!("Local node RPC check failed: {}", e);
+                false
+            }
+        }
+    } else {
+        info!("Node not running, marking local as offline");
+        false
     };
     let local_latency = start.elapsed().as_millis() as u64;
+    
+    info!("Local node: online={}, latency={}ms", local_online, local_latency);
     
     bootnodes.push(BootnodeInfo {
         id: "this-node".to_string(),
         url: local_url,
-        latency_ms: local_latency,
+        latency_ms: if local_online { local_latency } else { 0 },
         city: "Local".to_string(),
         region: "".to_string(),
         country: "This Machine".to_string(),
@@ -272,9 +285,14 @@ pub async fn get_bootnode_info(
         {
             Ok(response) => {
                 let latency = start.elapsed().as_millis() as u64;
-                (response.status().is_success(), latency)
+                let success = response.status().is_success();
+                info!("Remote bootnode {}: status={}, latency={}ms", id, response.status(), latency);
+                (success, latency)
             }
-            Err(_) => (false, 0),
+            Err(e) => {
+                warn!("Remote bootnode {} failed: {}", id, e);
+                (false, 0)
+            }
         };
         
         bootnodes.push(BootnodeInfo {
@@ -290,5 +308,6 @@ pub async fn get_bootnode_info(
         });
     }
     
+    info!("Returning {} bootnodes", bootnodes.len());
     Ok(bootnodes)
 }
