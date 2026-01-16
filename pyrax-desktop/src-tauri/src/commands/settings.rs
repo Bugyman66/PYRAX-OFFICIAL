@@ -22,6 +22,8 @@ pub struct AppSettings {
     pub max_peers: u32,
     pub theme: String,
     pub data_dir: Option<String>,
+    /// Log verbosity: 0=error, 1=warn, 2=info, 3=debug, 4=trace
+    pub log_verbosity: Option<u8>,
 }
 
 impl From<&AppState> for AppSettings {
@@ -43,6 +45,7 @@ impl From<&AppState> for AppSettings {
                 Theme::System => "system".to_string(),
             },
             data_dir: Some(state.data_dir.to_string_lossy().to_string()),
+            log_verbosity: Some(state.settings.log_verbosity),
         }
     }
 }
@@ -84,6 +87,7 @@ pub async fn save_settings(
             "dark" => Theme::Dark,
             _ => Theme::System,
         },
+        log_verbosity: settings.log_verbosity.unwrap_or(3),
     };
     
     if let Some(dir) = settings.data_dir {
