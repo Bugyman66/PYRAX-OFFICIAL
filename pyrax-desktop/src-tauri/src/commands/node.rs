@@ -463,6 +463,9 @@ pub async fn start_node(
                     emit_log(&app, "warn", "rpc", "RPC timeout - falling back to remote RPC");
                 }
                 
+                // Start connection watchdog for self-healing
+                let _ = start_connection_watchdog_internal(app.clone(), state.inner().clone()).await;
+                
                 // Get initial status
                 return get_node_status(state).await;
             }
@@ -839,4 +842,186 @@ pub async fn start_remote_log_stream(
         emit_log(&app, "error", "rpc", &format!("Failed to connect to remote bootnode: {}", rpc_url));
         Err(format!("Failed to connect to remote bootnode: {}", rpc_url))
     }
+}
+
+/// Internal function to start the connection watchdog (called from start_node)
+async fn start_connection_watchdog_internal(
+    app: AppHandle,
+    state: Arc<Mutex<AppState>>,
+) -> Result<(), String> {
+    let (network, rpc_port) = {
+        let app_state = state.lock();
+        (app_state.network.clone(), app_state.rpc_port)
+    };
+    
+    let remote_url = get_remote_rpc_url(&network);
+    let state_clone = state.clone();
+    let app_clone = app.clone();
+    
+    emit_log(&app, "info", "node", "Starting connection watchdog for self-healing network recovery");
+    
+    start_watchdog_task(app_clone, state_clone, remote_url, rpc_port).await;
+    
+    Ok(())
+}
+
+/// Start the watchdog background task
+async fn start_watchdog_task(
+    app: AppHandle,
+    state: Arc<Mutex<AppState>>,
+    remote_url: &'static str,
+    rpc_port: u16,
+) {
+    let state_clone = state;
+    let app_clone = app;
+    
+    // Spawn background watchdog task
+    tokio::spawn(async move {
+        let mut consecutive_failures = 0;
+        let max_failures = 3; // Restart after 3 consecutive failures (30 seconds)
+        let check_interval = tokio::time::Duration::from_secs(10);
+        
+        loop {
+            tokio::time::sleep(check_interval).await;
+            
+            // Check if node is supposed to be running
+            let (node_running, has_process) = {
+                let app_state = state_clone.lock();
+                (app_state.node_running, app_state.node_process.is_some())
+            };
+            
+            if !node_running {
+                // Node is stopped, exit watchdog
+                emit_log(&app_clone, "debug", "node", "Watchdog: Node stopped, exiting watchdog");
+                break;
+            }
+            
+            // Check local RPC connectivity
+            let local_rpc = RpcClient::localhost(rpc_port);
+            let local_connected = local_rpc.is_connected().await;
+            
+            // Check remote bootnode connectivity
+            let remote_rpc = RpcClient::new(remote_url);
+            let remote_connected = remote_rpc.is_connected().await;
+            
+            if !local_connected && has_process {
+                consecutive_failures += 1;
+                emit_log(&app_clone, "warn", "node", &format!(
+                    "Watchdog: Local node RPC not responding ({}/{})", 
+                    consecutive_failures, max_failures
+                ));
+                
+                if consecutive_failures >= max_failures {
+                    emit_log(&app_clone, "error", "node", "Watchdog: Node unresponsive - initiating auto-restart");
+                    
+                    // Kill the unresponsive node
+                    {
+                        let mut app_state = state_clone.lock();
+                        if let Some(mut child) = app_state.node_process.take() {
+                            emit_log(&app_clone, "info", "node", &format!("Watchdog: Killing unresponsive node (PID: {})", child.id()));
+                            
+                            #[cfg(target_os = "windows")]
+                            {
+                                let _ = std::process::Command::new("taskkill")
+                                    .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                                    .output();
+                            }
+                            
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                let _ = child.kill();
+                            }
+                            
+                            let _ = child.wait();
+                        }
+                        app_state.node_running = false;
+                    }
+                    
+                    // Emit disconnect event to UI
+                    let _ = app_clone.emit_all("node-disconnected", serde_json::json!({
+                        "reason": "Node unresponsive",
+                        "will_restart": true
+                    }));
+                    
+                    // Wait for network to stabilize
+                    emit_log(&app_clone, "info", "node", "Watchdog: Waiting 5 seconds before restart attempt...");
+                    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    
+                    // Check if bootnode is reachable before restarting
+                    if remote_rpc.is_connected().await {
+                        emit_log(&app_clone, "info", "node", "Watchdog: Bootnode reachable - triggering auto-restart");
+                        
+                        // Emit restart event to UI (UI should call start_node)
+                        let _ = app_clone.emit_all("node-restart-requested", serde_json::json!({
+                            "reason": "Auto-recovery after disconnect"
+                        }));
+                    } else {
+                        emit_log(&app_clone, "warn", "node", "Watchdog: Bootnode not reachable - waiting for network...");
+                        
+                        // Keep checking bootnode until it's available
+                        let mut bootnode_wait_count = 0;
+                        while bootnode_wait_count < 12 { // Wait up to 2 minutes
+                            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                            bootnode_wait_count += 1;
+                            
+                            if remote_rpc.is_connected().await {
+                                emit_log(&app_clone, "info", "node", "Watchdog: Bootnode now reachable - triggering auto-restart");
+                                let _ = app_clone.emit_all("node-restart-requested", serde_json::json!({
+                                    "reason": "Auto-recovery after network restoration"
+                                }));
+                                break;
+                            }
+                            
+                            emit_log(&app_clone, "debug", "node", &format!(
+                                "Watchdog: Still waiting for bootnode ({}/12)...", 
+                                bootnode_wait_count
+                            ));
+                        }
+                        
+                        if bootnode_wait_count >= 12 {
+                            emit_log(&app_clone, "error", "node", "Watchdog: Bootnode unreachable for 2 minutes - manual intervention may be required");
+                            let _ = app_clone.emit_all("node-network-error", serde_json::json!({
+                                "reason": "Bootnode unreachable",
+                                "duration_seconds": 120
+                            }));
+                        }
+                    }
+                    
+                    // Exit watchdog - a new one will start when node restarts
+                    break;
+                }
+            } else if local_connected {
+                // Reset failure counter on successful connection
+                if consecutive_failures > 0 {
+                    emit_log(&app_clone, "info", "node", "Watchdog: Node connection restored");
+                    consecutive_failures = 0;
+                }
+            }
+            
+            // Also check bootnode connectivity periodically
+            if !remote_connected && consecutive_failures == 0 {
+                emit_log(&app_clone, "warn", "p2p", "Watchdog: Bootnode not reachable - monitoring...");
+            }
+        }
+    });
+}
+
+/// Connection watchdog - monitors bootnode connectivity and auto-restarts node on disconnect
+/// This runs as a background task and emits events to the UI
+#[tauri::command]
+pub async fn start_connection_watchdog(
+    app: AppHandle,
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<(), String> {
+    start_connection_watchdog_internal(app, state.inner().clone()).await
+}
+
+/// Stop connection watchdog (called when node is intentionally stopped)
+#[tauri::command]
+pub async fn stop_connection_watchdog(
+    app: AppHandle,
+) -> Result<(), String> {
+    emit_log(&app, "info", "node", "Connection watchdog stopped");
+    // The watchdog will exit on its own when it detects node_running = false
+    Ok(())
 }

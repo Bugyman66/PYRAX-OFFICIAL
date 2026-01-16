@@ -326,6 +326,10 @@ impl Network {
         let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
         bootstrap_timer.tick().await;
         
+        // Kademlia refresh timer - periodically refresh DHT to discover new peers
+        let mut kademlia_refresh_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        kademlia_refresh_timer.tick().await;
+        
         let mut last_requested_height: u64 = 0;
         
         loop {
@@ -430,6 +434,16 @@ impl Network {
                         }
                     }
                 }
+                // Kademlia DHT refresh - discover new peers periodically
+                _ = kademlia_refresh_timer.tick() => {
+                    let peer_count = self.connected_peers.read().await.len();
+                    if peer_count > 0 && peer_count < 50 {
+                        debug!("Kademlia DHT refresh: looking for more peers (currently {} connected)", peer_count);
+                        // Find random peers to expand our network
+                        let random_peer_id = PeerId::random();
+                        self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer_id);
+                    }
+                }
             }
         }
     }
@@ -451,6 +465,10 @@ impl Network {
         // Bootstrap reconnection timer - checks every 60 seconds if we need to reconnect
         let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
         bootstrap_timer.tick().await; // Skip first tick
+        
+        // Kademlia refresh timer - periodically refresh DHT to discover new peers
+        let mut kademlia_refresh_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        kademlia_refresh_timer.tick().await; // Skip first tick
         
         // Track last synced height to avoid duplicate requests
         let mut last_requested_height: u64 = 0;
@@ -564,6 +582,16 @@ impl Network {
                         }
                     }
                 }
+                // Kademlia DHT refresh - discover new peers periodically
+                _ = kademlia_refresh_timer.tick() => {
+                    let peer_count = self.connected_peers.read().await.len();
+                    if peer_count > 0 && peer_count < 50 {
+                        debug!("Kademlia DHT refresh: looking for more peers (currently {} connected)", peer_count);
+                        // Find random peers to expand our network
+                        let random_peer_id = PeerId::random();
+                        self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer_id);
+                    }
+                }
             }
         }
     }
@@ -623,13 +651,35 @@ impl Network {
                 match event {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
                         info!("Kademlia: Routing updated for peer {} with {} addresses", peer, addresses.len());
+                        // Try to connect to this peer if we're not already connected
+                        let connected = self.connected_peers.read().await.contains_key(&peer);
+                        if !connected && addresses.len() > 0 {
+                            if let Some(addr) = addresses.first() {
+                                info!("Kademlia: Dialing newly discovered peer {} at {}", peer, addr);
+                                if let Err(e) = self.swarm.dial(addr.clone()) {
+                                    debug!("Failed to dial discovered peer {}: {:?}", peer, e);
+                                }
+                            }
+                        }
                     }
                     kad::Event::OutboundQueryProgressed { result, .. } => {
                         match result {
                             kad::QueryResult::GetClosestPeers(Ok(ok)) => {
                                 info!("Kademlia: Found {} closest peers", ok.peers.len());
-                                for peer in ok.peers {
-                                    debug!("  - Discovered peer: {}", peer);
+                                // Dial discovered peers that we're not already connected to
+                                for peer_id in &ok.peers {
+                                    let connected = self.connected_peers.read().await.contains_key(peer_id);
+                                    if !connected {
+                                        // Get addresses for this peer from Kademlia
+                                        if let Some(addrs) = self.swarm.behaviour_mut().kademlia.addresses_of_peer(peer_id) {
+                                            if let Some(addr) = addrs.first() {
+                                                info!("Kademlia: Dialing discovered peer {} at {}", peer_id, addr);
+                                                if let Err(e) = self.swarm.dial(addr.clone()) {
+                                                    debug!("Failed to dial {}: {:?}", peer_id, e);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             kad::QueryResult::Bootstrap(Ok(ok)) => {

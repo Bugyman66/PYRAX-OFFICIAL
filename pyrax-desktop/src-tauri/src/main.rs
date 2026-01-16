@@ -142,6 +142,10 @@ fn main() {
             commands::node::get_remote_server_logs,
             commands::node::start_remote_log_stream,
             
+            // Connection watchdog commands (self-healing)
+            commands::node::start_connection_watchdog,
+            commands::node::stop_connection_watchdog,
+            
             // Updater commands
             commands::updater::check_for_updates,
             commands::updater::install_update,
