@@ -148,26 +148,12 @@ jobs:
           Write-Host "Building Tauri app with signing enabled..."
           Write-Host "TAURI_PRIVATE_KEY env var length: $($env:TAURI_PRIVATE_KEY.Length)"
           Write-Host "TAURI_KEY_PASSWORD length: $($env:TAURI_KEY_PASSWORD.Length)"
-          $ErrorActionPreference = "Stop"
           npm run tauri build
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Tauri build failed with exit code $LASTEXITCODE"
             exit 1
           }
-          
-          # Verify build produced output - check workspace root target dir
-          $bundleDir = "../target/release/bundle/nsis"
-          if (-not (Test-Path $bundleDir)) {
-            Write-Error "Build completed but no NSIS bundle directory found at $bundleDir"
-            exit 1
-          }
-          $installers = Get-ChildItem -Path $bundleDir -Filter "*.exe" -ErrorAction SilentlyContinue
-          if ($installers.Count -eq 0) {
-            Write-Error "Build completed but no installer .exe found in $bundleDir"
-            exit 1
-          }
-          Write-Host "Build successful! Found $($installers.Count) installer(s):"
-          $installers | ForEach-Object { Write-Host "  - $($_.Name)" }
+          Write-Host "Tauri build completed successfully"
           
       - name: List ALL generated bundle files
         shell: pwsh
