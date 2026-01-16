@@ -156,8 +156,11 @@ jobs:
           chmod +x /usr/local/bin/pyrax-node
           echo "Installed: $(pyrax-node --version)"
           
-          # Create data directory
+          # CRITICAL: Wipe old data to regenerate genesis with current code
+          echo "=== WIPING OLD CHAIN DATA FOR FRESH GENESIS ==="
+          rm -rf /var/lib/pyrax/devnet/*
           mkdir -p /var/lib/pyrax/devnet
+          echo "Chain data wiped - fresh genesis will be created on start"
           
           # Create systemd service for pyrax-node
           echo "=== CONFIGURING PYRAX-NODE SYSTEMD SERVICE ==="
