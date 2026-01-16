@@ -1,12 +1,44 @@
 //! P2P Networking for PYRAX using libp2p
 //!
+//! DESIGN DOC - Mesh Networking Architecture
+//! ==========================================
+//!
+//! State Machine:
+//! START → DIAL_BOOTNODE → IDENTIFY → BOOTSTRAP_DISCOVERY → FILL_PEERS → MAINTAIN_PEERS (loop)
+//!
+//! Connection Parameters:
+//! - TARGET_PEERS = 50 (steady-state goal)
+//! - MIN_PEERS = 30 (dial aggressively below this)
+//! - MAX_PEERS = 60 (prune above this)
+//! - MAX_CONCURRENT_DIALS = 5 (avoid dial storms)
+//! - DIAL_TIMEOUT = 10s
+//! - KEEPALIVE_PING_INTERVAL = 15s
+//! - PEER_REFRESH_INTERVAL = 30s
+//! - PEER_REEVALUATE_INTERVAL = 60s
+//!
+//! Peer Scoring:
+//! - RTT bonus: + (50 - min(RTT_ms, 200)) * 0.1
+//! - Uptime bonus: + uptime_minutes * 0.05 (max 10 points)
+//! - Disconnect penalty: - disconnects_last_hour * 2
+//! - Failure penalty: - failures_last_hour * 1
+//! - Subnet diversity penalty: -5 if same /24 has >= 3 peers
+//! - Score clamped to [-50, +50]
+//!
 //! Production-ready P2P layer with:
+//! - Kademlia DHT for peer discovery (primary)
 //! - GossipSub for block/transaction propagation
-//! - mDNS for local peer discovery
-//! - Request/Response for block sync
+//! - mDNS for local peer discovery (LAN)
+//! - Ping for keep-alive and RTT measurement
+//! - Identify for peer information exchange
+//! - Connection Manager for mesh maintenance
 
 mod registry;
+mod peer_store;
+mod connection_manager;
+
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
+pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
+pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 
 use libp2p::{
     gossipsub, identify, kad, mdns, noise, ping,
@@ -23,12 +55,29 @@ use futures::StreamExt;
 use crate::types::{Block, Transaction, H256, NetworkId, BlockHeader};
 use crate::storage::ChainDB;
 
-/// P2P network configuration
+/// P2P network configuration with mesh networking parameters
 #[derive(Debug, Clone)]
 pub struct P2PConfig {
+    /// Listen address (multiaddr format)
     pub listen_addr: String,
+    /// Bootstrap peer addresses
     pub bootstrap_peers: Vec<String>,
+    /// Target number of peers (steady-state)
+    pub target_peers: usize,
+    /// Minimum peers (dial aggressively below this)
+    pub min_peers: usize,
+    /// Maximum peers (prune above this)  
     pub max_peers: usize,
+    /// Maximum concurrent dial attempts
+    pub max_concurrent_dials: usize,
+    /// Dial timeout in seconds
+    pub dial_timeout_secs: u64,
+    /// Ping interval in seconds
+    pub ping_interval_secs: u64,
+    /// Peer refresh interval in seconds
+    pub peer_refresh_interval_secs: u64,
+    /// Peer reevaluation interval in seconds
+    pub peer_reevaluate_interval_secs: u64,
 }
 
 impl Default for P2PConfig {
@@ -36,7 +85,14 @@ impl Default for P2PConfig {
         Self {
             listen_addr: "/ip4/0.0.0.0/tcp/30303".to_string(),
             bootstrap_peers: vec![],
-            max_peers: 50,
+            target_peers: 50,
+            min_peers: 30,
+            max_peers: 60,
+            max_concurrent_dials: 5,
+            dial_timeout_secs: 10,
+            ping_interval_secs: 15,
+            peer_refresh_interval_secs: 30,
+            peer_reevaluate_interval_secs: 60,
         }
     }
 }
@@ -87,25 +143,65 @@ pub struct PyraxBehaviour {
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
 }
 
-/// P2P Network manager
+/// P2P Network manager with mesh networking support
 pub struct Network {
+    /// Local peer ID
     local_peer_id: PeerId,
+    /// libp2p swarm
     swarm: Swarm<PyraxBehaviour>,
+    /// Chain database
     db: Arc<ChainDB>,
+    /// Network identifier
     network_id: NetworkId,
-    connected_peers: Arc<RwLock<HashMap<PeerId, PeerInfo>>>,
+    /// Connection manager for mesh maintenance
+    conn_manager: ConnectionManager,
+    /// Receiver for connection manager events
+    conn_event_rx: mpsc::Receiver<ConnectionEvent>,
+    /// Legacy peer registry (for RPC compatibility)
     peer_registry: PeerRegistry,
+    /// Bootstrap peer addresses
     bootstrap_peers: Vec<String>,
-    // Channels for received blocks/txs
+    /// Currently dialing peers (to avoid duplicate dials)
+    dialing: HashSet<PeerId>,
+    /// Peers pending disconnection
+    pending_disconnect: HashSet<PeerId>,
+    /// Configuration
+    config: P2PConfig,
+    /// Channels for received blocks/txs
     block_tx: mpsc::Sender<Block>,
     block_rx: Option<mpsc::Receiver<Block>>,
     tx_tx: mpsc::Sender<Transaction>,
     tx_rx: Option<mpsc::Receiver<Transaction>>,
+    /// Metrics
+    metrics: NetworkMetrics,
+}
+
+/// Network metrics for monitoring
+#[derive(Debug, Clone, Default)]
+pub struct NetworkMetrics {
+    pub connected_peers: usize,
+    pub inbound_peers: usize,
+    pub outbound_peers: usize,
+    pub target_peers: usize,
+    pub dial_attempts: u64,
+    pub dial_successes: u64,
+    pub dial_failures: u64,
+    pub messages_sent: u64,
+    pub messages_received: u64,
+    pub blocks_received: u64,
+    pub txs_received: u64,
+    pub average_rtt_ms: Option<u64>,
+    pub state: NetworkState,
 }
 
 impl Network {
-    /// Create a new P2P network with a shared peer registry
+    /// Create a new P2P network with mesh networking and connection management
     pub async fn new(config: P2PConfig, db: Arc<ChainDB>, network_id: NetworkId, peer_registry: PeerRegistry) -> anyhow::Result<Self> {
+        info!("╔═══════════════════════════════════════════════════════════════╗");
+        info!("║     PYRAX P2P Network - Mesh Networking Initialized           ║");
+        info!("║   Target: {} peers | Min: {} | Max: {}                    ║", 
+            config.target_peers, config.min_peers, config.max_peers);
+        info!("╚═══════════════════════════════════════════════════════════════╝");
         info!("Initializing P2P network for {}", network_id.name());
 
         // Generate keypair
@@ -114,6 +210,7 @@ impl Network {
         info!("Local peer ID: {}", local_peer_id);
 
         // Build swarm with tokio runtime
+        let ping_interval = Duration::from_secs(config.ping_interval_secs);
         let swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
             .with_tcp(
@@ -122,11 +219,15 @@ impl Network {
                 yamux::Config::default,
             )?
             .with_behaviour(|key| {
-                // GossipSub config
+                // GossipSub config - optimized for blockchain propagation
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(10))
                     .validation_mode(gossipsub::ValidationMode::Strict)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
+                    .mesh_n_low(6)      // Minimum peers in mesh
+                    .mesh_n(8)          // Target peers in mesh
+                    .mesh_n_high(12)    // Maximum peers in mesh
+                    .gossip_lazy(6)     // Peers to gossip to
                     .build()
                     .expect("Valid gossipsub config");
 
@@ -135,13 +236,13 @@ impl Network {
                     gossipsub_config,
                 ).expect("Valid gossipsub behaviour");
 
-                // mDNS for local discovery
+                // mDNS for local/LAN discovery
                 let mdns = mdns::tokio::Behaviour::new(
                     mdns::Config::default(),
                     local_peer_id,
                 ).expect("Valid mDNS behaviour");
 
-                // Identify protocol
+                // Identify protocol - learn peer info
                 let identify = identify::Behaviour::new(
                     identify::Config::new(
                         format!("/pyrax/{}/1.0.0", network_id.name()),
@@ -149,49 +250,93 @@ impl Network {
                     )
                 );
 
-                // Ping for keep-alive (every 15 seconds, timeout after 20 seconds)
+                // Ping for keep-alive and RTT measurement
                 let ping = ping::Behaviour::new(
                     ping::Config::new()
-                        .with_interval(Duration::from_secs(15))
+                        .with_interval(ping_interval)
                         .with_timeout(Duration::from_secs(20))
                 );
 
-                // Kademlia DHT for peer discovery
+                // Kademlia DHT for peer discovery - primary discovery mechanism
                 let store = kad::store::MemoryStore::new(local_peer_id);
                 let mut kademlia_config = kad::Config::default();
                 kademlia_config.set_protocol_names(vec![
                     libp2p::StreamProtocol::try_from_owned(format!("/pyrax/{}/kad/1.0.0", network_id.name())).unwrap()
                 ]);
-                // Bootstrap more aggressively
                 kademlia_config.set_query_timeout(Duration::from_secs(60));
+                kademlia_config.set_replication_factor(std::num::NonZeroUsize::new(20).unwrap());
+                kademlia_config.set_parallelism(std::num::NonZeroUsize::new(5).unwrap());
                 let kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
 
                 PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia }
             })?
-            // Increase idle timeout to 5 minutes to prevent premature disconnections
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
 
-        // Create channels
+        // Create block/tx channels
         let (block_tx, block_rx) = mpsc::channel(100);
         let (tx_tx, tx_rx) = mpsc::channel(1000);
 
+        // Create connection manager event channel
+        let (conn_event_tx, conn_event_rx) = mpsc::channel(100);
+
+        // Create connection manager with proper config
+        let conn_manager_config = ConnectionManagerConfig {
+            target_peers: config.target_peers,
+            min_peers: config.min_peers,
+            max_peers: config.max_peers,
+            max_concurrent_dials: config.max_concurrent_dials,
+            dial_timeout: Duration::from_secs(config.dial_timeout_secs),
+            peer_refresh_interval: Duration::from_secs(config.peer_refresh_interval_secs),
+            peer_reevaluate_interval: Duration::from_secs(config.peer_reevaluate_interval_secs),
+            liveness_check_interval: Duration::from_secs(config.ping_interval_secs),
+            min_prune_interval: Duration::from_secs(30),
+            min_connection_age: Duration::from_secs(60),
+        };
+
+        let peer_store_config = PeerStoreConfig::default();
+        let mut conn_manager = ConnectionManager::new(conn_manager_config, peer_store_config, conn_event_tx);
+
+        // Register bootstrap peers in connection manager
+        for peer_addr in &config.bootstrap_peers {
+            if let Some(peer_id) = Self::extract_peer_id_from_str(peer_addr) {
+                conn_manager.add_bootnode(peer_id, vec![peer_addr.clone()]);
+                info!("Registered bootnode: {} at {}", peer_id, peer_addr);
+            }
+        }
+
         // Set local peer ID in registry
         peer_registry.set_local_peer_id(local_peer_id.to_string()).await;
+
+        let metrics = NetworkMetrics {
+            target_peers: config.target_peers,
+            state: NetworkState::Starting,
+            ..Default::default()
+        };
 
         Ok(Self {
             local_peer_id,
             swarm,
             db,
             network_id,
-            connected_peers: Arc::new(RwLock::new(HashMap::new())),
+            conn_manager,
+            conn_event_rx,
             peer_registry,
-            bootstrap_peers: config.bootstrap_peers,
+            bootstrap_peers: config.bootstrap_peers.clone(),
+            dialing: HashSet::new(),
+            pending_disconnect: HashSet::new(),
+            config,
             block_tx,
             block_rx: Some(block_rx),
             tx_tx,
             tx_rx: Some(tx_rx),
+            metrics,
         })
+    }
+
+    /// Extract peer ID from multiaddr string
+    fn extract_peer_id_from_str(addr: &str) -> Option<PeerId> {
+        addr.parse::<Multiaddr>().ok().and_then(|ma| Self::extract_peer_id(&ma))
     }
 
     /// Get local peer ID
@@ -296,8 +441,18 @@ impl Network {
     }
 
     /// Get connected peer count
-    pub async fn peer_count(&self) -> usize {
-        self.connected_peers.read().await.len()
+    pub fn peer_count(&self) -> usize {
+        self.conn_manager.peer_store().connected_count()
+    }
+
+    /// Get network metrics
+    pub fn get_metrics(&self) -> NetworkMetrics {
+        self.metrics.clone()
+    }
+
+    /// Get network state
+    pub fn get_state(&self) -> NetworkState {
+        self.conn_manager.state()
     }
 
     /// Take block receiver channel
@@ -311,292 +466,320 @@ impl Network {
     }
 
     /// Run the network event loop with block broadcast capability
+    /// This is the main mesh networking loop with connection management
     pub async fn run_with_broadcast(mut self, mut mined_rx: tokio::sync::mpsc::Receiver<Block>) {
-        info!("P2P network running (with block broadcast)...");
+        info!("╔═══════════════════════════════════════════════════════════════╗");
+        info!("║     PYRAX P2P Mesh Network Starting (with broadcast)          ║");
+        info!("╚═══════════════════════════════════════════════════════════════╝");
+        
+        // Start connection manager - this will dial bootnodes
+        self.conn_manager.start().await;
         
         let mut initial_sync_done = false;
-        let mut sync_delay_started = false;
-        let mut initial_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(3));
-        initial_sync_timer.tick().await;
-        
-        let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
-        periodic_sync_timer.tick().await;
-        
-        // Bootstrap reconnection timer - checks every 60 seconds if we need to reconnect
-        let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
-        bootstrap_timer.tick().await;
-        
-        // Kademlia refresh timer - periodically refresh DHT to discover new peers
-        let mut kademlia_refresh_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
-        kademlia_refresh_timer.tick().await;
-        
         let mut last_requested_height: u64 = 0;
+        
+        // Timers for mesh maintenance
+        let mut conn_manager_tick = tokio::time::interval(Duration::from_secs(1));
+        conn_manager_tick.tick().await;
+        
+        let mut sync_timer = tokio::time::interval(Duration::from_secs(self.config.peer_refresh_interval_secs));
+        sync_timer.tick().await;
+        
+        let mut metrics_timer = tokio::time::interval(Duration::from_secs(30));
+        metrics_timer.tick().await;
         
         loop {
             tokio::select! {
+                // Handle swarm events
                 event = self.swarm.select_next_some() => {
-                    match event {
-                        SwarmEvent::Behaviour(event) => {
-                            self.handle_behaviour_event(event).await;
-                        }
-                        SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
-                            let addr_str = endpoint.get_remote_address().to_string();
-                            let (ip, port) = parse_multiaddr(&addr_str);
-                            let direction = if endpoint.is_dialer() { PeerDirection::Outbound } else { PeerDirection::Inbound };
-                            
-                            info!("Connected to peer: {} at {} ({})", peer_id, addr_str, direction);
-                            
-                            self.connected_peers.write().await.insert(peer_id, PeerInfo {
-                                peer_id: peer_id.to_string(),
-                                address: addr_str.clone(),
-                                best_height: 0,
-                            });
-                            
-                            self.peer_registry.add_peer(ConnectedPeer {
-                                peer_id: peer_id.to_string(),
-                                address: addr_str,
-                                ip,
-                                port,
-                                direction,
-                                connected_at: Instant::now(),
-                                last_seen: Instant::now(),
-                                client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
-                                best_height: 0,
-                            }).await;
-                            
-                            if !sync_delay_started {
-                                sync_delay_started = true;
-                                info!("First peer connected, will request sync in 3 seconds");
-                            }
-                        }
-                        SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                            info!("Disconnected from peer: {} ({:?})", peer_id, cause);
-                            self.connected_peers.write().await.remove(&peer_id);
-                            self.peer_registry.remove_peer(&peer_id.to_string()).await;
-                        }
-                        SwarmEvent::NewListenAddr { address, .. } => {
-                            info!("Listening on {}/p2p/{}", address, self.local_peer_id);
-                            self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
-                        }
-                        SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
-                            debug!("Incoming connection from {} to {}", send_back_addr, local_addr);
-                        }
-                        _ => {}
-                    }
+                    self.handle_swarm_event(event).await;
                 }
+                
+                // Handle connection manager events
+                Some(conn_event) = self.conn_event_rx.recv() => {
+                    self.handle_conn_manager_event(conn_event).await;
+                }
+                
+                // Broadcast mined blocks
                 Some(block) = mined_rx.recv() => {
-                    // Broadcast mined block to peers
+                    self.metrics.messages_sent += 1;
                     if let Err(e) = self.broadcast_block(&block) {
                         warn!("Failed to broadcast block {}: {}", block.hash(), e);
                     } else {
-                        info!("Broadcast block {} (height {}) to peers", block.hash(), block.height());
+                        info!("Broadcast block {} (height {}) to {} peers", 
+                            block.hash(), block.height(), self.peer_count());
                     }
                 }
-                // Initial sync - request blocks from our tip + 1
-                _ = initial_sync_timer.tick(), if sync_delay_started && !initial_sync_done => {
-                    let our_height = self.db.get_tip().height;
-                    let peer_count = self.connected_peers.read().await.len();
+                
+                // Connection manager tick - maintains mesh health
+                _ = conn_manager_tick.tick() => {
+                    self.conn_manager.tick().await;
                     
-                    info!("Initial sync check (miner): our height={}, peers={}", our_height, peer_count);
-                    
+                    // Process any pending disconnects
+                    self.process_pending_disconnects();
+                }
+                
+                // Periodic sync check
+                _ = sync_timer.tick() => {
+                    let peer_count = self.peer_count();
                     if peer_count > 0 {
-                        let start_height = our_height + 1;
-                        info!("Requesting blocks from height {} (we have {} blocks)", start_height, our_height);
-                        let _ = self.request_blocks(start_height, 100);
-                        last_requested_height = start_height;
-                        initial_sync_done = true;
-                    }
-                }
-                // Periodic sync - check every 30 seconds if peers have new blocks
-                _ = periodic_sync_timer.tick(), if initial_sync_done => {
-                    let our_height = self.db.get_tip().height;
-                    let peer_count = self.connected_peers.read().await.len();
-                    
-                    if peer_count > 0 && our_height >= last_requested_height {
-                        let start_height = our_height + 1;
-                        debug!("Periodic sync check (miner): requesting blocks from height {}", start_height);
-                        let _ = self.request_blocks(start_height, 100);
-                        last_requested_height = start_height;
-                    }
-                }
-                // Bootstrap reconnection - ensure we stay connected to bootstrap peers
-                _ = bootstrap_timer.tick() => {
-                    let peer_count = self.connected_peers.read().await.len();
-                    if peer_count == 0 && !self.bootstrap_peers.is_empty() {
-                        info!("No peers connected, attempting to reconnect to bootstrap peers...");
-                        for peer_addr in &self.bootstrap_peers {
-                            info!("Redialing bootstrap peer: {}", peer_addr);
-                            if let Ok(addr) = peer_addr.parse::<Multiaddr>() {
-                                if let Err(e) = self.swarm.dial(addr) {
-                                    warn!("Failed to redial {}: {:?}", peer_addr, e);
-                                }
-                            }
+                        let our_height = self.db.get_tip().height;
+                        if !initial_sync_done || our_height >= last_requested_height {
+                            let start_height = our_height + 1;
+                            debug!("Sync check: requesting blocks from height {} (peers: {})", start_height, peer_count);
+                            let _ = self.request_blocks(start_height, 100);
+                            last_requested_height = start_height;
+                            initial_sync_done = true;
                         }
                     }
                 }
-                // Kademlia DHT refresh - discover new peers periodically
-                _ = kademlia_refresh_timer.tick() => {
-                    let peer_count = self.connected_peers.read().await.len();
-                    if peer_count > 0 && peer_count < 50 {
-                        debug!("Kademlia DHT refresh: looking for more peers (currently {} connected)", peer_count);
-                        // Find random peers to expand our network
-                        let random_peer_id = PeerId::random();
-                        self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer_id);
-                    }
+                
+                // Metrics logging
+                _ = metrics_timer.tick() => {
+                    self.log_metrics();
                 }
             }
         }
     }
 
-    /// Run the network event loop
+    /// Run the network event loop (without broadcast)
+    /// This is the main mesh networking loop with connection management
     pub async fn run(mut self) {
-        info!("P2P network running...");
+        info!("╔═══════════════════════════════════════════════════════════════╗");
+        info!("║     PYRAX P2P Mesh Network Starting                            ║");
+        info!("╚═══════════════════════════════════════════════════════════════╝");
+        
+        // Start connection manager - this will dial bootnodes
+        self.conn_manager.start().await;
         
         let mut initial_sync_done = false;
-        let mut sync_delay_started = false;
-        // Initial sync timer - fires 3 seconds after first peer connects
-        let mut initial_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(3));
-        initial_sync_timer.tick().await; // Skip first tick
-        
-        // Periodic sync timer - checks every 30 seconds for new blocks from peers
-        let mut periodic_sync_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
-        periodic_sync_timer.tick().await; // Skip first tick
-        
-        // Bootstrap reconnection timer - checks every 60 seconds if we need to reconnect
-        let mut bootstrap_timer = tokio::time::interval(tokio::time::Duration::from_secs(60));
-        bootstrap_timer.tick().await; // Skip first tick
-        
-        // Kademlia refresh timer - periodically refresh DHT to discover new peers
-        let mut kademlia_refresh_timer = tokio::time::interval(tokio::time::Duration::from_secs(30));
-        kademlia_refresh_timer.tick().await; // Skip first tick
-        
-        // Track last synced height to avoid duplicate requests
         let mut last_requested_height: u64 = 0;
+        
+        // Timers for mesh maintenance
+        let mut conn_manager_tick = tokio::time::interval(Duration::from_secs(1));
+        conn_manager_tick.tick().await;
+        
+        let mut sync_timer = tokio::time::interval(Duration::from_secs(self.config.peer_refresh_interval_secs));
+        sync_timer.tick().await;
+        
+        let mut metrics_timer = tokio::time::interval(Duration::from_secs(30));
+        metrics_timer.tick().await;
         
         loop {
             tokio::select! {
+                // Handle swarm events
                 event = self.swarm.select_next_some() => {
-                    match event {
-                        SwarmEvent::Behaviour(event) => {
-                            self.handle_behaviour_event(event).await;
-                        }
-                        SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
-                            let addr_str = endpoint.get_remote_address().to_string();
-                            let (ip, port) = parse_multiaddr(&addr_str);
-                            let direction = if endpoint.is_dialer() { PeerDirection::Outbound } else { PeerDirection::Inbound };
-                            
-                            info!("Connected to peer: {} at {} ({})", peer_id, addr_str, direction);
-                            
-                            self.connected_peers.write().await.insert(peer_id, PeerInfo {
-                                peer_id: peer_id.to_string(),
-                                address: addr_str.clone(),
-                                best_height: 0,
-                            });
-                            
-                            self.peer_registry.add_peer(ConnectedPeer {
-                                peer_id: peer_id.to_string(),
-                                address: addr_str.clone(),
-                                ip,
-                                port,
-                                direction,
-                                connected_at: Instant::now(),
-                                last_seen: Instant::now(),
-                                client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
-                                best_height: 0,
-                            }).await;
-                            
-                            // Add peer to Kademlia DHT for discovery
-                            if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                                self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
-                                info!("Added peer {} to Kademlia DHT", peer_id);
-                            }
-                            
-                            // Start sync timer and Kademlia bootstrap when first peer connects
-                            if !sync_delay_started {
-                                sync_delay_started = true;
-                                info!("First peer connected, will request sync in 3 seconds");
-                                // Start Kademlia bootstrap to discover more peers
-                                info!("Starting Kademlia DHT bootstrap for peer discovery...");
-                                if let Err(e) = self.swarm.behaviour_mut().kademlia.bootstrap() {
-                                    warn!("Kademlia bootstrap failed: {:?}", e);
-                                }
-                            }
-                        }
-                        SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                            info!("Disconnected from peer: {} ({:?})", peer_id, cause);
-                            self.connected_peers.write().await.remove(&peer_id);
-                            self.peer_registry.remove_peer(&peer_id.to_string()).await;
-                        }
-                        SwarmEvent::NewListenAddr { address, .. } => {
-                            info!("Listening on {}/p2p/{}", address, self.local_peer_id);
-                            self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
-                        }
-                        SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
-                            debug!("Incoming connection from {} to {}", send_back_addr, local_addr);
-                        }
-                        _ => {}
-                    }
+                    self.handle_swarm_event(event).await;
                 }
-                // Initial sync - request blocks from our tip + 1
-                _ = initial_sync_timer.tick(), if sync_delay_started && !initial_sync_done => {
-                    let our_height = self.db.get_tip().height;
-                    let peer_count = self.connected_peers.read().await.len();
+                
+                // Handle connection manager events
+                Some(conn_event) = self.conn_event_rx.recv() => {
+                    self.handle_conn_manager_event(conn_event).await;
+                }
+                
+                // Connection manager tick - maintains mesh health
+                _ = conn_manager_tick.tick() => {
+                    self.conn_manager.tick().await;
                     
-                    info!("Initial sync check: our height={}, peers={}", our_height, peer_count);
-                    
+                    // Process any pending disconnects
+                    self.process_pending_disconnects();
+                }
+                
+                // Periodic sync check
+                _ = sync_timer.tick() => {
+                    let peer_count = self.peer_count();
                     if peer_count > 0 {
-                        // Always request blocks starting from our current height + 1
-                        // This works for both fresh nodes (height 0) and restarted nodes
-                        let start_height = our_height + 1;
-                        info!("Requesting blocks from height {} (we have {} blocks)", start_height, our_height);
-                        let _ = self.request_blocks(start_height, 100);
-                        last_requested_height = start_height;
-                        initial_sync_done = true;
-                    }
-                }
-                // Periodic sync - check every 30 seconds if peers have new blocks
-                _ = periodic_sync_timer.tick(), if initial_sync_done => {
-                    let our_height = self.db.get_tip().height;
-                    let peer_count = self.connected_peers.read().await.len();
-                    
-                    if peer_count > 0 && our_height >= last_requested_height {
-                        // We've caught up to what we requested, check for more
-                        let start_height = our_height + 1;
-                        debug!("Periodic sync check: requesting blocks from height {}", start_height);
-                        let _ = self.request_blocks(start_height, 100);
-                        last_requested_height = start_height;
-                    }
-                }
-                // Bootstrap reconnection - ensure we stay connected to bootstrap peers
-                _ = bootstrap_timer.tick() => {
-                    let peer_count = self.connected_peers.read().await.len();
-                    if peer_count == 0 && !self.bootstrap_peers.is_empty() {
-                        info!("No peers connected, attempting to reconnect to bootstrap peers...");
-                        for peer_addr in &self.bootstrap_peers {
-                            info!("Redialing bootstrap peer: {}", peer_addr);
-                            if let Ok(addr) = peer_addr.parse::<Multiaddr>() {
-                                if let Err(e) = self.swarm.dial(addr) {
-                                    warn!("Failed to redial {}: {:?}", peer_addr, e);
-                                }
-                            }
+                        let our_height = self.db.get_tip().height;
+                        if !initial_sync_done || our_height >= last_requested_height {
+                            let start_height = our_height + 1;
+                            debug!("Sync check: requesting blocks from height {} (peers: {})", start_height, peer_count);
+                            let _ = self.request_blocks(start_height, 100);
+                            last_requested_height = start_height;
+                            initial_sync_done = true;
                         }
                     }
                 }
-                // Kademlia DHT refresh - discover new peers periodically
-                _ = kademlia_refresh_timer.tick() => {
-                    let peer_count = self.connected_peers.read().await.len();
-                    if peer_count > 0 && peer_count < 50 {
-                        debug!("Kademlia DHT refresh: looking for more peers (currently {} connected)", peer_count);
-                        // Find random peers to expand our network
-                        let random_peer_id = PeerId::random();
-                        self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer_id);
-                    }
+                
+                // Metrics logging
+                _ = metrics_timer.tick() => {
+                    self.log_metrics();
                 }
             }
         }
     }
 
-    /// Handle behaviour events
+    /// Handle swarm events and update connection manager
+    async fn handle_swarm_event(&mut self, event: SwarmEvent<PyraxBehaviourEvent>) {
+        match event {
+            SwarmEvent::Behaviour(behaviour_event) => {
+                self.handle_behaviour_event(behaviour_event).await;
+            }
+            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                let addr_str = endpoint.get_remote_address().to_string();
+                let (ip, port) = parse_multiaddr(&addr_str);
+                let is_inbound = !endpoint.is_dialer();
+                let direction = if is_inbound { PeerDirection::Inbound } else { PeerDirection::Outbound };
+                
+                // Update connection manager
+                self.conn_manager.on_connection_established(peer_id, addr_str.clone(), is_inbound).await;
+                self.dialing.remove(&peer_id);
+                
+                // Update legacy registry for RPC compatibility
+                self.peer_registry.add_peer(ConnectedPeer {
+                    peer_id: peer_id.to_string(),
+                    address: addr_str.clone(),
+                    ip,
+                    port,
+                    direction,
+                    connected_at: Instant::now(),
+                    last_seen: Instant::now(),
+                    client_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
+                    best_height: 0,
+                }).await;
+                
+                // Add to Kademlia for discovery
+                if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+                }
+                
+                // Add to gossipsub mesh
+                self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                
+                // Update metrics
+                self.update_metrics();
+                
+                let peer_count = self.peer_count();
+                info!("✓ Peer {} connected ({}) [{}/{}]", 
+                    peer_id, direction, peer_count, self.config.target_peers);
+            }
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                // Update connection manager
+                self.conn_manager.on_connection_closed(peer_id).await;
+                
+                // Update legacy registry
+                self.peer_registry.remove_peer(&peer_id.to_string()).await;
+                
+                // Update metrics
+                self.update_metrics();
+                
+                let peer_count = self.peer_count();
+                info!("✗ Peer {} disconnected ({:?}) [{}/{}]", 
+                    peer_id, cause, peer_count, self.config.target_peers);
+            }
+            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+                if let Some(peer_id) = peer_id {
+                    self.conn_manager.on_dial_failure(peer_id).await;
+                    self.dialing.remove(&peer_id);
+                    self.metrics.dial_failures += 1;
+                    debug!("Dial to {} failed: {:?}", peer_id, error);
+                }
+            }
+            SwarmEvent::NewListenAddr { address, .. } => {
+                info!("Listening on {}/p2p/{}", address, self.local_peer_id);
+                self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
+            }
+            SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
+                debug!("Incoming connection from {} to {}", send_back_addr, local_addr);
+            }
+            SwarmEvent::IncomingConnectionError { local_addr, send_back_addr, error, .. } => {
+                debug!("Incoming connection error from {} to {}: {:?}", send_back_addr, local_addr, error);
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle connection manager events (dial requests, prune requests, etc.)
+    async fn handle_conn_manager_event(&mut self, event: ConnectionEvent) {
+        match event {
+            ConnectionEvent::DialPeers(peers) => {
+                for (peer_id, addr) in peers {
+                    if self.dialing.contains(&peer_id) {
+                        continue;
+                    }
+                    if let Ok(multiaddr) = addr.parse::<Multiaddr>() {
+                        self.dialing.insert(peer_id);
+                        self.metrics.dial_attempts += 1;
+                        if let Err(e) = self.swarm.dial(multiaddr) {
+                            debug!("Failed to dial {}: {:?}", peer_id, e);
+                            self.dialing.remove(&peer_id);
+                            self.conn_manager.on_dial_failure(peer_id).await;
+                        }
+                    }
+                }
+            }
+            ConnectionEvent::DisconnectPeers(peers) => {
+                for peer_id in peers {
+                    self.pending_disconnect.insert(peer_id);
+                }
+            }
+            ConnectionEvent::TriggerKademliaBootstrap => {
+                info!("Triggering Kademlia DHT bootstrap...");
+                if let Err(e) = self.swarm.behaviour_mut().kademlia.bootstrap() {
+                    warn!("Kademlia bootstrap failed: {:?}", e);
+                }
+            }
+            ConnectionEvent::TriggerKademliaQuery => {
+                // Query for random peer IDs to discover more peers
+                let random_peer_id = PeerId::random();
+                self.swarm.behaviour_mut().kademlia.get_closest_peers(random_peer_id);
+            }
+            ConnectionEvent::StateChanged(new_state) => {
+                info!("Network state: {:?}", new_state);
+                self.metrics.state = new_state;
+            }
+            ConnectionEvent::MetricsUpdate(conn_metrics) => {
+                self.metrics.connected_peers = conn_metrics.connected_peers;
+                self.metrics.inbound_peers = conn_metrics.inbound_peers;
+                self.metrics.outbound_peers = conn_metrics.outbound_peers;
+                self.metrics.average_rtt_ms = conn_metrics.average_rtt_ms;
+            }
+        }
+    }
+
+    /// Process pending disconnect requests
+    fn process_pending_disconnects(&mut self) {
+        for peer_id in self.pending_disconnect.drain() {
+            if let Err(e) = self.swarm.disconnect_peer_id(peer_id) {
+                debug!("Failed to disconnect {}: {:?}", peer_id, e);
+            } else {
+                info!("Pruned peer {} (score-based)", peer_id);
+            }
+        }
+    }
+
+    /// Update metrics from connection manager
+    fn update_metrics(&mut self) {
+        let conn_metrics = self.conn_manager.metrics();
+        self.metrics.connected_peers = conn_metrics.connected_peers;
+        self.metrics.inbound_peers = conn_metrics.inbound_peers;
+        self.metrics.outbound_peers = conn_metrics.outbound_peers;
+        self.metrics.dial_attempts = conn_metrics.dial_attempts;
+        self.metrics.dial_successes = conn_metrics.dial_successes;
+        self.metrics.dial_failures = conn_metrics.dial_failures;
+        self.metrics.average_rtt_ms = conn_metrics.average_rtt_ms;
+        self.metrics.state = conn_metrics.state;
+    }
+
+    /// Log current network metrics
+    fn log_metrics(&self) {
+        let m = &self.metrics;
+        info!("╔══════════════════════════════════════════════════════════════════╗");
+        info!("║  P2P MESH STATUS                                                 ║");
+        info!("╠══════════════════════════════════════════════════════════════════╣");
+        info!("║  Peers: {}/{} (in: {}, out: {})                              ║", 
+            m.connected_peers, m.target_peers, m.inbound_peers, m.outbound_peers);
+        info!("║  State: {:?}                                              ║", m.state);
+        info!("║  Dials: {} attempts, {} success, {} failed                   ║",
+            m.dial_attempts, m.dial_successes, m.dial_failures);
+        if let Some(rtt) = m.average_rtt_ms {
+            info!("║  Avg RTT: {}ms                                              ║", rtt);
+        }
+        info!("║  Messages: {} sent, {} received                              ║", 
+            m.messages_sent, m.messages_received);
+        info!("╚══════════════════════════════════════════════════════════════════╝");
+    }
+
+    /// Handle behaviour events with connection manager integration
     async fn handle_behaviour_event(&mut self, event: PyraxBehaviourEvent) {
         match event {
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Message {
@@ -604,17 +787,30 @@ impl Network {
                 message_id: _,
                 message,
             }) => {
+                self.metrics.messages_received += 1;
                 self.handle_gossip_message(propagation_source, &message.data).await;
+                
+                // Record successful interaction for scoring
+                if let Some(peer) = self.conn_manager.peer_store_mut().get_peer_mut(&propagation_source) {
+                    peer.record_success();
+                }
             }
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic }) => {
                 debug!("Peer {} subscribed to {}", peer_id, topic);
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
+                // mDNS discovery - add to connection manager for mesh consideration
                 for (peer_id, addr) in peers {
-                    info!("mDNS discovered: {} at {}", peer_id, addr);
-                    if let Err(e) = self.swarm.dial(addr.clone()) {
-                        debug!("Failed to dial {}: {:?}", addr, e);
+                    if peer_id == self.local_peer_id {
+                        continue;
                     }
+                    info!("mDNS discovered: {} at {}", peer_id, addr);
+                    
+                    // Notify connection manager of discovered peer
+                    self.conn_manager.on_peer_discovered(peer_id, vec![addr.to_string()]);
+                    
+                    // Add to Kademlia for DHT
+                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
                 }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Expired(peers)) => {
@@ -626,65 +822,93 @@ impl Network {
                 info!("Identified peer {}: {} ({})", 
                     peer_id, info.protocol_version, info.agent_version);
                 
-                // Update peer version in registry
+                // Update connection manager with peer info
+                let listen_addrs: Vec<String> = info.listen_addrs.iter().map(|a| a.to_string()).collect();
+                self.conn_manager.on_peer_identified(peer_id, info.agent_version.clone(), listen_addrs.clone());
+                
+                // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
-                // Add peer's listen addresses
-                for addr in info.listen_addrs {
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                // Add listen addresses to Kademlia
+                for addr in &info.listen_addrs {
+                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
                 }
+                
+                // Add to gossipsub mesh
+                self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
                 match result {
                     Ok(rtt) => {
                         debug!("Ping to {} successful: {:?}", peer, rtt);
-                        // Update last seen time on successful ping
+                        
+                        // Update RTT in connection manager for scoring
+                        self.conn_manager.on_ping_result(peer, Some(rtt));
+                        
+                        // Update legacy registry
                         self.peer_registry.update_peer_seen(&peer.to_string()).await;
                     }
                     Err(e) => {
-                        // Don't warn on unsupported - older clients may not have ping
                         debug!("Ping to {} failed: {:?}", peer, e);
+                        self.conn_manager.on_ping_result(peer, None);
                     }
                 }
             }
             PyraxBehaviourEvent::Kademlia(event) => {
                 match event {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
-                        info!("Kademlia: Routing updated for peer {} with {} addresses", peer, addresses.len());
-                        // Try to connect to this peer if we're not already connected
-                        let connected = self.connected_peers.read().await.contains_key(&peer);
-                        if !connected && addresses.len() > 0 {
-                            // Dial the peer directly - swarm will use known addresses
-                            info!("Kademlia: Dialing newly discovered peer {}", peer);
-                            if let Err(e) = self.swarm.dial(peer) {
-                                debug!("Failed to dial discovered peer {}: {:?}", peer, e);
-                            }
+                        info!("Kademlia: Routing updated for peer {} ({} addresses)", peer, addresses.len());
+                        
+                        // Convert addresses to strings - addresses is a vec from the event
+                        let addr_strings: Vec<String> = addresses.iter()
+                            .map(|a| a.to_string())
+                            .collect();
+                        
+                        if !addr_strings.is_empty() {
+                            self.conn_manager.on_peer_discovered(peer, addr_strings);
                         }
                     }
                     kad::Event::OutboundQueryProgressed { result, .. } => {
                         match result {
                             kad::QueryResult::GetClosestPeers(Ok(ok)) => {
                                 info!("Kademlia: Found {} closest peers", ok.peers.len());
-                                // Dial discovered peers that we're not already connected to
+                                
+                                // Notify connection manager of discovered peers
+                                // The peers list contains peer IDs - we'll dial them directly
+                                // and let the swarm use addresses from its routing table
                                 for peer_id in &ok.peers {
-                                    let connected = self.connected_peers.read().await.contains_key(peer_id);
-                                    if !connected {
-                                        // Dial the peer directly - swarm will use addresses from Kademlia routing table
-                                        info!("Kademlia: Dialing discovered peer {}", peer_id);
-                                        if let Err(e) = self.swarm.dial(peer_id.clone()) {
-                                            debug!("Failed to dial {}: {:?}", peer_id, e);
+                                    if *peer_id == self.local_peer_id {
+                                        continue;
+                                    }
+                                    
+                                    // Queue dial with empty address - swarm will resolve from routing table
+                                    // We notify the connection manager which will queue the dial
+                                    self.conn_manager.on_peer_discovered(*peer_id, vec![]);
+                                    
+                                    // Also try direct dial for immediate connectivity
+                                    if !self.dialing.contains(peer_id) {
+                                        self.dialing.insert(*peer_id);
+                                        if let Err(e) = self.swarm.dial(*peer_id) {
+                                            debug!("Kademlia: Failed to dial {}: {:?}", peer_id, e);
+                                            self.dialing.remove(peer_id);
                                         }
                                     }
                                 }
                             }
                             kad::QueryResult::Bootstrap(Ok(ok)) => {
-                                info!("Kademlia: Bootstrap step completed, {} remaining", ok.num_remaining);
+                                info!("Kademlia: Bootstrap step completed ({} remaining)", ok.num_remaining);
+                                if ok.num_remaining == 0 {
+                                    self.conn_manager.on_kademlia_bootstrap_complete();
+                                }
                             }
                             kad::QueryResult::Bootstrap(Err(e)) => {
                                 warn!("Kademlia: Bootstrap failed: {:?}", e);
                             }
                             _ => {}
                         }
+                    }
+                    kad::Event::InboundRequest { request } => {
+                        debug!("Kademlia: Inbound request: {:?}", request);
                     }
                     _ => {}
                 }

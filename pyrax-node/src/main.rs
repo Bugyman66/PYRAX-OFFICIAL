@@ -296,7 +296,14 @@ async fn main() -> anyhow::Result<()> {
         let p2p_config = P2PConfig {
             listen_addr: args.p2p_addr.clone(),
             bootstrap_peers: args.peer.clone().map(|p| vec![p]).unwrap_or_default(),
-            max_peers: 50,
+            target_peers: 50,
+            min_peers: 30,
+            max_peers: 60,
+            max_concurrent_dials: 5,
+            dial_timeout_secs: 10,
+            ping_interval_secs: 15,
+            peer_refresh_interval_secs: 30,
+            peer_reevaluate_interval_secs: 60,
         };
 
         let mut network = Network::new(p2p_config, db.clone(), network, peer_registry.clone()).await?;
@@ -325,7 +332,7 @@ async fn main() -> anyhow::Result<()> {
             // Wait for peer connections before mining
             info!("Waiting 3 seconds for peer connections...");
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            let peer_count = network.peer_count().await;
+            let peer_count = network.peer_count();
             info!("Connected to {} peers, starting miner", peer_count);
             
             // Create channel for mined blocks to broadcast
