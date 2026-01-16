@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "PYRAX Desktop",
-    "version": "0.2.15"
+    "version": "0.2.16"
   },
   "tauri": {
     "allowlist": {
@@ -53,7 +53,8 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "resources/pyrax-node.exe"
+        "resources/pyrax-node.exe",
+        "resources/vc_redist.x64.exe"
       ],
       "windows": {
         "certificateThumbprint": null,

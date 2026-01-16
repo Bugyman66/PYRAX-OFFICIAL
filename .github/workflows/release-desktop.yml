@@ -113,6 +113,18 @@ jobs:
           (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
         shell: pwsh
 
+      - name: Download Visual C++ Redistributable
+        shell: pwsh
+        run: |
+          Write-Host "Downloading Visual C++ Redistributable for bundling..."
+          $resourcesDir = "pyrax-desktop/src-tauri/resources"
+          $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          $vcRedistPath = "$resourcesDir/vc_redist.x64.exe"
+          Write-Host "Downloading from $vcRedistUrl..."
+          Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath -UseBasicParsing
+          $size = (Get-Item $vcRedistPath).Length
+          Write-Host "Downloaded VC++ Redistributable: $vcRedistPath ($size bytes)"
+
       - name: Write signing key to file
         shell: pwsh
         run: |

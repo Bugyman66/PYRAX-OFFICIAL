@@ -14,14 +14,83 @@ use state::AppState;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use tauri::Manager;
-use tracing::info;
+use tracing::{info, warn};
 use tracing_subscriber;
+
+/// Check if Visual C++ Runtime is installed (Windows only)
+#[cfg(target_os = "windows")]
+fn check_and_install_vcruntime() {
+    use std::process::Command;
+    
+    // Check registry for VC++ 2015-2022 Redistributable
+    let check_x64 = Command::new("reg")
+        .args(["query", r"HKLM\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64", "/v", "Installed"])
+        .output();
+    
+    let x64_installed = match check_x64 {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.contains("0x1")
+        }
+        Err(_) => false,
+    };
+    
+    if x64_installed {
+        info!("Visual C++ Runtime (x64) is installed");
+        return;
+    }
+    
+    warn!("Visual C++ Runtime not found, attempting to install...");
+    
+    // Try to find bundled VC++ redistributable in resources
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    
+    if let Some(dir) = exe_dir {
+        let vcredist_path = dir.join("resources").join("vc_redist.x64.exe");
+        if vcredist_path.exists() {
+            info!("Installing Visual C++ Runtime from bundled installer...");
+            let result = Command::new(&vcredist_path)
+                .args(["/install", "/passive", "/norestart"])
+                .status();
+            
+            match result {
+                Ok(status) => {
+                    if status.success() || status.code() == Some(1638) || status.code() == Some(3010) {
+                        info!("Visual C++ Runtime installed successfully");
+                    } else {
+                        warn!("Visual C++ Runtime installation returned code: {:?}", status.code());
+                    }
+                }
+                Err(e) => warn!("Failed to run VC++ installer: {}", e),
+            }
+            return;
+        }
+    }
+    
+    // If bundled installer not found, show a message dialog
+    warn!("VC++ redistributable not bundled. User may need to install manually.");
+    
+    // Try to open Microsoft download page
+    if let Err(e) = open::that("https://aka.ms/vs/17/release/vc_redist.x64.exe") {
+        warn!("Failed to open VC++ download page: {}", e);
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn check_and_install_vcruntime() {
+    // No-op on non-Windows platforms
+}
 
 fn main() {
     // Initialize logging
     tracing_subscriber::fmt::init();
     
     info!("Starting PYRAX Desktop v{}", env!("CARGO_PKG_VERSION"));
+    
+    // Check and install VC++ runtime if needed (Windows only)
+    check_and_install_vcruntime();
 
     // Initialize application state
     let app_state = Arc::new(Mutex::new(AppState::new()));
