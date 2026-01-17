@@ -200,8 +200,8 @@ fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
             "/ip4/bootstrap.pyrax-testnet.org/tcp/30303",
         ],
         crate::state::Network::Devnet => vec![
-            // Full multiaddr with peer ID required for relay NAT traversal
-            "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWJ5d89acu9cyQTBwRhE4kJ33HaVcPZ1Xr2gFozmS9jV1s",
+            // Full multiaddr with PERMANENT peer ID (persisted via --node-key)
+            "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGCFPC1eRd8fWZE6GSZfbGe5UgRVDSXhLkg3H7b95MMk",
         ],
     }
 }
