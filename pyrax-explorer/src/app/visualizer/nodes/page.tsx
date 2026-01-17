@@ -211,12 +211,15 @@ export default function NodesVisualizerPage() {
                 </Geographies>
                 {/* Animated connection lines between nodes */}
                 {connections.map((conn, idx) => {
-                  // Check if this is a bootnode-to-bootnode connection (thicker, red)
+                  // Check if this is a bootnode-to-bootnode connection (brighter cyan for contrast)
                   const isBootnodeLink = conn.from.includes('bootnode') && conn.to.includes('bootnode')
-                  const opacity = Math.round((0.3 + (Math.sin((animationPhase + idx * 10) * 0.1) + 1) * 0.2) * 255).toString(16).padStart(2, '0')
-                  const baseColor = isBootnodeLink ? '#ef4444' : '#22c55e'
+                  const pulseIntensity = 0.4 + (Math.sin((animationPhase + idx * 10) * 0.1) + 1) * 0.3
+                  const opacity = Math.round(pulseIntensity * 255).toString(16).padStart(2, '0')
+                  // Use bright cyan for high contrast against dark map background
+                  const baseColor = isBootnodeLink ? '#f97316' : '#06b6d4'
                   const strokeColor = `${baseColor}${opacity}`
-                  const strokeWidth = isBootnodeLink ? 2 : 1
+                  // Proportional line thickness: bootnode links 0.8, peer links 0.4
+                  const strokeWidth = isBootnodeLink ? 0.8 : 0.4
                   return (
                     <Line
                       key={`${conn.from}-${conn.to}`}
@@ -229,13 +232,14 @@ export default function NodesVisualizerPage() {
                   )
                 })}
                 {mappableNodes.map(node => {
-                  // Bootnodes get red color, others get stream color
-                  const markerColor = node.isBootnode ? '#ef4444' : getStreamColor(node.stream)
-                  const markerSize = node.isBootnode ? 5 : 3
+                  // Bootnodes get orange color for visibility, others get stream color
+                  const markerColor = node.isBootnode ? '#f97316' : getStreamColor(node.stream)
+                  // Smaller sizes: bootnodes 2.5, regular nodes 1.5
+                  const markerSize = node.isBootnode ? 2.5 : 1.5
                   return (
                     <Marker key={node.id} coordinates={[node.lon, node.lat]}>
-                      <circle r={markerSize * 3} fill={markerColor} opacity={0.2} className="animate-ping" />
-                      <circle r={markerSize * 2} fill={markerColor} opacity={0.4} />
+                      <circle r={markerSize * 2.5} fill={markerColor} opacity={0.15} className="animate-ping" />
+                      <circle r={markerSize * 1.5} fill={markerColor} opacity={0.3} />
                       <circle r={markerSize} fill={markerColor} />
                       <title>{node.isBootnode ? '🔴 BOOTNODE: ' : ''}{node.city}, {node.country} - Stream {node.stream}</title>
                     </Marker>
@@ -250,12 +254,12 @@ export default function NodesVisualizerPage() {
             <div className="text-xs text-stone-400 mb-2">Node Types</div>
             <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-1.5">
-                <span className="w-4 h-4 rounded-full bg-red-500" />
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                 <span className="text-xs text-stone-300 font-medium">Bootnode</span>
               </div>
               {(['A', 'B', 'C'] as StreamType[]).map(s => (
                 <div key={s} className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: getStreamColor(s) }} />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getStreamColor(s) }} />
                   <span className="text-xs text-stone-300">{STREAMS[s].algorithm}</span>
                 </div>
               ))}
