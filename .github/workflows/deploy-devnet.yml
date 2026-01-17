@@ -248,12 +248,23 @@ jobs:
           echo "=== STOPPING OLD CONTAINERS ==="
           docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
           
-          echo "=== REMOVING PYRAX CONTAINERS (except node - using systemd) ==="
+          echo "=== FORCE STOPPING ALL PYRAX CONTAINERS ==="
+          # Stop all containers with pyrax in the name
+          docker ps -a --filter "name=pyrax" -q | xargs -r docker stop 2>/dev/null || true
+          
+          echo "=== REMOVING ALL PYRAX CONTAINERS ==="
+          # Remove all containers with pyrax in the name (including stopped ones)
+          docker ps -a --filter "name=pyrax" -q | xargs -r docker rm -f 2>/dev/null || true
+          
+          # Also remove by explicit names in case filter missed any
           docker rm -f pyrax-node pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-nginx pyrax-marketing pyrax-postgres pyrax-redis 2>/dev/null || true
           
           echo "=== REMOVING STALE NETWORKS ==="
           docker network rm pyrax_pyrax-network 2>/dev/null || true
           docker network prune -f 2>/dev/null || true
+          
+          echo "=== PRUNING UNUSED DOCKER RESOURCES ==="
+          docker container prune -f 2>/dev/null || true
           
           echo "=== BUILDING IMAGES (with cache) ==="
           # Build only web services (node is managed by systemd)
