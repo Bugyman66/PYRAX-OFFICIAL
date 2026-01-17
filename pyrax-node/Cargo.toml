@@ -53,7 +53,7 @@ ripemd = "0.1"
 rocksdb = "0.22"
 
 # P2P Networking
-libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "identify", "ping", "kad", "tokio", "macros"] }
+libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "identify", "ping", "kad", "tokio", "macros", "relay"] }
 
 # CLI & Config
 clap = { version = "4.4", features = ["derive"] }

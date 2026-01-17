@@ -41,7 +41,7 @@ pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 
 use libp2p::{
-    gossipsub, identify, kad, mdns, noise, ping,
+    gossipsub, identify, kad, mdns, noise, ping, relay,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm,
 };
@@ -141,6 +141,7 @@ pub struct PyraxBehaviour {
     pub identify: identify::Behaviour,
     pub ping: ping::Behaviour,
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
+    pub relay: relay::Behaviour,
 }
 
 /// P2P Network manager with mesh networking support
@@ -272,7 +273,12 @@ impl Network {
                 // Without this, nodes only act as DHT clients and won't serve routing info
                 kademlia.set_mode(Some(kad::Mode::Server));
 
-                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia }
+                // Relay behaviour for NAT traversal
+                // This allows peers behind NAT to communicate through relay nodes (bootnodes)
+                let relay = relay::Behaviour::new(local_peer_id, relay::Config::default());
+                info!("Relay behaviour initialized for NAT traversal");
+
+                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay }
             })?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
@@ -975,6 +981,10 @@ impl Network {
                     }
                     _ => {}
                 }
+            }
+            PyraxBehaviourEvent::Relay(event) => {
+                // Log relay events for NAT traversal monitoring
+                info!("Relay: {:?}", event);
             }
             _ => {}
         }

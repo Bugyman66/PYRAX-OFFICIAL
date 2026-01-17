@@ -11,8 +11,6 @@ import {
 import { useNodeStore } from '../stores/nodeStore';
 import { cn } from '../lib/utils';
 
-const APP_VERSION = '0.2.16';
-
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/wallet', icon: Wallet, label: 'Wallet' },
@@ -29,13 +27,10 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className="w-64 bg-dark-800 border-r border-dark-600 flex flex-col">
         {/* Logo */}
-        <div className="p-4 border-b border-dark-600">
-          <div className="flex items-center gap-3">
-            <img src="/pyrax-logo.png" alt="PYRAX" className="w-10 h-10 object-contain" />
-            <div>
-              <h1 className="text-xl font-bold gradient-text">PYRAX</h1>
-              <p className="text-xs text-stone-500">v{APP_VERSION}</p>
-            </div>
+        <div className="p-6 border-b border-dark-600">
+          <div className="flex flex-col items-center">
+            <img src="/pyrax-logo.png" alt="Inferno Node" className="w-20 h-20 object-contain" />
+            <h1 className="mt-3 text-lg font-semibold text-stone-200">Inferno Node</h1>
           </div>
         </div>
 
