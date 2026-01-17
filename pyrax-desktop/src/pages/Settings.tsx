@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, FolderOpen, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Save, FolderOpen, RefreshCw, Trash2, AlertTriangle, X, HardDrive } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 
 interface AppSettings {
@@ -32,9 +32,14 @@ export default function Settings() {
   const [dataDir, setDataDir] = useState('');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
+  const [clearResult, setClearResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [dataSizes, setDataSizes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadSettings();
+    loadDataSizes();
   }, []);
 
   const loadSettings = async () => {
@@ -47,6 +52,33 @@ export default function Settings() {
       setDataDir(dir);
     } catch (e) {
       console.error('Failed to load settings:', e);
+    }
+  };
+
+  const loadDataSizes = async () => {
+    try {
+      const networks = ['testnet', 'devnet', 'mainnet'];
+      const sizes: Record<string, string> = {};
+      for (const network of networks) {
+        sizes[network] = await invoke<string>('get_local_data_size', { network });
+      }
+      setDataSizes(sizes);
+    } catch (e) {
+      console.error('Failed to load data sizes:', e);
+    }
+  };
+
+  const handleClearData = async (network: string) => {
+    setClearingData(true);
+    setClearResult(null);
+    try {
+      const result = await invoke<string>('clear_local_data', { network });
+      setClearResult({ success: true, message: result });
+      loadDataSizes(); // Refresh sizes
+    } catch (e) {
+      setClearResult({ success: false, message: e as string });
+    } finally {
+      setClearingData(false);
     }
   };
 
@@ -283,6 +315,39 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Data Management */}
+      <div className="bg-gray-800 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <HardDrive size={20} />
+          Data Management
+        </h2>
+        <p className="text-sm text-gray-400 mb-4">
+          Clear local blockchain data if you experience sync issues or genesis mismatches. 
+          The node will sync fresh from the network on next start.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(['testnet', 'devnet', 'mainnet'] as const).map((network) => (
+            <div key={network} className="bg-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium capitalize">{network}</span>
+                <span className="text-sm text-gray-400">{dataSizes[network] || 'Loading...'}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setShowClearModal(true);
+                  setClearResult(null);
+                }}
+                disabled={network === 'mainnet'}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={14} />
+                Clear {network} Data
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* About */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4">About</h2>
@@ -301,6 +366,82 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Clear Data Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-red-400">
+                <AlertTriangle size={20} />
+                Clear Local Data
+              </h3>
+              <button 
+                onClick={() => setShowClearModal(false)}
+                className="p-1 hover:bg-gray-700 rounded transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {clearResult ? (
+              <div className={`p-4 rounded-lg mb-4 ${clearResult.success ? 'bg-green-900/30 border border-green-600/50' : 'bg-red-900/30 border border-red-600/50'}`}>
+                <p className={clearResult.success ? 'text-green-400' : 'text-red-400'}>
+                  {clearResult.message}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 mb-4">
+                  <p className="text-yellow-400 text-sm">
+                    <strong>Warning:</strong> This will permanently delete all local blockchain data for the selected network. 
+                    You will need to sync from scratch which may take some time.
+                  </p>
+                </div>
+                
+                <p className="text-gray-300 mb-4">
+                  Select which network's data to clear:
+                </p>
+                
+                <div className="space-y-2 mb-6">
+                  {(['testnet', 'devnet'] as const).map((network) => (
+                    <button
+                      key={network}
+                      onClick={() => handleClearData(network)}
+                      disabled={clearingData}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Trash2 size={16} className="text-red-400" />
+                        <span className="capitalize font-medium">{network}</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{dataSizes[network] || 'No data'}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowClearModal(false);
+                  setClearResult(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                {clearResult ? 'Close' : 'Cancel'}
+              </button>
+            </div>
+            
+            {clearingData && (
+              <div className="absolute inset-0 bg-gray-800/80 rounded-xl flex items-center justify-center">
+                <RefreshCw size={24} className="animate-spin text-purple-400" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

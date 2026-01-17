@@ -146,6 +146,10 @@ fn main() {
             commands::node::start_connection_watchdog,
             commands::node::stop_connection_watchdog,
             
+            // Data management commands
+            commands::node::clear_local_data,
+            commands::node::get_local_data_size,
+            
             // Updater commands
             commands::updater::check_for_updates,
             commands::updater::install_update,

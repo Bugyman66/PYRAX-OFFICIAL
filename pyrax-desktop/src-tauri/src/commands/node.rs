@@ -1025,3 +1025,95 @@ pub async fn stop_connection_watchdog(
     // The watchdog will exit on its own when it detects node_running = false
     Ok(())
 }
+
+/// Clear local blockchain data for a specific network
+/// This removes the chain database to allow fresh sync
+#[tauri::command]
+pub async fn clear_local_data(
+    app: AppHandle,
+    state: State<'_, Arc<Mutex<AppState>>>,
+    network: String,
+) -> Result<String, String> {
+    // First, ensure the node is stopped
+    {
+        let state_guard = state.lock();
+        if state_guard.node_running {
+            return Err("Please stop the node before clearing data".to_string());
+        }
+    }
+    
+    // Get the data directory
+    let app_data_dir = app.path_resolver()
+        .app_data_dir()
+        .ok_or("Failed to get app data directory")?;
+    
+    let data_path = app_data_dir.join("data").join(&network);
+    
+    emit_log(&app, "info", "system", &format!("Clearing local data for {} network...", network));
+    
+    if data_path.exists() {
+        // Remove the entire network data directory
+        match fs::remove_dir_all(&data_path) {
+            Ok(_) => {
+                emit_log(&app, "info", "system", &format!("Successfully cleared {} data at {:?}", network, data_path));
+                Ok(format!("Cleared local data for {} network. The node will sync fresh on next start.", network))
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to clear data: {}", e);
+                emit_log(&app, "error", "system", &error_msg);
+                Err(error_msg)
+            }
+        }
+    } else {
+        emit_log(&app, "info", "system", &format!("No data found for {} network at {:?}", network, data_path));
+        Ok(format!("No local data found for {} network.", network))
+    }
+}
+
+/// Get the size of local data for a specific network
+#[tauri::command]
+pub async fn get_local_data_size(
+    app: AppHandle,
+    network: String,
+) -> Result<String, String> {
+    let app_data_dir = app.path_resolver()
+        .app_data_dir()
+        .ok_or("Failed to get app data directory")?;
+    
+    let data_path = app_data_dir.join("data").join(&network);
+    
+    if !data_path.exists() {
+        return Ok("No data".to_string());
+    }
+    
+    // Calculate directory size
+    fn dir_size(path: &std::path::Path) -> u64 {
+        let mut size = 0;
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    size += dir_size(&path);
+                } else if let Ok(metadata) = entry.metadata() {
+                    size += metadata.len();
+                }
+            }
+        }
+        size
+    }
+    
+    let size = dir_size(&data_path);
+    
+    // Format size
+    let formatted = if size < 1024 {
+        format!("{} B", size)
+    } else if size < 1024 * 1024 {
+        format!("{:.1} KB", size as f64 / 1024.0)
+    } else if size < 1024 * 1024 * 1024 {
+        format!("{:.1} MB", size as f64 / (1024.0 * 1024.0))
+    } else {
+        format!("{:.2} GB", size as f64 / (1024.0 * 1024.0 * 1024.0))
+    };
+    
+    Ok(formatted)
+}
