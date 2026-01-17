@@ -260,12 +260,20 @@ export async function GET() {
     // Combine all peers, using _stream tag or detecting from endpoint
     const allPeers = [...streamA.peers, ...streamC.peers];
     
-    // Deduplicate peers by peer_id (same peer might be connected to multiple streams)
+    // Get bootnode IPs to filter them out from peer list (avoid duplicates)
+    const bootnodeIPs = new Set(BOOTNODES.map(bn => bn.ip));
+    
+    // Deduplicate peers by peer_id and filter out bootnode IPs
     const seenPeerIds = new Set<string>();
     const uniquePeers = allPeers.filter(peer => {
       const id = peer.peer_id || peer.id;
       if (seenPeerIds.has(id)) return false;
       seenPeerIds.add(id);
+      
+      // Filter out peers that are actually bootnodes (by IP)
+      const peerIP = extractIP(peer.address || peer.ip || '');
+      if (bootnodeIPs.has(peerIP)) return false;
+      
       return true;
     });
 
