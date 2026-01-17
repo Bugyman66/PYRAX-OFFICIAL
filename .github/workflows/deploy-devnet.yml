@@ -124,6 +124,23 @@ jobs:
           echo "║   Stream A (BLAKE3) | Stream B (KAWPOW) | Stream C (ZK)       ║"
           echo "╚═══════════════════════════════════════════════════════════════╝"
           
+          # Ensure swap exists to prevent OOM during Rust compilation
+          echo "=== ENSURING SWAP SPACE FOR COMPILATION ==="
+          if [ ! -f /swapfile ]; then
+            echo "Creating 4GB swap file..."
+            fallocate -l 4G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            echo "Swap created and enabled"
+          else
+            # Ensure swap is active
+            swapon /swapfile 2>/dev/null || true
+            echo "Swap already exists"
+          fi
+          free -h
+          
           cd /opt/pyrax
           
           # Install Rust if not present
@@ -217,12 +234,34 @@ jobs:
           # Restart pyrax-node service
           echo "=== RESTARTING PYRAX-NODE SERVICE ==="
           systemctl restart pyrax-node
-          sleep 3
+          
+          # Wait for node to fully start (it takes time to initialize)
+          echo "=== WAITING FOR NODE TO START ==="
+          for i in {1..30}; do
+            if ss -tlnp | grep -q ':28545'; then
+              echo "RPC port 28545 is listening after ${i}s"
+              break
+            fi
+            echo "Waiting for node... (${i}/30)"
+            sleep 1
+          done
+          
+          # Show service status
           systemctl status pyrax-node --no-pager || true
           
           # Verify all streams are listening
           echo "=== VERIFYING TRISTREAM PORTS ==="
           ss -tlnp | grep -E '(28545|3333|28547|30303)' || echo "Warning: Some ports not yet listening"
+          
+          # Test RPC endpoint
+          echo "=== TESTING RPC ENDPOINT ==="
+          curl -s -X POST -H "Content-Type: application/json" \
+            --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+            http://127.0.0.1:28545 || echo "RPC not responding yet"
+          
+          # Show node logs
+          echo "=== RECENT NODE LOGS ==="
+          journalctl -u pyrax-node --no-pager -n 50 || true
           
           echo "=== PYRAX NODE DEPLOYED ==="
           EOF
