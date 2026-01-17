@@ -227,15 +227,15 @@ impl Network {
             )?
             .with_behaviour(|key, relay_client| {
                 // GossipSub config - optimized for blockchain propagation
-                // mesh_n_low=1 allows mesh to form even with just the bootnode
+                // Constraints: mesh_n_low <= mesh_n <= mesh_n_high, gossip_lazy <= mesh_n_low
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(10))
                     .validation_mode(gossipsub::ValidationMode::Strict)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(1)      // Minimum peers in mesh (allows small networks to work)
-                    .mesh_n(3)          // Target peers in mesh
-                    .mesh_n_high(6)     // Maximum peers in mesh
-                    .gossip_lazy(3)     // Peers to gossip to
+                    .mesh_n_low(2)      // Minimum peers in mesh (2 allows small networks)
+                    .mesh_n(4)          // Target peers in mesh
+                    .mesh_n_high(8)     // Maximum peers in mesh
+                    .gossip_lazy(2)     // Peers to gossip to (must be <= mesh_n_low)
                     .build()
                     .expect("Valid gossipsub config");
 
