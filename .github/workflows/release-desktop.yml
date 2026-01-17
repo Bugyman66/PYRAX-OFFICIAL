@@ -67,14 +67,14 @@ jobs:
             tauri_target: windows-x86_64
             node_binary: pyrax-node.exe
             bundle_type: nsis
-          # macOS Intel
-          - platform: macos-latest
+          # macOS Intel (use macos-13 which is x86_64)
+          - platform: macos-13
             rust_target: x86_64-apple-darwin
             tauri_target: darwin-x86_64
             node_binary: pyrax-node
             bundle_type: dmg
-          # macOS Apple Silicon
-          - platform: macos-latest
+          # macOS Apple Silicon (use macos-14 which is ARM)
+          - platform: macos-14
             rust_target: aarch64-apple-darwin
             tauri_target: darwin-aarch64
             node_binary: pyrax-node
@@ -218,7 +218,7 @@ jobs:
 
       # Find and upload bundles - macOS
       - name: Find bundle files (macOS)
-        if: matrix.platform == 'macos-latest'
+        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
         id: find-bundle-macos
         run: |
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
@@ -332,7 +332,7 @@ jobs:
 
       # Upload macOS assets
       - name: Upload macOS DMG
-        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.dmg_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.dmg_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -343,7 +343,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload macOS tar.gz (for updates)
-        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.tar_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.tar_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -354,7 +354,7 @@ jobs:
           asset_content_type: application/gzip
 
       - name: Upload macOS signature
-        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.sig_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.sig_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
