@@ -12,6 +12,7 @@ const Wallet = lazy(() => import('./pages/Wallet'));
 const Mining = lazy(() => import('./pages/Mining'));
 const Explorer = lazy(() => import('./pages/Explorer'));
 const Settings = lazy(() => import('./pages/Settings'));
+const Network = lazy(() => import('./pages/Network'));
 
 // Loading fallback for lazy routes
 const PageLoader = () => (
@@ -47,6 +48,7 @@ export default function App() {
             <Route path="mining" element={<Suspense fallback={<PageLoader />}><Mining /></Suspense>} />
             <Route path="explorer" element={<Suspense fallback={<PageLoader />}><Explorer /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+            <Route path="network" element={<Suspense fallback={<PageLoader />}><Network /></Suspense>} />
           </Route>
         </Routes>
       </ErrorBoundary>

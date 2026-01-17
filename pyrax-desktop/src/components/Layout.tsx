@@ -5,6 +5,7 @@ import {
   Hammer, 
   Search, 
   Settings,
+  Network,
   Circle,
   Loader2
 } from 'lucide-react';
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/wallet', icon: Wallet, label: 'Wallet' },
   { to: '/mining', icon: Hammer, label: 'Mining' },
   { to: '/explorer', icon: Search, label: 'Explorer' },
+  { to: '/network', icon: Network, label: 'Network' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
