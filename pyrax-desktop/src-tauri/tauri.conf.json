@@ -72,21 +72,13 @@
           "license": null
         }
       },
-      "macOS": {
-        "entitlements": null,
-        "exceptionDomain": "",
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "signingIdentity": null
+      "deb": {
+        "depends": ["libwebkit2gtk-4.0-37", "libgtk-3-0"]
       },
-      "linux": {
-        "appimage": {
-          "bundleMediaFramework": false
-        },
-        "deb": {
-          "depends": ["libwebkit2gtk-4.0-37", "libgtk-3-0"]
-        }
+      "appimage": {
+        "bundleMediaFramework": false
       },
+      "macOSPrivateApi": false,
       "publisher": "PYRAX Chain",
       "shortDescription": "Inferno Node - Decentralized Blockchain Node",
       "longDescription": "Inferno Node is a fully decentralized blockchain node client with integrated wallet, mining, and staking capabilities.",
