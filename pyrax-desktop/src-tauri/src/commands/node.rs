@@ -53,13 +53,42 @@ fn emit_log(app: &AppHandle, level: &str, category: &str, message: &str) {
     });
 }
 
+/// Check if a log line should be filtered out (noise reduction)
+fn should_filter_log(line: &str) -> bool {
+    // Filter out repetitive dial failure messages for NAT'd peers
+    // These create noise when peers behind NAT are discovered but unreachable
+    if line.contains("Connection attempt to peer failed") && line.contains("ConnectionRefused") {
+        return true;
+    }
+    if line.contains("Dial to") && line.contains("failed") && !line.contains("bootnode") {
+        return true;
+    }
+    if line.contains("Dial failure for") && !line.contains("bootnode") {
+        return true;
+    }
+    // Filter out noisy swarm polling messages
+    if line.contains("dialing address") && !line.contains("209.38.137.105") {
+        return true;
+    }
+    // Filter out ANSI escape codes spam
+    if line.contains("[1mSwarm::poll[0m") && (line.contains("ConnectionRefused") || line.contains("Timeout")) {
+        return true;
+    }
+    false
+}
+
 /// Parse pyrax-node tracing log format
 /// Example: "2026-01-16T05:12:43.406091Z  INFO Connected to peer: 12D3KooW..."
-/// Returns (level, category, message)
+/// Returns (level, category, message) - returns empty strings if should be filtered
 fn parse_node_log(line: &str) -> (String, String, String) {
     // Tracing format: TIMESTAMP LEVEL [target] message
     // or: TIMESTAMP LEVEL message
     let line = line.trim();
+    
+    // Filter out noisy logs
+    if should_filter_log(line) {
+        return (String::new(), String::new(), String::new());
+    }
     
     // Skip timestamp (ISO 8601 format)
     let parts: Vec<&str> = line.splitn(3, ' ').collect();
@@ -373,7 +402,10 @@ pub async fn start_node(
                             if let Ok(line) = line {
                                 // Parse tracing log format: "2026-01-16T05:12:43.406091Z  INFO message"
                                 let (level, category, message) = parse_node_log(&line);
-                                emit_log(&app_clone, &level, &category, &message);
+                                // Skip filtered logs (empty strings)
+                                if !level.is_empty() && !message.is_empty() {
+                                    emit_log(&app_clone, &level, &category, &message);
+                                }
                             }
                         }
                     });
@@ -387,7 +419,10 @@ pub async fn start_node(
                         for line in reader.lines() {
                             if let Ok(line) = line {
                                 let (level, category, message) = parse_node_log(&line);
-                                emit_log(&app_clone, &level, &category, &message);
+                                // Skip filtered logs (empty strings)
+                                if !level.is_empty() && !message.is_empty() {
+                                    emit_log(&app_clone, &level, &category, &message);
+                                }
                             }
                         }
                     });
