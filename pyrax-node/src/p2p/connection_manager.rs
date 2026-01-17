@@ -533,10 +533,42 @@ impl ConnectionManager {
     async fn maintain_peers(&mut self) {
         let connected = self.peer_store.connected_count();
         
+        // CRITICAL: Ensure bootnode connection is maintained
+        // If we're not connected to any bootnode, re-dial them immediately
+        let bootnode_connected = self.bootnodes.iter()
+            .any(|bn| self.peer_store.get_peer(bn)
+                .map(|p| p.state == PeerState::Connected)
+                .unwrap_or(false));
+        
+        if !bootnode_connected && !self.bootnodes.is_empty() {
+            warn!("Lost connection to all bootnodes! Re-dialing...");
+            // Re-queue bootnode dials with high priority
+            let bootnode_addrs: Vec<(PeerId, Vec<String>)> = self.bootnodes.iter()
+                .filter_map(|bootnode_id| {
+                    self.peer_store.get_peer(bootnode_id)
+                        .map(|peer| (*bootnode_id, peer.addresses.clone()))
+                })
+                .collect();
+            
+            for (bootnode_id, addresses) in bootnode_addrs {
+                // Clear backoff for bootnodes - we MUST reconnect
+                self.peer_store.clear_backoff(&bootnode_id);
+                for addr in addresses {
+                    self.queue_dial(bootnode_id, addr);
+                }
+            }
+            self.process_dial_queue().await;
+        }
+        
         // If below minimum, aggressively try to connect
         if connected < self.config.min_peers {
             self.transition_to(NetworkState::FillingPeers);
             self.trigger_discovery().await;
+            // Also trigger Kademlia re-bootstrap when critically low
+            if connected < 3 {
+                info!("Peer count critically low ({}), triggering Kademlia re-bootstrap", connected);
+                let _ = self.event_tx.try_send(ConnectionEvent::TriggerKademliaBootstrap);
+            }
             return;
         }
         

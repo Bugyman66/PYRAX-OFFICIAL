@@ -69,12 +69,22 @@ impl RpcClient {
         rpc_response.result.ok_or(RpcError::NoResult)
     }
 
-    /// Check if node is reachable
+    /// Check if node is reachable - uses simple health check first, falls back to chain info
     pub async fn is_connected(&self) -> bool {
+        // Try simple health check first (no database access)
+        if self.health_check().await.is_ok() {
+            return true;
+        }
+        // Fall back to chain info check
         match self.get_block_number().await {
             Ok(_) => true,
             Err(_) => false,
         }
+    }
+
+    /// Simple health check that doesn't require database access
+    pub async fn health_check(&self) -> Result<String, RpcError> {
+        self.request("pyrax_health", ()).await
     }
 
     // ═══════════════════════════════════════════════════════════════

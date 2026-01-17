@@ -67,7 +67,7 @@ fn should_filter_log(line: &str) -> bool {
         return true;
     }
     // Filter out noisy swarm polling messages
-    if line.contains("dialing address") && !line.contains("209.38.137.105") {
+    if line.contains("dialing address") && !line.contains("209.38.137.105") && !line.contains("137.184.118.228") {
         return true;
     }
     // Filter out ANSI escape codes spam
@@ -201,7 +201,10 @@ fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
         ],
         crate::state::Network::Devnet => vec![
             // Full multiaddr with PERMANENT peer ID (persisted via --node-key)
+            // Bootnode 1: Digital Ocean NYC
             "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGCFPC1eRd8fWZE6GSZfbGe5UgRVDSXhLkg3H7b95MMk",
+            // Bootnode 2: Digital Ocean SFO (redundancy)
+            "/ip4/137.184.118.228/tcp/30303/p2p/12D3KooWPEER2PLACEHOLDER228",
         ],
     }
 }

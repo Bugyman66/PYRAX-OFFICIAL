@@ -193,9 +193,15 @@ impl PeerData {
 
     /// Clean up events older than 1 hour
     fn cleanup_old_events(&mut self) {
-        let one_hour_ago = Instant::now() - Duration::from_secs(3600);
-        self.disconnect_times.retain(|t| *t > one_hour_ago);
-        self.failure_times.retain(|t| *t > one_hour_ago);
+        // Use checked_sub to prevent panic if system uptime < 1 hour
+        // If subtraction would underflow, keep all events (system just started)
+        let now = Instant::now();
+        let one_hour = Duration::from_secs(3600);
+        if let Some(one_hour_ago) = now.checked_sub(one_hour) {
+            self.disconnect_times.retain(|t| *t > one_hour_ago);
+            self.failure_times.retain(|t| *t > one_hour_ago);
+        }
+        // If checked_sub returns None, system uptime < 1 hour, keep all events
         self.disconnects_last_hour = self.disconnect_times.len() as u32;
         self.failures_last_hour = self.failure_times.len() as u32;
     }
@@ -464,6 +470,13 @@ impl PeerStore {
         }
         
         true
+    }
+    
+    /// Clear backoff for a peer (used for critical reconnections like bootnodes)
+    pub fn clear_backoff(&mut self, peer_id: &PeerId) {
+        if let Some(backoff) = self.backoffs.get_mut(peer_id) {
+            backoff.clear(self.config.initial_backoff);
+        }
     }
 
     /// Check if peer is banned

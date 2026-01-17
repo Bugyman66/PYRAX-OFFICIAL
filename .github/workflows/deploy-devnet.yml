@@ -13,7 +13,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  DEVNET_SERVER: 209.38.137.105
+  BOOTNODE_1: 209.38.137.105
+  BOOTNODE_2: 137.184.118.228
 
 jobs:
   deploy:
@@ -29,23 +30,33 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Add host key
+      - name: Add host keys
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ env.DEVNET_SERVER }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.BOOTNODE_1 }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.BOOTNODE_2 }} >> ~/.ssh/known_hosts
 
-      - name: Sync code to server
+      - name: Sync code to Bootnode 1
         run: |
           rsync -avz --delete \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.next' \
             --exclude='target' \
-            ./ root@${{ env.DEVNET_SERVER }}:/opt/pyrax/
+            ./ root@${{ env.BOOTNODE_1 }}:/opt/pyrax/
 
-      - name: Install Docker on Devnet Server
+      - name: Sync code to Bootnode 2
         run: |
-          ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='target' \
+            ./ root@${{ env.BOOTNODE_2 }}:/opt/pyrax/
+
+      - name: Install Docker on Bootnode 1
+        run: |
+          ssh root@${{ env.BOOTNODE_1 }} << 'EOF'
           set -e
           
           if ! command -v docker &> /dev/null; then
@@ -68,7 +79,7 @@ jobs:
 
       - name: Configure Firewall for TriStream
         run: |
-          ssh root@${{ env.DEVNET_SERVER }} << 'EOF'
+          ssh root@${{ env.BOOTNODE_1 }} << 'EOF'
           set -e
           
           echo "=== ENSURING DOCKER STARTS ON BOOT ==="
@@ -116,7 +127,7 @@ jobs:
 
       - name: Build and Deploy PYRAX Node (TriStream)
         run: |
-          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=20 root@${{ env.DEVNET_SERVER }} << 'EOF'
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=20 root@${{ env.BOOTNODE_1 }} << 'EOF'
           set -e
           
           echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -267,9 +278,175 @@ jobs:
           echo "=== PYRAX NODE DEPLOYED ==="
           EOF
 
+      - name: Deploy PYRAX Node to Bootnode 2 (P2P Only)
+        run: |
+          ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=20 root@${{ env.BOOTNODE_2 }} << 'EOF'
+          set -e
+          
+          echo "╔═══════════════════════════════════════════════════════════════╗"
+          echo "║     PYRAX Bootnode 2 Deployment (P2P Redundancy)              ║"
+          echo "╚═══════════════════════════════════════════════════════════════╝"
+          
+          # Ensure swap exists
+          if [ ! -f /swapfile ]; then
+            echo "Creating 4GB swap file..."
+            fallocate -l 4G /swapfile
+            chmod 600 /swapfile
+            mkswap /swapfile
+            swapon /swapfile
+            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          else
+            swapon /swapfile 2>/dev/null || true
+          fi
+          
+          cd /opt/pyrax
+          
+          # Install Rust if not present
+          if ! command -v cargo &> /dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          fi
+          source ~/.cargo/env 2>/dev/null || true
+          
+          # Install build dependencies
+          if ! command -v cc &> /dev/null; then
+            apt-get update -qq
+            apt-get install -y -qq build-essential pkg-config libssl-dev clang llvm-dev libclang-dev ufw
+          fi
+          
+          # Configure firewall (P2P only, no web services)
+          echo "=== CONFIGURING FIREWALL ==="
+          ufw allow 22/tcp comment 'SSH'
+          ufw allow 30303/tcp comment 'P2P TCP'
+          ufw allow 30304/udp comment 'P2P UDP'
+          ufw allow 28545/tcp comment 'RPC'
+          echo "y" | ufw enable || true
+          
+          # Build pyrax-node
+          echo "=== BUILDING PYRAX-NODE ==="
+          cargo clean -p pyrax-node 2>/dev/null || true
+          cargo build --release -p pyrax-node
+          
+          # Stop and replace binary
+          systemctl stop pyrax-node 2>/dev/null || true
+          pkill -9 -f pyrax-node 2>/dev/null || true
+          sleep 2
+          
+          cp -f /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
+          chmod +x /usr/local/bin/pyrax-node
+          
+          # Wipe old data for fresh genesis
+          rm -rf /var/lib/pyrax/devnet/*
+          mkdir -p /var/lib/pyrax/devnet
+          
+          # Create systemd service (connects to Bootnode 1 as peer)
+          cat > /etc/systemd/system/pyrax-node.service << 'SERVICE'
+          [Unit]
+          Description=PYRAX Bootnode 2 (Devnet P2P)
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/pyrax-node \
+              --network devnet \
+              --datadir /var/lib/pyrax/devnet \
+              --node-key /var/lib/pyrax/node.key \
+              --rpc --rpc-addr 0.0.0.0:28545 \
+              --p2p --p2p-addr /ip4/0.0.0.0/tcp/30303 \
+              --peer /ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGCFPC1eRd8fWZE6GSZfbGe5UgRVDSXhLkg3H7b95MMk \
+              --verbosity 2
+          Restart=always
+          RestartSec=5
+          LimitNOFILE=65535
+          
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE
+          
+          systemctl daemon-reload
+          systemctl enable pyrax-node
+          systemctl restart pyrax-node
+          
+          # Wait for startup
+          for i in {1..30}; do
+            if ss -tlnp | grep -q ':30303'; then
+              echo "P2P port 30303 listening after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          
+          # Get and display the peer ID
+          echo "=== BOOTNODE 2 PEER ID ==="
+          sleep 5
+          journalctl -u pyrax-node --no-pager -n 100 | grep -i "Local peer" || echo "Peer ID will appear in logs"
+          
+          echo "=== BOOTNODE 2 DEPLOYED ==="
+          EOF
+
+      - name: Get Bootnode 2 Peer ID
+        id: bootnode2_peer_id
+        run: |
+          echo "=== RETRIEVING BOOTNODE 2 PEER ID ==="
+          sleep 15
+          
+          # Try multiple patterns to find the peer ID
+          PEER_ID=$(ssh root@${{ env.BOOTNODE_2 }} "journalctl -u pyrax-node --no-pager -n 500 2>/dev/null | grep -oE '12D3KooW[a-zA-Z0-9]+' | head -1" || echo "")
+          
+          if [ -z "$PEER_ID" ]; then
+            # Try reading from node key file
+            PEER_ID=$(ssh root@${{ env.BOOTNODE_2 }} "cat /var/lib/pyrax/node.key 2>/dev/null | head -1" || echo "")
+          fi
+          
+          if [ -n "$PEER_ID" ]; then
+            echo "✅ BOOTNODE 2 PEER ID: $PEER_ID"
+            echo "peer_id=$PEER_ID" >> $GITHUB_OUTPUT
+            echo ""
+            echo "════════════════════════════════════════════════════════════"
+            echo "  IMPORTANT: Update desktop app with this peer ID:"
+            echo "  File: pyrax-desktop/src-tauri/src/commands/node.rs"
+            echo "  Replace: 12D3KooWPEER2PLACEHOLDER228"
+            echo "  With:    $PEER_ID"
+            echo "════════════════════════════════════════════════════════════"
+          else
+            echo "⚠️ Could not extract peer ID automatically"
+            echo "Check logs manually:"
+            ssh root@${{ env.BOOTNODE_2 }} "journalctl -u pyrax-node --no-pager -n 100" || true
+          fi
+
+      - name: Verify P2P Connectivity Between Bootnodes
+        run: |
+          echo "=== VERIFYING P2P MESH FORMATION ==="
+          sleep 10
+          
+          # Check Bootnode 1 peers
+          echo "Bootnode 1 peer count:"
+          curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_1 }}:28545 \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"pyrax_getNetworkInfo","params":[],"id":1}' 2>/dev/null | jq -r '.result.peer_count // "RPC not ready"' || echo "Check manually"
+          
+          # Check Bootnode 2 peers
+          echo "Bootnode 2 peer count:"
+          curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_2 }}:28545 \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"pyrax_getNetworkInfo","params":[],"id":1}' 2>/dev/null | jq -r '.result.peer_count // "RPC not ready"' || echo "Check manually"
+          
+          # Check if bootnodes can see each other
+          echo ""
+          echo "Checking bootnode mesh..."
+          B1_PEERS=$(curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_1 }}:28545 \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"pyrax_getNetworkInfo","params":[],"id":1}' 2>/dev/null || echo "{}")
+          
+          if echo "$B1_PEERS" | grep -q "${{ env.BOOTNODE_2 }}"; then
+            echo "✅ Bootnode 1 can see Bootnode 2"
+          else
+            echo "⚠️ Bootnodes may need time to discover each other"
+          fi
+
       - name: Deploy Web Services (Docker)
         run: |
-          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@${{ env.DEVNET_SERVER }} << 'EOF'
+          ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 root@${{ env.BOOTNODE_1 }} << 'EOF'
           set -e
           
           cd /opt/pyrax
@@ -367,7 +544,7 @@ jobs:
           echo "=== TRISTREAM NODE (Direct IP) ==="
           
           # Stream A - RPC (BLAKE3)
-          STREAM_A=$(curl -sf --max-time 10 -X POST http://${{ env.DEVNET_SERVER }}:28545 \
+          STREAM_A=$(curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_1 }}:28545 \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","method":"pyrax_getChainInfo","params":[],"id":1}' 2>/dev/null || echo "")
           if echo "$STREAM_A" | grep -q '"result"'; then
@@ -377,35 +554,44 @@ jobs:
           fi
           
           # Stream B - Stratum (KAWPOW)
-          nc -zv ${{ env.DEVNET_SERVER }} 3333 -w 3 2>&1 && echo "✓ Stream B Stratum (3333): OPEN" || echo "✗ Stream B Stratum (3333): CLOSED"
+          nc -zv ${{ env.BOOTNODE_1 }} 3333 -w 3 2>&1 && echo "✓ Stream B Stratum (3333): OPEN" || echo "✗ Stream B Stratum (3333): CLOSED"
           
           # Stream C - Staking RPC (ZK)
-          STREAM_C=$(curl -sf --max-time 10 -X POST http://${{ env.DEVNET_SERVER }}:28547 \
+          STREAM_C=$(curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_1 }}:28547 \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","method":"pyrax_getStakingStats","params":[],"id":1}' 2>/dev/null || echo "")
           if echo "$STREAM_C" | grep -q '"result"'; then
             echo "✓ Stream C Staking (28547): OK"
           else
-            nc -zv ${{ env.DEVNET_SERVER }} 28547 -w 3 2>&1 && echo "⚠ Stream C Staking (28547): Port OPEN (RPC may not have staking method)" || echo "✗ Stream C Staking (28547): CLOSED"
+            nc -zv ${{ env.BOOTNODE_1 }} 28547 -w 3 2>&1 && echo "⚠ Stream C Staking (28547): Port OPEN (RPC may not have staking method)" || echo "✗ Stream C Staking (28547): CLOSED"
           fi
           
-          # P2P
-          nc -zv ${{ env.DEVNET_SERVER }} 30303 -w 3 2>&1 && echo "✓ P2P (30303): OPEN" || echo "✗ P2P (30303): CLOSED"
+          # P2P Bootnode 1
+          nc -zv ${{ env.BOOTNODE_1 }} 30303 -w 3 2>&1 && echo "✓ Bootnode 1 P2P (30303): OPEN" || echo "✗ Bootnode 1 P2P (30303): CLOSED"
+          
+          echo ""
+          echo "=== BOOTNODE 2 (P2P Redundancy) ==="
+          nc -zv ${{ env.BOOTNODE_2 }} 30303 -w 3 2>&1 && echo "✓ Bootnode 2 P2P (30303): OPEN" || echo "✗ Bootnode 2 P2P (30303): CLOSED"
+          nc -zv ${{ env.BOOTNODE_2 }} 28545 -w 3 2>&1 && echo "✓ Bootnode 2 RPC (28545): OPEN" || echo "✗ Bootnode 2 RPC (28545): CLOSED"
           
           echo ""
           echo "=== WEB SERVICES ==="
-          curl -sf -o /dev/null http://${{ env.DEVNET_SERVER }} && echo "✓ Website (HTTP): OK" || echo "⚠ Website: Check Cloudflare"
+          curl -sf -o /dev/null http://${{ env.BOOTNODE_1 }} && echo "✓ Website (HTTP): OK" || echo "⚠ Website: Check Cloudflare"
           
           echo ""
           echo "========================================"
           echo "   DEPLOYMENT COMPLETE"
           echo "========================================"
           echo ""
-          echo "TriStream Endpoints (Direct IP):"
-          echo "  Stream A RPC:     http://${{ env.DEVNET_SERVER }}:28545"
-          echo "  Stream B Stratum: ${{ env.DEVNET_SERVER }}:3333"
-          echo "  Stream C Staking: http://${{ env.DEVNET_SERVER }}:28547"
-          echo "  P2P:              /ip4/${{ env.DEVNET_SERVER }}/tcp/30303"
+          echo "Bootnode 1 (Primary - ${{ env.BOOTNODE_1 }}):"
+          echo "  Stream A RPC:     http://${{ env.BOOTNODE_1 }}:28545"
+          echo "  Stream B Stratum: ${{ env.BOOTNODE_1 }}:3333"
+          echo "  Stream C Staking: http://${{ env.BOOTNODE_1 }}:28547"
+          echo "  P2P:              /ip4/${{ env.BOOTNODE_1 }}/tcp/30303"
+          echo ""
+          echo "Bootnode 2 (Redundancy - ${{ env.BOOTNODE_2 }}):"
+          echo "  RPC:              http://${{ env.BOOTNODE_2 }}:28545"
+          echo "  P2P:              /ip4/${{ env.BOOTNODE_2 }}/tcp/30303"
           echo ""
           echo "Web Services (via Cloudflare):"
           echo "  Website:  https://pyrax-devnet.org"

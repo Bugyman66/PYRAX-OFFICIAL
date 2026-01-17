@@ -494,9 +494,14 @@ impl Network {
         self.swarm.dial(multiaddr.clone())?;
         
         // Extract peer ID from multiaddr if present and add to Kademlia
+        // Only add routable addresses to prevent localhost/private IP pollution
         if let Some(peer_id) = Self::extract_peer_id(&multiaddr) {
-            self.swarm.behaviour_mut().kademlia.add_address(&peer_id, multiaddr);
-            info!("Added bootstrap peer {} to Kademlia", peer_id);
+            if Self::is_routable_address(&multiaddr) {
+                self.swarm.behaviour_mut().kademlia.add_address(&peer_id, multiaddr);
+                info!("Added bootstrap peer {} to Kademlia", peer_id);
+            } else {
+                debug!("Skipping non-routable bootstrap address for {}: {}", peer_id, multiaddr);
+            }
         }
         Ok(())
     }
@@ -527,6 +532,9 @@ impl Network {
     /// Check if a multiaddr is publicly routable (not localhost or private network)
     /// This prevents address pollution where nodes advertise non-routable addresses
     fn is_routable_address(addr: &Multiaddr) -> bool {
+        let mut has_valid_ip = false;
+        let mut port: Option<u16> = None;
+        
         for protocol in addr.iter() {
             match protocol {
                 libp2p::multiaddr::Protocol::Ip4(ip) => {
@@ -547,6 +555,7 @@ impl Network {
                     if ip.is_unspecified() {
                         return false;
                     }
+                    has_valid_ip = true;
                 }
                 libp2p::multiaddr::Protocol::Ip6(ip) => {
                     // Reject localhost
@@ -557,10 +566,23 @@ impl Network {
                     if ip.is_unspecified() {
                         return false;
                     }
+                    has_valid_ip = true;
+                }
+                libp2p::multiaddr::Protocol::Tcp(p) => {
+                    port = Some(p);
                 }
                 _ => {}
             }
         }
+        
+        // Reject ephemeral ports (49152-65535) - these are outbound connection ports, not listen ports
+        // This prevents pollution from peers advertising their ephemeral connection ports
+        if let Some(p) = port {
+            if has_valid_ip && p >= 49152 {
+                return false;
+            }
+        }
+        
         true
     }
 
@@ -826,9 +848,14 @@ impl Network {
                     best_height: 0,
                 }).await;
                 
-                // Add to Kademlia for discovery
+                // Add to Kademlia for discovery (only routable addresses)
+                // This prevents localhost/private IP pollution that causes WrongPeerId errors
                 if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+                    if Self::is_routable_address(&addr) {
+                        self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+                    } else {
+                        debug!("Skipping non-routable address for peer {}: {}", peer_id, addr_str);
+                    }
                 }
                 
                 // Add to gossipsub mesh

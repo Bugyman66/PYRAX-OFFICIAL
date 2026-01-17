@@ -68,6 +68,10 @@ pub trait PyraxRpc {
     /// Get network peer information
     #[method(name = "pyrax_getNetworkInfo")]
     async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo>;
+
+    /// Simple health check - returns immediately without database access
+    #[method(name = "pyrax_health")]
+    async fn health(&self) -> RpcResult<String>;
 }
 
 /// RPC server state
@@ -452,6 +456,10 @@ impl PyraxRpcServer for RpcServerImpl {
                 listen_addresses: vec![],
             })
         }
+    }
+
+    async fn health(&self) -> RpcResult<String> {
+        Ok("ok".to_string())
     }
 }
 
