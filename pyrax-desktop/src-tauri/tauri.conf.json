@@ -78,7 +78,6 @@
       "appimage": {
         "bundleMediaFramework": false
       },
-      "macOSPrivateApi": false,
       "publisher": "PYRAX Chain",
       "shortDescription": "Inferno Node - Decentralized Blockchain Node",
       "longDescription": "Inferno Node is a fully decentralized blockchain node client with integrated wallet, mining, and staking capabilities.",
