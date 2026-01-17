@@ -215,6 +215,7 @@ jobs:
           ExecStart=/usr/local/bin/pyrax-node \
               --network devnet \
               --datadir /var/lib/pyrax/devnet \
+              --node-key /var/lib/pyrax/node.key \
               --rpc --rpc-addr 0.0.0.0:28545 \
               --p2p --p2p-addr /ip4/0.0.0.0/tcp/30303 \
               --stratum --stratum-addr 0.0.0.0:3333 \

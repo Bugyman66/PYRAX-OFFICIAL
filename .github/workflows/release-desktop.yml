@@ -79,8 +79,8 @@ jobs:
             tauri_target: darwin-aarch64
             node_binary: pyrax-node
             bundle_type: dmg
-          # Linux
-          - platform: ubuntu-22.04
+          # Linux (use ubuntu-20.04 for broader compatibility with Ubuntu 20/22/24/25)
+          - platform: ubuntu-20.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_target: linux-x86_64
             node_binary: pyrax-node

@@ -105,6 +105,11 @@ struct Args {
     /// Staking RPC address
     #[arg(long, default_value = "0.0.0.0:8547")]
     staking_addr: String,
+
+    /// Path to persistent node key file for P2P identity
+    /// If provided, the node will use a persistent peer ID that survives restarts
+    #[arg(long)]
+    node_key: Option<PathBuf>,
 }
 
 fn parse_network(s: &str) -> NetworkId {
@@ -304,6 +309,7 @@ async fn main() -> anyhow::Result<()> {
             ping_interval_secs: 15,
             peer_refresh_interval_secs: 30,
             peer_reevaluate_interval_secs: 60,
+            node_key_path: args.node_key.clone(),
         };
 
         let mut network = Network::new(p2p_config, db.clone(), network, peer_registry.clone()).await?;

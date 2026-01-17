@@ -46,6 +46,7 @@ use libp2p::{
     tcp, yamux, Multiaddr, PeerId, Swarm,
 };
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, RwLock};
@@ -78,6 +79,8 @@ pub struct P2PConfig {
     pub peer_refresh_interval_secs: u64,
     /// Peer reevaluation interval in seconds
     pub peer_reevaluate_interval_secs: u64,
+    /// Path to persistent node key file (if None, generates ephemeral key)
+    pub node_key_path: Option<PathBuf>,
 }
 
 impl Default for P2PConfig {
@@ -93,7 +96,51 @@ impl Default for P2PConfig {
             ping_interval_secs: 15,
             peer_refresh_interval_secs: 30,
             peer_reevaluate_interval_secs: 60,
+            node_key_path: None,
         }
+    }
+}
+
+/// Load an existing Ed25519 keypair from file, or generate and save a new one.
+/// This ensures the node has a persistent peer ID across restarts.
+pub fn load_or_generate_keypair(path: &PathBuf) -> anyhow::Result<libp2p::identity::Keypair> {
+    use std::fs;
+    
+    if path.exists() {
+        // Load existing keypair
+        let key_bytes = fs::read(path)?;
+        let keypair = libp2p::identity::Keypair::ed25519_from_bytes(key_bytes.clone())
+            .map_err(|e| anyhow::anyhow!("Failed to parse keypair from {}: {}", path.display(), e))?;
+        info!("Loaded existing node key from {}", path.display());
+        Ok(keypair)
+    } else {
+        // Generate new keypair
+        let keypair = libp2p::identity::Keypair::generate_ed25519();
+        
+        // Extract raw Ed25519 secret key bytes (32 bytes)
+        let ed25519_keypair = keypair.clone().try_into_ed25519()
+            .map_err(|e| anyhow::anyhow!("Failed to extract Ed25519 keypair: {}", e))?;
+        let secret_bytes = ed25519_keypair.secret().as_ref().to_vec();
+        
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        
+        // Save to file
+        fs::write(path, &secret_bytes)?;
+        
+        // Set restrictive permissions (Unix only)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(path)?.permissions();
+            perms.set_mode(0o600); // Owner read/write only
+            fs::set_permissions(path, perms)?;
+        }
+        
+        info!("Generated new node key and saved to {}", path.display());
+        Ok(keypair)
     }
 }
 
@@ -223,8 +270,13 @@ impl Network {
         info!("╚═══════════════════════════════════════════════════════════════╝");
         info!("Initializing P2P network for {}", network_id.name());
 
-        // Generate keypair
-        let local_key = libp2p::identity::Keypair::generate_ed25519();
+        // Load or generate keypair (persistent if path provided)
+        let local_key = if let Some(ref key_path) = config.node_key_path {
+            load_or_generate_keypair(key_path)?
+        } else {
+            info!("No node key path provided, generating ephemeral keypair");
+            libp2p::identity::Keypair::generate_ed25519()
+        };
         let local_peer_id = PeerId::from(local_key.public());
         info!("Local peer ID: {}", local_peer_id);
 
