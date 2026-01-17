@@ -266,7 +266,11 @@ impl Network {
                 kademlia_config.set_query_timeout(Duration::from_secs(60));
                 kademlia_config.set_replication_factor(std::num::NonZeroUsize::new(20).unwrap());
                 kademlia_config.set_parallelism(std::num::NonZeroUsize::new(5).unwrap());
-                let kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
+                let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
+                
+                // CRITICAL: Set Kademlia to Server mode so nodes can respond to DHT queries
+                // Without this, nodes only act as DHT clients and won't serve routing info
+                kademlia.set_mode(Some(kad::Mode::Server));
 
                 PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia }
             })?
