@@ -379,6 +379,46 @@ impl Network {
         })
     }
 
+    /// Check if a multiaddr is publicly routable (not localhost or private network)
+    /// This prevents address pollution where nodes advertise non-routable addresses
+    fn is_routable_address(addr: &Multiaddr) -> bool {
+        for protocol in addr.iter() {
+            match protocol {
+                libp2p::multiaddr::Protocol::Ip4(ip) => {
+                    // Reject localhost
+                    if ip.is_loopback() {
+                        return false;
+                    }
+                    // Reject private networks (RFC 1918)
+                    // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+                    if ip.is_private() {
+                        return false;
+                    }
+                    // Reject link-local (169.254.0.0/16)
+                    if ip.is_link_local() {
+                        return false;
+                    }
+                    // Reject unspecified (0.0.0.0)
+                    if ip.is_unspecified() {
+                        return false;
+                    }
+                }
+                libp2p::multiaddr::Protocol::Ip6(ip) => {
+                    // Reject localhost
+                    if ip.is_loopback() {
+                        return false;
+                    }
+                    // Reject unspecified (::)
+                    if ip.is_unspecified() {
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+        }
+        true
+    }
+
     /// Bootstrap Kademlia DHT for peer discovery
     pub fn bootstrap_kademlia(&mut self) {
         info!("Starting Kademlia DHT bootstrap for peer discovery...");
@@ -803,18 +843,20 @@ impl Network {
                 debug!("Peer {} subscribed to {}", peer_id, topic);
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
-                // mDNS discovery - add to connection manager for mesh consideration
+                // mDNS discovery - for LOCAL network peers only
+                // Don't add to Kademlia since mDNS addresses are always private/local
+                // and would pollute the DHT when propagated to external peers
                 for (peer_id, addr) in peers {
                     if peer_id == self.local_peer_id {
                         continue;
                     }
-                    info!("mDNS discovered: {} at {}", peer_id, addr);
+                    info!("mDNS discovered (LAN): {} at {}", peer_id, addr);
                     
-                    // Notify connection manager of discovered peer
+                    // Only notify connection manager for local mesh (don't propagate to DHT)
                     self.conn_manager.on_peer_discovered(peer_id, vec![addr.to_string()]);
                     
-                    // Add to Kademlia for DHT
-                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+                    // NOTE: Don't add mDNS addresses to Kademlia - they are private IPs
+                    // that would cause WrongPeerId errors when propagated to external peers
                 }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Expired(peers)) => {
@@ -826,16 +868,27 @@ impl Network {
                 info!("Identified peer {}: {} ({})", 
                     peer_id, info.protocol_version, info.agent_version);
                 
-                // Update connection manager with peer info
-                let listen_addrs: Vec<String> = info.listen_addrs.iter().map(|a| a.to_string()).collect();
+                // Filter to only routable addresses (exclude localhost, private networks)
+                let routable_addrs: Vec<&Multiaddr> = info.listen_addrs.iter()
+                    .filter(|a| Self::is_routable_address(a))
+                    .collect();
+                
+                // Update connection manager with peer info (only routable addresses)
+                let listen_addrs: Vec<String> = routable_addrs.iter().map(|a| a.to_string()).collect();
                 self.conn_manager.on_peer_identified(peer_id, info.agent_version.clone(), listen_addrs.clone());
                 
                 // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
-                // Add listen addresses to Kademlia
-                for addr in &info.listen_addrs {
+                // Add only routable listen addresses to Kademlia
+                // This prevents address pollution from localhost/private IPs
+                for addr in routable_addrs {
                     self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                }
+                
+                if info.listen_addrs.len() != listen_addrs.len() {
+                    debug!("Filtered {} non-routable addresses from peer {}", 
+                        info.listen_addrs.len() - listen_addrs.len(), peer_id);
                 }
                 
                 // Add to gossipsub mesh
@@ -861,15 +914,21 @@ impl Network {
             PyraxBehaviourEvent::Kademlia(event) => {
                 match event {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
-                        info!("Kademlia: Routing updated for peer {} ({} addresses)", peer, addresses.len());
-                        
-                        // Convert addresses to strings - addresses is a vec from the event
-                        let addr_strings: Vec<String> = addresses.iter()
+                        // Filter to only routable addresses before notifying connection manager
+                        let routable_addrs: Vec<String> = addresses.iter()
+                            .filter(|a| Self::is_routable_address(a))
                             .map(|a| a.to_string())
                             .collect();
                         
-                        if !addr_strings.is_empty() {
-                            self.conn_manager.on_peer_discovered(peer, addr_strings);
+                        let filtered_count = addresses.len() - routable_addrs.len();
+                        if filtered_count > 0 {
+                            debug!("Kademlia: Filtered {} non-routable addresses for peer {}", filtered_count, peer);
+                        }
+                        
+                        info!("Kademlia: Routing updated for peer {} ({} routable addresses)", peer, routable_addrs.len());
+                        
+                        if !routable_addrs.is_empty() {
+                            self.conn_manager.on_peer_discovered(peer, routable_addrs);
                         }
                     }
                     kad::Event::OutboundQueryProgressed { result, .. } => {
