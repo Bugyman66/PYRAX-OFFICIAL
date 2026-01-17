@@ -141,7 +141,8 @@ pub struct PyraxBehaviour {
     pub identify: identify::Behaviour,
     pub ping: ping::Behaviour,
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
-    pub relay: relay::Behaviour,
+    pub relay_server: relay::Behaviour,
+    pub relay_client: relay::client::Behaviour,
 }
 
 /// P2P Network manager with mesh networking support
@@ -210,7 +211,7 @@ impl Network {
         let local_peer_id = PeerId::from(local_key.public());
         info!("Local peer ID: {}", local_peer_id);
 
-        // Build swarm with tokio runtime
+        // Build swarm with tokio runtime and relay client for NAT traversal
         let ping_interval = Duration::from_secs(config.ping_interval_secs);
         let swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
@@ -219,16 +220,22 @@ impl Network {
                 noise::Config::new,
                 yamux::Config::default,
             )?
-            .with_behaviour(|key| {
+            // Add relay client transport - enables nodes behind NAT to be reachable via relay circuits
+            .with_relay_client(
+                noise::Config::new,
+                yamux::Config::default,
+            )?
+            .with_behaviour(|key, relay_client| {
                 // GossipSub config - optimized for blockchain propagation
+                // mesh_n_low=1 allows mesh to form even with just the bootnode
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(10))
                     .validation_mode(gossipsub::ValidationMode::Strict)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(6)      // Minimum peers in mesh
-                    .mesh_n(8)          // Target peers in mesh
-                    .mesh_n_high(12)    // Maximum peers in mesh
-                    .gossip_lazy(6)     // Peers to gossip to
+                    .mesh_n_low(1)      // Minimum peers in mesh (allows small networks to work)
+                    .mesh_n(3)          // Target peers in mesh
+                    .mesh_n_high(6)     // Maximum peers in mesh
+                    .gossip_lazy(3)     // Peers to gossip to
                     .build()
                     .expect("Valid gossipsub config");
 
@@ -273,12 +280,12 @@ impl Network {
                 // Without this, nodes only act as DHT clients and won't serve routing info
                 kademlia.set_mode(Some(kad::Mode::Server));
 
-                // Relay behaviour for NAT traversal
-                // This allows peers behind NAT to communicate through relay nodes (bootnodes)
-                let relay = relay::Behaviour::new(local_peer_id, relay::Config::default());
-                info!("Relay behaviour initialized for NAT traversal");
+                // Relay SERVER behaviour - allows this node to act as a relay for others
+                let relay_server = relay::Behaviour::new(local_peer_id, relay::Config::default());
+                
+                info!("P2P behaviours initialized with relay client for NAT traversal");
 
-                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay }
+                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay_server, relay_client }
             })?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
@@ -982,9 +989,26 @@ impl Network {
                     _ => {}
                 }
             }
-            PyraxBehaviourEvent::Relay(event) => {
-                // Log relay events for NAT traversal monitoring
-                info!("Relay: {:?}", event);
+            PyraxBehaviourEvent::RelayServer(event) => {
+                // Log relay server events (when we act as relay for others)
+                debug!("Relay Server: {:?}", event);
+            }
+            PyraxBehaviourEvent::RelayClient(event) => {
+                // Log relay client events (when we use relay for NAT traversal)
+                match &event {
+                    relay::client::Event::ReservationReqAccepted { relay_peer_id, renewal, limit } => {
+                        info!("Relay reservation accepted by {} (renewal: {}, limit: {:?})", 
+                            relay_peer_id, renewal, limit);
+                    }
+                    relay::client::Event::OutboundCircuitEstablished { relay_peer_id, limit } => {
+                        info!("Outbound circuit established via relay {} (limit: {:?})", 
+                            relay_peer_id, limit);
+                    }
+                    relay::client::Event::InboundCircuitEstablished { src_peer_id, limit } => {
+                        info!("Inbound circuit established from {} (limit: {:?})", 
+                            src_peer_id, limit);
+                    }
+                }
             }
             _ => {}
         }
