@@ -41,7 +41,7 @@ pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 
 use libp2p::{
-    gossipsub, identify, kad, mdns, noise, ping, relay,
+    autonat, dcutr, gossipsub, identify, kad, mdns, noise, ping, relay,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm,
 };
@@ -143,6 +143,10 @@ pub struct PyraxBehaviour {
     pub kademlia: kad::Behaviour<kad::store::MemoryStore>,
     pub relay_server: relay::Behaviour,
     pub relay_client: relay::client::Behaviour,
+    /// AutoNAT for automatic NAT detection - determines if we're behind NAT
+    pub autonat: autonat::Behaviour,
+    /// DCUtR for Direct Connection Upgrade through Relay (hole-punching)
+    pub dcutr: dcutr::Behaviour,
 }
 
 /// P2P Network manager with mesh networking support
@@ -178,6 +182,15 @@ pub struct Network {
     metrics: NetworkMetrics,
 }
 
+/// NAT status for tracking reachability
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum NatStatus {
+    #[default]
+    Unknown,
+    Public,
+    Private,
+}
+
 /// Network metrics for monitoring
 #[derive(Debug, Clone, Default)]
 pub struct NetworkMetrics {
@@ -194,6 +207,10 @@ pub struct NetworkMetrics {
     pub txs_received: u64,
     pub average_rtt_ms: Option<u64>,
     pub state: NetworkState,
+    pub nat_status: NatStatus,
+    pub relay_reservations: usize,
+    pub hole_punch_successes: u64,
+    pub hole_punch_failures: u64,
 }
 
 impl Network {
@@ -283,9 +300,32 @@ impl Network {
                 // Relay SERVER behaviour - allows this node to act as a relay for others
                 let relay_server = relay::Behaviour::new(local_peer_id, relay::Config::default());
                 
-                info!("P2P behaviours initialized with relay client for NAT traversal");
+                // AutoNAT for automatic NAT detection
+                // This allows the node to discover if it's behind NAT by asking other peers to dial it
+                let autonat = autonat::Behaviour::new(
+                    local_peer_id,
+                    autonat::Config {
+                        // How often to check NAT status
+                        retry_interval: Duration::from_secs(60),
+                        // Timeout for probes
+                        refresh_interval: Duration::from_secs(30),
+                        // How many probes before confirming status
+                        confidence_max: 3,
+                        // Only use public addresses for probes
+                        only_global_ips: true,
+                        // Throttle configuration
+                        throttle_server_period: Duration::from_secs(5),
+                        ..Default::default()
+                    },
+                );
+                
+                // DCUtR (Direct Connection Upgrade through Relay) for hole-punching
+                // After establishing a relayed connection, this attempts to upgrade to a direct connection
+                let dcutr = dcutr::Behaviour::new(local_peer_id);
+                
+                info!("P2P behaviours initialized with full NAT traversal (relay + autonat + dcutr)");
 
-                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay_server, relay_client }
+                PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay_server, relay_client, autonat, dcutr }
             })?
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
@@ -860,14 +900,24 @@ impl Network {
     /// Log current network metrics
     fn log_metrics(&self) {
         let m = &self.metrics;
+        let nat_str = match m.nat_status {
+            NatStatus::Public => "PUBLIC (directly reachable)",
+            NatStatus::Private => "PRIVATE (using relay)",
+            NatStatus::Unknown => "UNKNOWN (probing...)",
+        };
         info!("╔══════════════════════════════════════════════════════════════════╗");
         info!("║  P2P MESH STATUS                                                 ║");
         info!("╠══════════════════════════════════════════════════════════════════╣");
         info!("║  Peers: {}/{} (in: {}, out: {})                              ║", 
             m.connected_peers, m.target_peers, m.inbound_peers, m.outbound_peers);
         info!("║  State: {:?}                                              ║", m.state);
+        info!("║  NAT: {}                                              ║", nat_str);
         info!("║  Dials: {} attempts, {} success, {} failed                   ║",
             m.dial_attempts, m.dial_successes, m.dial_failures);
+        if m.hole_punch_successes > 0 || m.hole_punch_failures > 0 {
+            info!("║  Hole-punch: {} success, {} failed                           ║",
+                m.hole_punch_successes, m.hole_punch_failures);
+        }
         if let Some(rtt) = m.average_rtt_ms {
             info!("║  Avg RTT: {}ms                                              ║", rtt);
         }
@@ -1037,16 +1087,88 @@ impl Network {
                 // Log relay client events (when we use relay for NAT traversal)
                 match &event {
                     relay::client::Event::ReservationReqAccepted { relay_peer_id, renewal, limit } => {
-                        info!("Relay reservation accepted by {} (renewal: {}, limit: {:?})", 
+                        info!("✓ Relay reservation accepted by {} (renewal: {}, limit: {:?})", 
                             relay_peer_id, renewal, limit);
+                        info!("  → NAT traversal: Nodes can now reach us via /p2p/{}/p2p-circuit/p2p/{}", 
+                            relay_peer_id, self.local_peer_id);
+                        if !renewal {
+                            self.metrics.relay_reservations += 1;
+                        }
                     }
                     relay::client::Event::OutboundCircuitEstablished { relay_peer_id, limit } => {
-                        info!("Outbound circuit established via relay {} (limit: {:?})", 
+                        info!("✓ Outbound circuit established via relay {} (limit: {:?})", 
                             relay_peer_id, limit);
                     }
                     relay::client::Event::InboundCircuitEstablished { src_peer_id, limit } => {
-                        info!("Inbound circuit established from {} (limit: {:?})", 
+                        info!("✓ Inbound circuit established from {} via relay (limit: {:?})", 
                             src_peer_id, limit);
+                    }
+                }
+            }
+            PyraxBehaviourEvent::Autonat(event) => {
+                // AutoNAT events - NAT status detection
+                match event {
+                    autonat::Event::InboundProbe(probe) => {
+                        debug!("AutoNAT: Inbound probe from {:?}", probe);
+                    }
+                    autonat::Event::OutboundProbe(probe) => {
+                        match probe {
+                            autonat::OutboundProbeEvent::Request { peer, .. } => {
+                                debug!("AutoNAT: Sending probe request to {}", peer);
+                            }
+                            autonat::OutboundProbeEvent::Response { peer, address, .. } => {
+                                info!("AutoNAT: Probe response from {} - our observed address: {}", peer, address);
+                            }
+                            autonat::OutboundProbeEvent::Error { peer, error, .. } => {
+                                debug!("AutoNAT: Probe to {} failed: {:?}", peer.unwrap_or(PeerId::random()), error);
+                            }
+                        }
+                    }
+                    autonat::Event::StatusChanged { old, new } => {
+                        info!("╔══════════════════════════════════════════════════════════════════╗");
+                        info!("║  AutoNAT STATUS CHANGED: {:?} → {:?}", old, new);
+                        info!("╚══════════════════════════════════════════════════════════════════╝");
+                        
+                        match new {
+                            autonat::NatStatus::Public(addr) => {
+                                info!("✓ NAT Status: PUBLIC - We are directly reachable at {}", addr);
+                                info!("  → No relay needed for incoming connections");
+                                self.metrics.nat_status = NatStatus::Public;
+                            }
+                            autonat::NatStatus::Private => {
+                                info!("⚠ NAT Status: PRIVATE - We are behind NAT");
+                                info!("  → Using relay for incoming connections");
+                                info!("  → DCUtR will attempt hole-punching when possible");
+                                self.metrics.nat_status = NatStatus::Private;
+                                
+                                // When we detect we're behind NAT, ensure we listen on relay
+                                for bootnode in &self.bootstrap_peers.clone() {
+                                    let _ = self.listen_on_relay(bootnode);
+                                }
+                            }
+                            autonat::NatStatus::Unknown => {
+                                info!("? NAT Status: UNKNOWN - Still probing...");
+                                self.metrics.nat_status = NatStatus::Unknown;
+                            }
+                        }
+                    }
+                }
+            }
+            PyraxBehaviourEvent::Dcutr(event) => {
+                // DCUtR events - hole-punching attempts
+                // dcutr::Event is a struct with remote_peer_id and result fields
+                let dcutr::Event { remote_peer_id, result } = event;
+                match result {
+                    Ok(connection_id) => {
+                        info!("✓ DCUtR: Hole-punch SUCCESS! Direct connection to {} established (conn: {:?})", 
+                            remote_peer_id, connection_id);
+                        info!("  → Relay no longer needed for this peer");
+                        self.metrics.hole_punch_successes += 1;
+                    }
+                    Err(error) => {
+                        warn!("✗ DCUtR: Hole-punch FAILED to {}: {:?}", remote_peer_id, error);
+                        info!("  → Continuing to use relay for this peer");
+                        self.metrics.hole_punch_failures += 1;
                     }
                 }
             }
