@@ -61,9 +61,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Windows
           - platform: windows-latest
-            args: ''
-            target: ''
+            rust_target: x86_64-pc-windows-msvc
+            tauri_target: windows-x86_64
+            node_binary: pyrax-node.exe
+            bundle_type: nsis
+          # macOS Intel
+          - platform: macos-latest
+            rust_target: x86_64-apple-darwin
+            tauri_target: darwin-x86_64
+            node_binary: pyrax-node
+            bundle_type: dmg
+          # macOS Apple Silicon
+          - platform: macos-latest
+            rust_target: aarch64-apple-darwin
+            tauri_target: darwin-aarch64
+            node_binary: pyrax-node
+            bundle_type: dmg
+          # Linux
+          - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-x86_64
+            node_binary: pyrax-node
+            bundle_type: appimage
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -79,158 +100,313 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust_target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
+          key: ${{ matrix.rust_target }}
 
+      # Linux dependencies
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # Build pyrax-node for the target platform
       - name: Build pyrax-node binary
-        run: cargo build --release -p pyrax-node
+        run: cargo build --release -p pyrax-node --target ${{ matrix.rust_target }}
 
-      - name: Copy pyrax-node to resources
+      # Copy binary - Windows
+      - name: Copy pyrax-node to resources (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
         run: |
           mkdir -p pyrax-desktop/src-tauri/resources
-          Copy-Item target/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
-        shell: pwsh
+          Copy-Item target/${{ matrix.rust_target }}/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
+
+      # Copy binary - macOS/Linux
+      - name: Copy pyrax-node to resources (Unix)
+        if: matrix.platform != 'windows-latest'
+        run: |
+          mkdir -p pyrax-desktop/src-tauri/resources
+          cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
+          chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
 
       - name: Install frontend dependencies
         working-directory: pyrax-desktop
         run: npm ci
 
-      - name: Update version in tauri.conf.json
+      # Update version - Windows
+      - name: Update version (Windows)
+        if: matrix.platform == 'windows-latest'
         working-directory: pyrax-desktop/src-tauri
+        shell: pwsh
         run: |
           $content = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
           $content.package.version = "${{ needs.create-release.outputs.version }}"
           $content | ConvertTo-Json -Depth 100 | Set-Content tauri.conf.json
-        shell: pwsh
+          (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
 
-      - name: Update version in Cargo.toml
+      # Update version - macOS/Linux
+      - name: Update version (Unix)
+        if: matrix.platform != 'windows-latest'
         working-directory: pyrax-desktop/src-tauri
         run: |
-          (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
-        shell: pwsh
+          # Update tauri.conf.json
+          sed -i.bak 's/"version": "[^"]*"/"version": "${{ needs.create-release.outputs.version }}"/' tauri.conf.json
+          # Update Cargo.toml
+          sed -i.bak 's/version = "0.1.0"/version = "${{ needs.create-release.outputs.version }}"/' Cargo.toml
 
+      # Windows-specific: Download VC++ Redistributable
       - name: Download Visual C++ Redistributable
+        if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
           Write-Host "Downloading Visual C++ Redistributable for bundling..."
           $resourcesDir = "pyrax-desktop/src-tauri/resources"
           $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
           $vcRedistPath = "$resourcesDir/vc_redist.x64.exe"
-          Write-Host "Downloading from $vcRedistUrl..."
           Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath -UseBasicParsing
-          $size = (Get-Item $vcRedistPath).Length
-          Write-Host "Downloaded VC++ Redistributable: $vcRedistPath ($size bytes)"
+          Write-Host "Downloaded VC++ Redistributable"
 
-      - name: Write signing key to file
-        shell: pwsh
-        run: |
-          $keyContent = "${{ secrets.TAURI_PRIVATE_KEY }}"
-          if ([string]::IsNullOrEmpty($keyContent)) {
-            Write-Error "TAURI_PRIVATE_KEY secret is not set!"
-            exit 1
-          }
-          # Write key to file (Tauri can read from file path)
-          $keyContent | Out-File -FilePath "$env:RUNNER_TEMP/tauri.key" -Encoding utf8 -NoNewline
-          Write-Host "Key written to $env:RUNNER_TEMP/tauri.key"
-          Write-Host "Key length: $($keyContent.Length) chars"
-
-      - name: Build Tauri app with signing
+      # Build Tauri app - Windows
+      - name: Build Tauri app (Windows)
+        if: matrix.platform == 'windows-latest'
         working-directory: pyrax-desktop
         shell: pwsh
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         run: |
-          Write-Host "Building Tauri app with signing enabled..."
-          Write-Host "TAURI_PRIVATE_KEY env var length: $($env:TAURI_PRIVATE_KEY.Length)"
-          Write-Host "TAURI_KEY_PASSWORD length: $($env:TAURI_KEY_PASSWORD.Length)"
-          npm run tauri build
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Tauri build failed with exit code $LASTEXITCODE"
-            exit 1
-          }
-          Write-Host "Tauri build completed successfully"
-          
-      - name: Find bundle files
-        id: find-bundle
+          Write-Host "Building Tauri app for Windows..."
+          npm run tauri build -- --target ${{ matrix.rust_target }}
+
+      # Build Tauri app - macOS/Linux
+      - name: Build Tauri app (Unix)
+        if: matrix.platform != 'windows-latest'
+        working-directory: pyrax-desktop
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          echo "Building Tauri app for ${{ matrix.tauri_target }}..."
+          npm run tauri build -- --target ${{ matrix.rust_target }}
+
+      # Find and upload bundles - Windows
+      - name: Find bundle files (Windows)
+        if: matrix.platform == 'windows-latest'
+        id: find-bundle-windows
         shell: pwsh
         run: |
-          $workspace = $env:GITHUB_WORKSPACE
-          $bundleDir = Join-Path $workspace "target\release\bundle\nsis"
+          $bundleDir = "target/${{ matrix.rust_target }}/release/bundle/nsis"
+          Write-Host "Looking for Windows bundle in: $bundleDir"
           
-          Write-Host "=== DEBUG: Looking for bundle files ==="
-          Write-Host "Workspace: $workspace"
-          Write-Host "Bundle dir: $bundleDir"
-          
-          if (-not (Test-Path $bundleDir)) {
-            Write-Host "Bundle dir not found! Searching..."
-            Get-ChildItem -Path $workspace -Recurse -Filter "*.exe" -Depth 6 | Where-Object { $_.FullName -like "*bundle*" } | ForEach-Object {
-              Write-Host "Found: $($_.FullName)"
-            }
-            exit 1
-          }
-          
-          Write-Host "Bundle directory contents:"
-          Get-ChildItem -Path $bundleDir | ForEach-Object {
-            Write-Host "  $($_.Name) - $($_.Length) bytes"
-          }
-          
-          # Find files and set outputs
-          $exe = Get-ChildItem -Path $bundleDir -Filter "*setup*.exe" | Select-Object -First 1
-          $zip = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip" | Select-Object -First 1
-          $sig = Get-ChildItem -Path $bundleDir -Filter "*.sig" | Select-Object -First 1
-          
-          if ($exe) {
-            Write-Host "EXE: $($exe.FullName)"
-            "exe_path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "exe_name=$($exe.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          if ($zip) {
-            Write-Host "ZIP: $($zip.FullName)"
-            "zip_path=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "zip_name=$($zip.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          }
-          if ($sig) {
-            Write-Host "SIG: $($sig.FullName)"
-            "sig_path=$($sig.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            "sig_name=$($sig.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          if (Test-Path $bundleDir) {
+            Get-ChildItem -Path $bundleDir | ForEach-Object { Write-Host "  $($_.Name)" }
+            
+            $exe = Get-ChildItem -Path $bundleDir -Filter "*setup*.exe" | Select-Object -First 1
+            $zip = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip" | Select-Object -First 1
+            $sig = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip.sig" | Select-Object -First 1
+            
+            if ($exe) { "exe_path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "exe_name=$($exe.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            if ($zip) { "zip_path=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "zip_name=$($zip.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            if ($sig) { "sig_path=$($sig.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "sig_name=$($sig.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
           }
 
-      - name: Upload EXE to release
-        if: steps.find-bundle.outputs.exe_path != ''
+      # Find and upload bundles - macOS
+      - name: Find bundle files (macOS)
+        if: matrix.platform == 'macos-latest'
+        id: find-bundle-macos
+        run: |
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          echo "Looking for macOS bundle in: $BUNDLE_DIR"
+          
+          # Find DMG
+          DMG=$(find "$BUNDLE_DIR" -name "*.dmg" 2>/dev/null | head -1)
+          if [ -n "$DMG" ]; then
+            echo "dmg_path=$DMG" >> $GITHUB_OUTPUT
+            echo "dmg_name=$(basename $DMG)" >> $GITHUB_OUTPUT
+            echo "Found DMG: $DMG"
+          fi
+          
+          # Find app tarball for updates
+          APP_TAR=$(find "$BUNDLE_DIR" -name "*.app.tar.gz" 2>/dev/null | head -1)
+          if [ -n "$APP_TAR" ]; then
+            echo "tar_path=$APP_TAR" >> $GITHUB_OUTPUT
+            echo "tar_name=$(basename $APP_TAR)" >> $GITHUB_OUTPUT
+            echo "Found tar: $APP_TAR"
+          fi
+          
+          # Find signature
+          SIG=$(find "$BUNDLE_DIR" -name "*.tar.gz.sig" 2>/dev/null | head -1)
+          if [ -n "$SIG" ]; then
+            echo "sig_path=$SIG" >> $GITHUB_OUTPUT
+            echo "sig_name=$(basename $SIG)" >> $GITHUB_OUTPUT
+            echo "Found sig: $SIG"
+          fi
+          
+          # List all files
+          echo "All bundle files:"
+          find "$BUNDLE_DIR" -type f 2>/dev/null || true
+
+      # Find and upload bundles - Linux
+      - name: Find bundle files (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        id: find-bundle-linux
+        run: |
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          echo "Looking for Linux bundle in: $BUNDLE_DIR"
+          
+          # Find AppImage
+          APPIMAGE=$(find "$BUNDLE_DIR" -name "*.AppImage" 2>/dev/null | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            echo "appimage_path=$APPIMAGE" >> $GITHUB_OUTPUT
+            echo "appimage_name=$(basename $APPIMAGE)" >> $GITHUB_OUTPUT
+            echo "Found AppImage: $APPIMAGE"
+          fi
+          
+          # Find .deb
+          DEB=$(find "$BUNDLE_DIR" -name "*.deb" 2>/dev/null | head -1)
+          if [ -n "$DEB" ]; then
+            echo "deb_path=$DEB" >> $GITHUB_OUTPUT
+            echo "deb_name=$(basename $DEB)" >> $GITHUB_OUTPUT
+            echo "Found deb: $DEB"
+          fi
+          
+          # Find AppImage tarball for updates
+          TAR=$(find "$BUNDLE_DIR" -name "*.AppImage.tar.gz" 2>/dev/null | head -1)
+          if [ -n "$TAR" ]; then
+            echo "tar_path=$TAR" >> $GITHUB_OUTPUT
+            echo "tar_name=$(basename $TAR)" >> $GITHUB_OUTPUT
+            echo "Found tar: $TAR"
+          fi
+          
+          # Find signature
+          SIG=$(find "$BUNDLE_DIR" -name "*.tar.gz.sig" 2>/dev/null | head -1)
+          if [ -n "$SIG" ]; then
+            echo "sig_path=$SIG" >> $GITHUB_OUTPUT
+            echo "sig_name=$(basename $SIG)" >> $GITHUB_OUTPUT
+            echo "Found sig: $SIG"
+          fi
+          
+          # List all files
+          echo "All bundle files:"
+          find "$BUNDLE_DIR" -type f 2>/dev/null || true
+
+      # Upload Windows assets
+      - name: Upload Windows EXE
+        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.exe_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find-bundle.outputs.exe_path }}
-          asset_name: ${{ steps.find-bundle.outputs.exe_name }}
+          asset_path: ${{ steps.find-bundle-windows.outputs.exe_path }}
+          asset_name: ${{ steps.find-bundle-windows.outputs.exe_name }}
           asset_content_type: application/octet-stream
 
-      - name: Upload NSIS ZIP to release
-        if: steps.find-bundle.outputs.zip_path != ''
+      - name: Upload Windows NSIS ZIP
+        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.zip_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find-bundle.outputs.zip_path }}
-          asset_name: ${{ steps.find-bundle.outputs.zip_name }}
+          asset_path: ${{ steps.find-bundle-windows.outputs.zip_path }}
+          asset_name: ${{ steps.find-bundle-windows.outputs.zip_name }}
           asset_content_type: application/zip
 
-      - name: Upload signature to release
-        if: steps.find-bundle.outputs.sig_path != ''
+      - name: Upload Windows signature
+        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.sig_path != ''
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find-bundle.outputs.sig_path }}
-          asset_name: ${{ steps.find-bundle.outputs.sig_name }}
+          asset_path: ${{ steps.find-bundle-windows.outputs.sig_path }}
+          asset_name: ${{ steps.find-bundle-windows.outputs.sig_name }}
+          asset_content_type: text/plain
+
+      # Upload macOS assets
+      - name: Upload macOS DMG
+        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.dmg_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-macos.outputs.dmg_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.dmg
+          asset_content_type: application/octet-stream
+
+      - name: Upload macOS tar.gz (for updates)
+        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.tar_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-macos.outputs.tar_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.app.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload macOS signature
+        if: matrix.platform == 'macos-latest' && steps.find-bundle-macos.outputs.sig_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-macos.outputs.sig_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.app.tar.gz.sig
+          asset_content_type: text/plain
+
+      # Upload Linux assets
+      - name: Upload Linux AppImage
+        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.appimage_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-linux.outputs.appimage_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage
+          asset_content_type: application/octet-stream
+
+      - name: Upload Linux .deb
+        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.deb_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-linux.outputs.deb_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+      - name: Upload Linux tar.gz (for updates)
+        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.tar_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-linux.outputs.tar_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Linux signature
+        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.sig_path != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ steps.find-bundle-linux.outputs.sig_path }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage.tar.gz.sig
           asset_content_type: text/plain
 
   publish-release:
@@ -266,7 +442,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            const fs = require('fs');
             const version = '${{ needs.create-release.outputs.version }}';
             const releaseId = ${{ needs.create-release.outputs.release_id }};
             
@@ -279,27 +454,9 @@ jobs:
             
             console.log('Release assets:', release.assets.map(a => a.name));
             
-            // Find installer asset - try .nsis.zip first, then .exe
-            let installerAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
-            let sigAsset = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
-            
-            // Fallback to .exe if .nsis.zip not found
-            if (!installerAsset) {
-              installerAsset = release.assets.find(a => a.name.endsWith('-setup.exe') || a.name.endsWith('_x64-setup.exe'));
-              sigAsset = release.assets.find(a => a.name.endsWith('-setup.exe.sig') || a.name.endsWith('_x64-setup.exe.sig'));
-            }
-            
-            if (!installerAsset) {
-              core.setFailed(`No installer asset found in release`);
-              return;
-            }
-            
-            console.log('Found installer asset:', installerAsset.name);
-            
-            let signature = '';
-            if (sigAsset) {
-              console.log('Found sig asset:', sigAsset.name);
-              // Download signature using fetch
+            // Helper function to download signature
+            async function getSignature(sigAsset) {
+              if (!sigAsset) return '';
               const sigUrl = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${sigAsset.id}`;
               const sigResponse = await fetch(sigUrl, {
                 headers: {
@@ -307,24 +464,67 @@ jobs:
                   'Accept': 'application/octet-stream'
                 }
               });
-              signature = await sigResponse.text();
-              console.log('Signature downloaded, length:', signature.length);
-            } else {
-              console.log('Warning: No signature file found - OTA updates may not work without signing');
-              signature = 'unsigned';
+              return (await sigResponse.text()).trim();
+            }
+            
+            // Build platforms object for all available platforms
+            const platforms = {};
+            
+            // Windows x86_64
+            const windowsAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
+            const windowsSig = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            if (windowsAsset) {
+              console.log('Found Windows asset:', windowsAsset.name);
+              platforms['windows-x86_64'] = {
+                signature: await getSignature(windowsSig),
+                url: windowsAsset.browser_download_url
+              };
+            }
+            
+            // macOS x86_64 (Intel)
+            const macosIntelAsset = release.assets.find(a => a.name.includes('darwin-x86_64') && a.name.endsWith('.app.tar.gz'));
+            const macosIntelSig = release.assets.find(a => a.name.includes('darwin-x86_64') && a.name.endsWith('.app.tar.gz.sig'));
+            if (macosIntelAsset) {
+              console.log('Found macOS Intel asset:', macosIntelAsset.name);
+              platforms['darwin-x86_64'] = {
+                signature: await getSignature(macosIntelSig),
+                url: macosIntelAsset.browser_download_url
+              };
+            }
+            
+            // macOS aarch64 (Apple Silicon)
+            const macosArmAsset = release.assets.find(a => a.name.includes('darwin-aarch64') && a.name.endsWith('.app.tar.gz'));
+            const macosArmSig = release.assets.find(a => a.name.includes('darwin-aarch64') && a.name.endsWith('.app.tar.gz.sig'));
+            if (macosArmAsset) {
+              console.log('Found macOS ARM asset:', macosArmAsset.name);
+              platforms['darwin-aarch64'] = {
+                signature: await getSignature(macosArmSig),
+                url: macosArmAsset.browser_download_url
+              };
+            }
+            
+            // Linux x86_64
+            const linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz'));
+            const linuxSig = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz.sig'));
+            if (linuxAsset) {
+              console.log('Found Linux asset:', linuxAsset.name);
+              platforms['linux-x86_64'] = {
+                signature: await getSignature(linuxSig),
+                url: linuxAsset.browser_download_url
+              };
+            }
+            
+            if (Object.keys(platforms).length === 0) {
+              core.setFailed('No platform assets found in release!');
+              return;
             }
             
             // Create update manifest
             const manifest = {
               version: version,
-              notes: `PYRAX Desktop v${version}`,
+              notes: `Inferno Node v${version}`,
               pub_date: new Date().toISOString(),
-              platforms: {
-                'windows-x86_64': {
-                  signature: signature.trim(),
-                  url: installerAsset.browser_download_url
-                }
-              }
+              platforms: platforms
             };
             
             console.log('Generated manifest:', JSON.stringify(manifest, null, 2));
@@ -339,4 +539,4 @@ jobs:
               data: manifestContent
             });
             
-            console.log('Successfully uploaded latest.json to release');
+            console.log('Successfully uploaded latest.json with all platforms!');

@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "PYRAX Desktop",
+    "productName": "Inferno Node",
     "version": "0.2.17"
   },
   "tauri": {
@@ -43,8 +43,8 @@
     },
     "bundle": {
       "active": true,
-      "targets": ["nsis", "updater"],
-      "identifier": "org.pyrax.desktop",
+      "targets": "all",
+      "identifier": "org.pyrax.inferno",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -53,9 +53,9 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "resources/pyrax-node.exe",
-        "resources/vc_redist.x64.exe"
+        "resources/*"
       ],
+      "externalBin": [],
       "windows": {
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
@@ -72,9 +72,24 @@
           "license": null
         }
       },
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "signingIdentity": null
+      },
+      "linux": {
+        "appimage": {
+          "bundleMediaFramework": false
+        },
+        "deb": {
+          "depends": ["libwebkit2gtk-4.0-37", "libgtk-3-0"]
+        }
+      },
       "publisher": "PYRAX Chain",
-      "shortDescription": "PYRAX Desktop - Decentralized Blockchain Node",
-      "longDescription": "PYRAX Desktop is a fully decentralized blockchain node client with integrated wallet, mining, and staking capabilities.",
+      "shortDescription": "Inferno Node - Decentralized Blockchain Node",
+      "longDescription": "Inferno Node is a fully decentralized blockchain node client with integrated wallet, mining, and staking capabilities.",
       "category": "Finance"
     },
     "security": {
@@ -95,7 +110,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "PYRAX Desktop",
+        "title": "Inferno Node",
         "width": 1200,
         "height": 800,
         "minWidth": 900,
