@@ -65,9 +65,10 @@ crossbeam-channel = "0.5"
 
 [profile.release]
 lto = "thin"
-codegen-units = 1
+codegen-units = 16  # Higher = less memory during compilation (was 1, caused OOM on server)
 panic = "abort"
 strip = true
+opt-level = "z"     # Optimize for size
 
 [profile.dev]
 opt-level = 0
