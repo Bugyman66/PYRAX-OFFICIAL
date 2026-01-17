@@ -10,6 +10,7 @@ const ComposableMap = dynamic(() => import('react-simple-maps').then(m => m.Comp
 const Geographies = dynamic(() => import('react-simple-maps').then(m => m.Geographies), { ssr: false })
 const Geography = dynamic(() => import('react-simple-maps').then(m => m.Geography), { ssr: false })
 const Marker = dynamic(() => import('react-simple-maps').then(m => m.Marker), { ssr: false })
+const Line = dynamic(() => import('react-simple-maps').then(m => m.Line), { ssr: false })
 const ZoomableGroup = dynamic(() => import('react-simple-maps').then(m => m.ZoomableGroup), { ssr: false })
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
@@ -39,6 +40,13 @@ interface NodeStats {
   byStream: Record<StreamType, number>
   byCountry: Record<string, number>
   averageLatency: number
+}
+
+interface Connection {
+  from: string
+  to: string
+  fromCoords: [number, number]
+  toCoords: [number, number]
 }
 
 function cn(...classes: (string | boolean | undefined)[]) {
@@ -74,12 +82,14 @@ function getFlagEmoji(cc: string): string {
 export default function NodesVisualizerPage() {
   const { networkState } = useNetwork()
   const [nodes, setNodes] = useState<ConnectedNode[]>([])
+  const [connections, setConnections] = useState<Connection[]>([])
   const [stats, setStats] = useState<NodeStats>({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [filterStream, setFilterStream] = useState<StreamType | 'all'>('all')
   const [mapReady, setMapReady] = useState(false)
+  const [animationPhase, setAnimationPhase] = useState(0)
   const pageSize = 10
 
   useEffect(() => {
@@ -93,6 +103,14 @@ export default function NodesVisualizerPage() {
     return () => clearTimeout(t)
   }, [])
 
+  // Animation loop for connection lines
+  useEffect(() => {
+    const animInterval = setInterval(() => {
+      setAnimationPhase(p => (p + 1) % 100)
+    }, 50)
+    return () => clearInterval(animInterval)
+  }, [])
+
   async function fetchNodes() {
     try {
       setLoading(true)
@@ -102,10 +120,12 @@ export default function NodesVisualizerPage() {
       const data = await res.json()
       if (data.error) setError(data.error)
       setNodes(data.nodes || [])
+      setConnections(data.connections || [])
       setStats(data.stats || { totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } catch (e) {
       setError(String(e))
       setNodes([])
+      setConnections([])
       setStats({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } finally {
       setLoading(false)
@@ -189,6 +209,25 @@ export default function NodesVisualizerPage() {
                     <Geography key={geo.rsmKey} geography={geo} fill="#27272a" stroke="#3f3f46" strokeWidth={0.5} style={{ default: { outline: 'none' }, hover: { fill: '#3f3f46', outline: 'none' }, pressed: { outline: 'none' } }} />
                   ))}
                 </Geographies>
+                {/* Animated connection lines between nodes */}
+                {connections.map((conn, idx) => {
+                  // Check if this is a bootnode-to-bootnode connection (thicker, red)
+                  const isBootnodeLink = conn.from.includes('bootnode') && conn.to.includes('bootnode')
+                  const opacity = Math.round((0.3 + (Math.sin((animationPhase + idx * 10) * 0.1) + 1) * 0.2) * 255).toString(16).padStart(2, '0')
+                  const baseColor = isBootnodeLink ? '#ef4444' : '#22c55e'
+                  const strokeColor = `${baseColor}${opacity}`
+                  const strokeWidth = isBootnodeLink ? 2 : 1
+                  return (
+                    <Line
+                      key={`${conn.from}-${conn.to}`}
+                      from={conn.fromCoords}
+                      to={conn.toCoords}
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeLinecap="round"
+                    />
+                  )
+                })}
                 {mappableNodes.map(node => {
                   // Bootnodes get red color, others get stream color
                   const markerColor = node.isBootnode ? '#ef4444' : getStreamColor(node.stream)

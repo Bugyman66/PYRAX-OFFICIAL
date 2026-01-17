@@ -59,6 +59,19 @@ const BOOTNODES = [
     stream: 'A' as const,
     isBootnode: true,
   },
+  {
+    id: 'bootnode-sfo-2',
+    ip: '137.184.118.228',
+    port: 30303,
+    rpcPort: 28545,
+    country: 'United States',
+    countryCode: 'US',
+    city: 'San Francisco',
+    lat: 37.7749,
+    lon: -122.4194,
+    stream: 'A' as const,
+    isBootnode: true,
+  },
 ];
 
 // Cache for IP geolocation to avoid repeated API calls
@@ -350,9 +363,53 @@ export async function GET() {
       averageLatency,
     };
 
+    // Generate connections between nodes (bootnodes connect to all peers)
+    const connections: Array<{ from: string; to: string; fromCoords: [number, number]; toCoords: [number, number] }> = [];
+    
+    // Each online peer is connected to at least one bootnode
+    const onlineBootnodes = bootnodeNodes.filter(bn => bn.online);
+    const onlinePeers = peerNodes.filter(p => p.online && (p.lat !== 0 || p.lon !== 0));
+    
+    // Connect bootnodes to each other
+    for (let i = 0; i < onlineBootnodes.length; i++) {
+      for (let j = i + 1; j < onlineBootnodes.length; j++) {
+        const bn1 = onlineBootnodes[i];
+        const bn2 = onlineBootnodes[j];
+        connections.push({
+          from: bn1.id,
+          to: bn2.id,
+          fromCoords: [bn1.lon, bn1.lat],
+          toCoords: [bn2.lon, bn2.lat],
+        });
+      }
+    }
+    
+    // Connect peers to their nearest bootnode
+    for (const peer of onlinePeers) {
+      if (onlineBootnodes.length > 0) {
+        // Find nearest bootnode by simple distance
+        let nearestBn = onlineBootnodes[0];
+        let minDist = Math.abs(peer.lat - nearestBn.lat) + Math.abs(peer.lon - nearestBn.lon);
+        for (const bn of onlineBootnodes) {
+          const dist = Math.abs(peer.lat - bn.lat) + Math.abs(peer.lon - bn.lon);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestBn = bn;
+          }
+        }
+        connections.push({
+          from: nearestBn.id,
+          to: peer.id,
+          fromCoords: [nearestBn.lon, nearestBn.lat],
+          toCoords: [peer.lon, peer.lat],
+        });
+      }
+    }
+
     return NextResponse.json({ 
       nodes, 
       stats,
+      connections,
       localPeerId: streamA.localPeerId || streamC.localPeerId || '',
       listenAddresses: [...streamA.listenAddresses, ...streamC.listenAddresses],
     });
@@ -368,6 +425,7 @@ export async function GET() {
         byCountry: {},
         averageLatency: 0,
       },
+      connections: [],
       localPeerId: '',
       listenAddresses: [],
       error: String(error),
