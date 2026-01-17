@@ -305,7 +305,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-windows.outputs.exe_path }}
-          asset_name: ${{ steps.find-bundle-windows.outputs.exe_name }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64_setup.exe
           asset_content_type: application/octet-stream
 
       - name: Upload Windows NSIS ZIP
@@ -316,7 +316,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-windows.outputs.zip_path }}
-          asset_name: ${{ steps.find-bundle-windows.outputs.zip_name }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64.nsis.zip
           asset_content_type: application/zip
 
       - name: Upload Windows signature
@@ -327,7 +327,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-windows.outputs.sig_path }}
-          asset_name: ${{ steps.find-bundle-windows.outputs.sig_name }}
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64.nsis.zip.sig
           asset_content_type: text/plain
 
       # Upload macOS assets
@@ -339,7 +339,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-macos.outputs.dmg_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.dmg
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.dmg
           asset_content_type: application/octet-stream
 
       - name: Upload macOS tar.gz (for updates)
@@ -350,7 +350,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-macos.outputs.tar_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.app.tar.gz
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.app.tar.gz
           asset_content_type: application/gzip
 
       - name: Upload macOS signature
@@ -361,7 +361,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-macos.outputs.sig_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_${{ matrix.tauri_target }}.app.tar.gz.sig
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.app.tar.gz.sig
           asset_content_type: text/plain
 
       # Upload Linux assets
@@ -373,7 +373,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-linux.outputs.appimage_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage
           asset_content_type: application/octet-stream
 
       - name: Upload Linux .deb
@@ -384,7 +384,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-linux.outputs.deb_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.deb
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.deb
           asset_content_type: application/vnd.debian.binary-package
 
       - name: Upload Linux tar.gz (for updates)
@@ -395,7 +395,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-linux.outputs.tar_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage.tar.gz
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage.tar.gz
           asset_content_type: application/gzip
 
       - name: Upload Linux signature
@@ -406,7 +406,7 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ${{ steps.find-bundle-linux.outputs.sig_path }}
-          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_amd64.AppImage.tar.gz.sig
+          asset_name: PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage.tar.gz.sig
           asset_content_type: text/plain
 
   publish-release:
