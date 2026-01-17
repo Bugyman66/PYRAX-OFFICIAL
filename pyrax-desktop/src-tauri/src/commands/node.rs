@@ -204,7 +204,7 @@ fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
             // Bootnode 1: Digital Ocean NYC
             "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGCFPC1eRd8fWZE6GSZfbGe5UgRVDSXhLkg3H7b95MMk",
             // Bootnode 2: Digital Ocean SFO (redundancy)
-            "/ip4/137.184.118.228/tcp/30303/p2p/12D3KooWPEER2PLACEHOLDER228",
+            "/ip4/137.184.118.228/tcp/30303/p2p/12D3KooWJdyvLrvNngQSoGND3BwXGVk1cno3ygSdT9k2Cechk3WM",
         ],
     }
 }
