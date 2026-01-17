@@ -368,6 +368,34 @@ impl Network {
         Ok(())
     }
 
+    /// Listen on relay circuit address to be reachable via relay
+    /// This allows nodes behind NAT to receive incoming connections through the relay
+    pub fn listen_on_relay(&mut self, relay_addr: &str) -> anyhow::Result<()> {
+        let relay_multiaddr: Multiaddr = relay_addr.parse()?;
+        
+        // Extract the relay peer ID from the address
+        if let Some(relay_peer_id) = Self::extract_peer_id(&relay_multiaddr) {
+            // Build circuit relay address: /relay_addr/p2p/relay_id/p2p-circuit
+            let circuit_addr = relay_multiaddr
+                .clone()
+                .with(libp2p::multiaddr::Protocol::P2pCircuit);
+            
+            info!("Requesting relay reservation from {} for NAT traversal", relay_peer_id);
+            
+            match self.swarm.listen_on(circuit_addr.clone()) {
+                Ok(_) => {
+                    info!("Listening on relay circuit: {}", circuit_addr);
+                }
+                Err(e) => {
+                    warn!("Failed to listen on relay circuit {}: {:?}", circuit_addr, e);
+                }
+            }
+        } else {
+            warn!("Could not extract peer ID from relay address: {}", relay_addr);
+        }
+        Ok(())
+    }
+
     /// Connect to a peer
     pub fn dial(&mut self, addr: &str) -> anyhow::Result<()> {
         let multiaddr: Multiaddr = addr.parse()?;
@@ -378,6 +406,18 @@ impl Network {
             self.swarm.behaviour_mut().kademlia.add_address(&peer_id, multiaddr);
             info!("Added bootstrap peer {} to Kademlia", peer_id);
         }
+        Ok(())
+    }
+    
+    /// Connect to bootnode and register for relay (for NAT traversal)
+    pub fn dial_and_relay(&mut self, addr: &str) -> anyhow::Result<()> {
+        // First dial the bootnode
+        self.dial(addr)?;
+        
+        // Then listen on relay circuit through this bootnode
+        // This makes us reachable via the relay even if we're behind NAT
+        self.listen_on_relay(addr)?;
+        
         Ok(())
     }
 

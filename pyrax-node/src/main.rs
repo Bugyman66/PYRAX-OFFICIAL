@@ -314,10 +314,10 @@ async fn main() -> anyhow::Result<()> {
         // Subscribe to gossip topics
         network.subscribe()?;
         
-        // Connect to bootstrap peer if provided
+        // Connect to bootstrap peer if provided and register for relay (NAT traversal)
         if let Some(peer_addr) = &args.peer {
             info!("Connecting to peer: {}", peer_addr);
-            if let Err(e) = network.dial(peer_addr) {
+            if let Err(e) = network.dial_and_relay(peer_addr) {
                 warn!("Failed to dial peer: {}", e);
             }
         }
