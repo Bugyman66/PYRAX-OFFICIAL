@@ -190,6 +190,7 @@ fn get_remote_rpc_url(network: &crate::state::Network) -> &'static str {
 }
 
 /// Get bootstrap P2P peers for a network
+/// IMPORTANT: Addresses MUST include /p2p/<peer_id> suffix for relay reservation to work
 fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
     match network {
         crate::state::Network::Mainnet => vec![
@@ -199,7 +200,8 @@ fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
             "/ip4/bootstrap.pyrax-testnet.org/tcp/30303",
         ],
         crate::state::Network::Devnet => vec![
-            "/ip4/209.38.137.105/tcp/30303",
+            // Full multiaddr with peer ID required for relay NAT traversal
+            "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWJ5d89acu9cyQTBwRhE4kJ33HaVcPZ1Xr2gFozmS9jV1s",
         ],
     }
 }
