@@ -67,8 +67,8 @@ jobs:
             tauri_target: windows-x86_64
             node_binary: pyrax-node.exe
             bundle_type: nsis
-          # macOS Intel (macos-13 is the last Intel runner)
-          - platform: macos-13
+          # macOS Intel (macos-15-intel is x86_64)
+          - platform: macos-15-intel
             rust_target: x86_64-apple-darwin
             tauri_target: darwin-x86_64
             node_binary: pyrax-node
@@ -198,7 +198,7 @@ jobs:
       # Ad-hoc sign macOS app to reduce Gatekeeper warnings
       # Note: This is NOT a full Apple Developer signature - users will still need to bypass Gatekeeper
       - name: Ad-hoc sign macOS app
-        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
         run: |
           echo "Ad-hoc signing macOS app bundle..."
           APP_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/macos -name "*.app" -type d | head -1)
@@ -236,7 +236,7 @@ jobs:
 
       # Find and upload bundles - macOS
       - name: Find bundle files (macOS)
-        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
         id: find-bundle-macos
         run: |
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
