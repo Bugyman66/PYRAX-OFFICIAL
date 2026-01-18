@@ -314,101 +314,120 @@ jobs:
           echo "All bundle files:"
           find "$BUNDLE_DIR" -type f 2>/dev/null || true
 
-      # Upload Windows assets using gh CLI (modern approach, no deprecated warnings)
-      - name: Upload Windows EXE
-        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.exe_path != ''
+      # Upload Windows assets using GitHub API with release ID (ensures correct release target)
+      - name: Upload Windows assets
+        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-windows.outputs.exe_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64_setup.exe" \
-            --clobber
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              gh api --method POST \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+            fi
+          }
+          
+          VERSION="${{ needs.create-release.outputs.version }}"
+          
+          # Upload EXE
+          if [ -n "${{ steps.find-bundle-windows.outputs.exe_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.exe_path }}" "PYRAX-Desktop_${VERSION}_windows-x64_setup.exe"
+          fi
+          
+          # Upload NSIS ZIP
+          if [ -n "${{ steps.find-bundle-windows.outputs.zip_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.zip_path }}" "PYRAX-Desktop_${VERSION}_windows-x64.nsis.zip"
+          fi
+          
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-windows.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_windows-x64.nsis.zip.sig"
+          fi
 
-      - name: Upload Windows NSIS ZIP
-        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.zip_path != ''
-        shell: bash
+      # Upload macOS assets using GitHub API with release ID
+      - name: Upload macOS assets
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-windows.outputs.zip_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64.nsis.zip" \
-            --clobber
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              gh api --method POST \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+            fi
+          }
+          
+          VERSION="${{ needs.create-release.outputs.version }}"
+          TARGET="${{ matrix.tauri_target }}"
+          
+          # Upload DMG
+          if [ -n "${{ steps.find-bundle-macos.outputs.dmg_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.dmg_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.dmg"
+          fi
+          
+          # Upload tar.gz for updates
+          if [ -n "${{ steps.find-bundle-macos.outputs.tar_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.app.tar.gz"
+          fi
+          
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-macos.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.app.tar.gz.sig"
+          fi
 
-      - name: Upload Windows signature
-        if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.sig_path != ''
-        shell: bash
+      # Upload Linux assets using GitHub API with release ID
+      - name: Upload Linux assets
+        if: matrix.platform == 'ubuntu-22.04'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-windows.outputs.sig_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_windows-x64.nsis.zip.sig" \
-            --clobber
-
-      # Upload macOS assets using gh CLI (modern approach, no deprecated warnings)
-      - name: Upload macOS DMG
-        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.dmg_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-macos.outputs.dmg_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.dmg" \
-            --clobber
-
-      - name: Upload macOS tar.gz (for updates)
-        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.tar_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-macos.outputs.tar_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.app.tar.gz" \
-            --clobber
-
-      - name: Upload macOS signature
-        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.sig_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-macos.outputs.sig_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_macos-${{ matrix.tauri_target }}.app.tar.gz.sig" \
-            --clobber
-
-      # Upload Linux assets using gh CLI (modern approach, no deprecated warnings)
-      - name: Upload Linux AppImage
-        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.appimage_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-linux.outputs.appimage_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage" \
-            --clobber
-
-      - name: Upload Linux .deb
-        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.deb_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-linux.outputs.deb_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.deb" \
-            --clobber
-
-      - name: Upload Linux tar.gz (for updates)
-        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.tar_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-linux.outputs.tar_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage.tar.gz" \
-            --clobber
-
-      - name: Upload Linux signature
-        if: matrix.platform == 'ubuntu-22.04' && steps.find-bundle-linux.outputs.sig_path != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "${{ steps.find-bundle-linux.outputs.sig_path }}#PYRAX-Desktop_${{ needs.create-release.outputs.version }}_linux-amd64.AppImage.tar.gz.sig" \
-            --clobber
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              gh api --method POST \
+                -H "Accept: application/vnd.github+json" \
+                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+            fi
+          }
+          
+          VERSION="${{ needs.create-release.outputs.version }}"
+          
+          # Upload AppImage
+          if [ -n "${{ steps.find-bundle-linux.outputs.appimage_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.appimage_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage"
+          fi
+          
+          # Upload .deb
+          if [ -n "${{ steps.find-bundle-linux.outputs.deb_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.deb_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.deb"
+          fi
+          
+          # Upload tar.gz for updates
+          if [ -n "${{ steps.find-bundle-linux.outputs.tar_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage.tar.gz"
+          fi
+          
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-linux.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage.tar.gz.sig"
+          fi
 
   publish-release:
     needs: [create-release, build-tauri]
@@ -419,22 +438,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Upload installation guides as release assets
-      - name: Upload macOS Installation Guide
+      # Upload installation guides using release ID
+      - name: Upload Installation Guides
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "pyrax-desktop/MACOS_INSTALL.md#INSTALL_GUIDE_macOS.md" \
-            --clobber
-      
-      - name: Upload Linux Installation Guide
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "desktop-v${{ needs.create-release.outputs.version }}" \
-            "pyrax-desktop/LINUX_INSTALL.md#INSTALL_GUIDE_Linux.md" \
-            --clobber
+          # Upload macOS guide
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_macOS.md" \
+            --input "pyrax-desktop/MACOS_INSTALL.md"
+          
+          # Upload Linux guide
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_Linux.md" \
+            --input "pyrax-desktop/LINUX_INSTALL.md"
       
       - name: Publish release
         uses: actions/github-script@v7
