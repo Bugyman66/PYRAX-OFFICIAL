@@ -13,10 +13,17 @@
 //! - Base score: 0
 //! - RTT bonus: + (50 - min(RTT_ms, 200)) * 0.1
 //! - Uptime bonus: + uptime_minutes * 0.05 (capped at 10 points)
-//! - Disconnect penalty: - disconnects_last_hour * 2
-//! - Failure penalty: - failures_last_hour * 1
+//! - Disconnect penalty: - disconnects_last_hour * 1.5
+//! - Failure penalty: - failures_last_hour * 0.5
 //! - Subnet penalty: - 5 if same /24 has >= 3 peers
-//! - Score clamped to [-50, +50]
+//! - Bootnode bonus: +5 for bootnode connections
+//! - Interaction bonus: + successful_interactions * 0.01 (max 5)
+//! - Score clamped to [-100, +50]
+//!
+//! Banning:
+//! - Auto-ban threshold: score <= -100
+//! - Grace period: 5 minutes after discovery (no bans during grace)
+//! - Ban duration: 1 hour
 
 use libp2p::PeerId;
 use std::collections::{HashMap, HashSet};
@@ -219,8 +226,16 @@ impl PeerData {
     }
 
     /// Check if peer should be banned based on score
+    /// Only ban if score is very low AND peer has been known for a while (grace period)
     pub fn should_ban(&self) -> bool {
-        self.score <= -50
+        // Grace period: don't ban peers discovered less than 5 minutes ago
+        // This prevents banning peers that had initial connection issues
+        let grace_period = Duration::from_secs(300);
+        if self.discovered_at.elapsed() < grace_period {
+            return false;
+        }
+        // Require very low score to ban (was -50, now -100)
+        self.score <= -100
     }
 }
 
@@ -521,11 +536,12 @@ impl PeerStore {
         let uptime_bonus = (peer.uptime_minutes() as f64 * 0.05).min(10.0);
         score += uptime_bonus;
         
-        // Disconnect penalty: - disconnects_last_hour * 2
-        score -= peer.disconnects_last_hour as f64 * 2.0;
+        // Disconnect penalty: - disconnects_last_hour * 1.5 (reduced from 2)
+        score -= peer.disconnects_last_hour as f64 * 1.5;
         
-        // Failure penalty: - failures_last_hour * 1
-        score -= peer.failures_last_hour as f64;
+        // Failure penalty: - failures_last_hour * 0.5 (reduced from 1)
+        // Many failures are due to network issues, not misbehavior
+        score -= peer.failures_last_hour as f64 * 0.5;
         
         // Subnet diversity penalty
         if let Some(ip) = &peer.ip_addr {
@@ -544,8 +560,8 @@ impl PeerStore {
         let interaction_bonus = (peer.successful_interactions as f64 * 0.01).min(5.0);
         score += interaction_bonus;
         
-        // Clamp to [-50, +50]
-        score.clamp(-50.0, 50.0) as i32
+        // Clamp to [-100, +50] - wider range for negative to allow gradual recovery
+        score.clamp(-100.0, 50.0) as i32
     }
 
     /// Update all peer scores

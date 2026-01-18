@@ -24,6 +24,7 @@
 
 use libp2p::PeerId;
 use std::collections::{HashSet, VecDeque};
+use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn, error};
@@ -254,8 +255,54 @@ impl ConnectionManager {
         self.process_dial_queue().await;
     }
 
+    /// Check if an address is publicly routable (not localhost/private/link-local)
+    /// This prevents dialing addresses that will either fail or connect to wrong peers
+    fn is_routable_address(address: &str) -> bool {
+        // Parse the multiaddr to extract IP
+        let parts: Vec<&str> = address.split('/').collect();
+        for (i, part) in parts.iter().enumerate() {
+            if *part == "ip4" {
+                if let Some(ip_str) = parts.get(i + 1) {
+                    if let Ok(ip) = ip_str.parse::<Ipv4Addr>() {
+                        // Reject localhost (127.0.0.0/8)
+                        if ip.is_loopback() {
+                            return false;
+                        }
+                        // Reject private networks (RFC 1918)
+                        // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+                        if ip.is_private() {
+                            return false;
+                        }
+                        // Reject link-local (169.254.0.0/16)
+                        if ip.is_link_local() {
+                            return false;
+                        }
+                        // Reject unspecified (0.0.0.0)
+                        if ip.is_unspecified() {
+                            return false;
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        // If no IPv4 found, check if it's a relay address (those are OK)
+        if address.contains("/p2p-circuit/") {
+            return true;
+        }
+        // Default: reject unknown formats to be safe
+        false
+    }
+
     /// Queue a peer for dialing
     pub fn queue_dial(&mut self, peer_id: PeerId, address: String) {
+        // CRITICAL: Filter out non-routable addresses to prevent WrongPeerId errors
+        // When nodes dial localhost/private IPs, they often connect to themselves or wrong peers
+        if !address.is_empty() && !Self::is_routable_address(&address) {
+            debug!("Rejecting non-routable address for peer {}: {}", peer_id, address);
+            return;
+        }
+        
         // Don't queue if already connected or dialing
         if self.dialing.contains(&peer_id) {
             return;
@@ -437,15 +484,26 @@ impl ConnectionManager {
             return; // Don't dial ourselves
         }
         
+        // Filter to only routable addresses - this prevents storing garbage addresses
+        // that would cause WrongPeerId errors when dialed later
+        let routable_addrs: Vec<String> = addresses.into_iter()
+            .filter(|addr| Self::is_routable_address(addr))
+            .collect();
+        
+        if routable_addrs.is_empty() {
+            debug!("Peer {} discovered but has no routable addresses, skipping", peer_id);
+            return;
+        }
+        
         let peer = self.peer_store.upsert_peer(peer_id);
-        for addr in &addresses {
+        for addr in &routable_addrs {
             self.peer_store.add_address(&peer_id, addr.clone());
         }
         
         // Queue for dialing if we need more peers
         let connected = self.peer_store.connected_count();
-        if connected < self.config.target_peers && !addresses.is_empty() {
-            if let Some(addr) = addresses.first() {
+        if connected < self.config.target_peers {
+            if let Some(addr) = routable_addrs.first() {
                 self.queue_dial(peer_id, addr.clone());
             }
         }
