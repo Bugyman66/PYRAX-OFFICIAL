@@ -317,6 +317,7 @@ jobs:
       # Upload Windows assets using gh CLI (modern approach, no deprecated warnings)
       - name: Upload Windows EXE
         if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.exe_path != ''
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -326,6 +327,7 @@ jobs:
 
       - name: Upload Windows NSIS ZIP
         if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.zip_path != ''
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -335,6 +337,7 @@ jobs:
 
       - name: Upload Windows signature
         if: matrix.platform == 'windows-latest' && steps.find-bundle-windows.outputs.sig_path != ''
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
