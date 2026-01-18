@@ -364,20 +364,27 @@ impl Network {
                 // Constraints: mesh_n_low <= mesh_n <= mesh_n_high
                 // MESH FIX: Increased parameters to ensure mesh forms even with few peers
                 // Previous values (2,4,8) were too restrictive for small networks
+                // TRUE MESH FIX: Configure GossipSub for guaranteed mesh formation
+                // Key insight: add_explicit_peer() puts peers OUTSIDE mesh by design!
+                // For true mesh, peers must flow through SUBSCRIBE → GRAFT path
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .heartbeat_interval(Duration::from_secs(5)) // Faster heartbeat for quicker mesh formation
-                    .validation_mode(gossipsub::ValidationMode::Strict)
+                    .heartbeat_interval(Duration::from_secs(1)) // Very fast heartbeat for rapid mesh formation
+                    .validation_mode(gossipsub::ValidationMode::Permissive) // Accept all valid messages
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
                     .mesh_n_low(1)      // Accept even 1 peer in mesh (critical for small networks)
-                    .mesh_n(3)          // Target 3 peers in mesh
-                    .mesh_n_high(6)     // Maximum peers in mesh
+                    .mesh_n(2)          // Target 2 peers in mesh (small for devnet)
+                    .mesh_n_high(4)     // Maximum peers in mesh
                     .mesh_outbound_min(1) // Ensure at least 1 outbound peer in mesh
-                    .gossip_lazy(3)     // More peers for lazy gossip (faster propagation)
-                    .gossip_factor(0.5) // Gossip to 50% of non-mesh peers
-                    .heartbeat_initial_delay(Duration::from_secs(1)) // Start heartbeat quickly
+                    .gossip_lazy(3)     // More peers for lazy gossip
+                    .gossip_factor(0.25) // Gossip to 25% of non-mesh peers
+                    .heartbeat_initial_delay(Duration::from_millis(100)) // Start heartbeat IMMEDIATELY
                     .history_length(5)  // Keep 5 heartbeats of history
                     .history_gossip(3)  // Gossip about last 3 heartbeats
-                    .flood_publish(true) // CRITICAL: Flood publish to ALL peers, not just mesh
+                    .flood_publish(true) // Flood publish as backup
+                    .do_px()            // CRITICAL: Enable peer exchange for mesh building
+                    .prune_backoff(Duration::from_secs(10)) // Shorter backoff for faster recovery
+                    .graft_flood_threshold(Duration::from_secs(5)) // Allow faster grafting
+                    .opportunistic_graft_ticks(2) // More aggressive opportunistic grafting
                     .build()
                     .expect("Valid gossipsub config");
 
@@ -831,30 +838,24 @@ impl Network {
         Ok(())
     }
 
-    /// MESH FIX: Force mesh formation by adding all connected peers as explicit peers
-    /// AND re-announcing our topic subscriptions to ensure peers know we're interested.
+    /// TRUE MESH FIX: Trigger mesh formation by re-announcing subscriptions
+    /// This sends SUBSCRIBE messages to all connected peers, which triggers:
+    /// 1. Remote peer adds us to their peer_topics
+    /// 2. On their next heartbeat, they may GRAFT us into their mesh
+    /// 3. We receive their GRAFT and add them to our mesh
     /// 
-    /// This fixes two issues:
-    /// 1. Subscription announcements may not propagate through relay connections
-    /// 2. Peers connecting after we subscribed don't know about our subscriptions
-    /// 
-    /// Called after bootnode connection is established and identified.
+    /// NOTE: We do NOT add explicit peers - that bypasses mesh formation!
     fn force_mesh_with_connected_peers(&mut self) {
         let blocks_topic = gossipsub::IdentTopic::new(format!("pyrax/{}/blocks", self.network_id.name()));
         let txs_topic = gossipsub::IdentTopic::new(format!("pyrax/{}/txs", self.network_id.name()));
         
-        // CRITICAL FIX: Unsubscribe and resubscribe to force subscription announcements
-        // This ensures all connected peers receive our subscription messages
-        // The gossipsub protocol sends SUBSCRIBE messages on subscription which triggers
-        // the remote peer to add us to their mesh
-        info!("MESH FIX: Re-announcing topic subscriptions to all peers...");
+        info!("TRUE MESH FIX: Re-announcing subscriptions to trigger GRAFT...");
         
-        // Unsubscribe first (ignore errors if not subscribed)
+        // Unsubscribe first to force re-announcement
         let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&blocks_topic);
         let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&txs_topic);
         
-        // Small delay to ensure unsubscribe propagates
-        // Re-subscribe - this sends SUBSCRIBE to all connected peers
+        // Re-subscribe - sends SUBSCRIBE to all connected peers
         if let Err(e) = self.swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic) {
             warn!("Failed to resubscribe to blocks topic: {:?}", e);
         }
@@ -862,44 +863,15 @@ impl Network {
             warn!("Failed to resubscribe to txs topic: {:?}", e);
         }
         
-        info!("✓ Re-subscribed to topics: {}, {}", blocks_topic.hash(), txs_topic.hash());
+        info!("✓ Re-subscribed to topics - waiting for GRAFT from peers");
         
-        // Get all connected peer IDs from the connection manager
-        let connected_peers: Vec<PeerId> = self.conn_manager.peer_store()
-            .connected_peers()
-            .iter()
-            .map(|p| p.peer_id)
-            .collect();
-        
-        let mut added_count = 0;
-        for peer_id in &connected_peers {
-            // Add as explicit peer - this ensures they receive our messages
-            // and we receive theirs, bypassing the mesh protocol's peer selection
-            self.swarm.behaviour_mut().gossipsub.add_explicit_peer(peer_id);
-            added_count += 1;
-            
-            // Also track in our topic_peers for mesh health monitoring
-            let blocks_topic_str = format!("pyrax/{}/blocks", self.network_id.name());
-            let txs_topic_str = format!("pyrax/{}/txs", self.network_id.name());
-            
-            self.topic_peers
-                .entry(blocks_topic_str)
-                .or_insert_with(HashSet::new)
-                .insert(*peer_id);
-            self.topic_peers
-                .entry(txs_topic_str)
-                .or_insert_with(HashSet::new)
-                .insert(*peer_id);
-        }
-        
-        if added_count > 0 {
-            info!("✓ Forced mesh formation: added {} connected peers as explicit GossipSub peers", added_count);
-        }
-        
-        // Log current mesh state for debugging
+        // Log current state
+        let connected_count = self.conn_manager.peer_store().connected_peers().len();
         let all_mesh_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_mesh_peers().collect();
-        let all_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().map(|(p, _)| p).collect();
-        info!("MESH DEBUG: {} peers in mesh, {} total GossipSub peers", all_mesh_peers.len(), all_peers.len());
+        let all_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().collect();
+        
+        info!("  Connected: {}, GossipSub peers: {}, Mesh peers: {}", 
+            connected_count, all_peers.len(), all_mesh_peers.len());
     }
 
     /// MESH FIX: Check mesh health and trigger subscription re-announcement if needed
@@ -1601,17 +1573,18 @@ impl Network {
                 let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
                 let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
                 
-                // MESH FIX: Add peers as explicit ONLY when they subscribe to OUR topics
-                // This is the CORRECT place to add explicit peers:
-                // - NOT on ConnectionEstablished (too early, not all peers need mesh)
-                // - NOT on Identify (not all peers are interested in our topics)
-                // - YES on Subscribed (peer has indicated interest in our topics)
-                // Explicit peers ensure message delivery even before full mesh formation
+                // TRUE MESH FIX: Do NOT add as explicit peer - explicit peers are OUTSIDE mesh!
+                // GossipSub mesh formation: SUBSCRIBE event → peer added to peer_topics → heartbeat GRAFTs
+                // By NOT using add_explicit_peer(), we let the normal GRAFT/PRUNE protocol work
                 if topic_str == our_blocks_topic || topic_str == our_txs_topic {
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                     let topic_peer_count = self.topic_peers.get(&topic_str).map(|s| s.len()).unwrap_or(0);
-                    info!("✓ Peer {} subscribed to {} - added as explicit peer ({} peers in topic)", 
+                    info!("✓ Peer {} subscribed to {} - mesh eligible ({} peers in topic)", 
                         peer_id, topic_str, topic_peer_count);
+                    
+                    // Log mesh state after subscription
+                    let mesh_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_mesh_peers().collect();
+                    let all_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().collect();
+                    info!("  MESH STATE: {} in mesh, {} total GossipSub peers", mesh_peers.len(), all_peers.len());
                 }
             }
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic }) => {
@@ -1623,17 +1596,13 @@ impl Network {
                     peers.remove(&peer_id);
                 }
                 
-                // Check if peer is still subscribed to any of our topics
+                // TRUE MESH FIX: No explicit peer management needed
+                // GossipSub handles mesh membership via GRAFT/PRUNE automatically
                 let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
                 let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
                 
-                let still_in_blocks = self.topic_peers.get(&our_blocks_topic).map(|p| p.contains(&peer_id)).unwrap_or(false);
-                let still_in_txs = self.topic_peers.get(&our_txs_topic).map(|p| p.contains(&peer_id)).unwrap_or(false);
-                
-                // Remove as explicit peer only if they're not subscribed to ANY of our topics
-                if !still_in_blocks && !still_in_txs {
-                    self.swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
-                    debug!("Removed {} as explicit peer (unsubscribed from all our topics)", peer_id);
+                if topic_str == our_blocks_topic || topic_str == our_txs_topic {
+                    debug!("Peer {} unsubscribed from {} - mesh will auto-adjust via PRUNE", peer_id, topic_str);
                 }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
@@ -1736,26 +1705,17 @@ impl Network {
                     debug!("Peer {} only has relay addresses (no direct connectivity)", peer_id);
                 }
                 
-                // MESH FIX: When a BOOTNODE is identified, force mesh formation
-                // This ensures all connected peers are added as explicit GossipSub peers
-                // which bypasses the subscription timing issue and avoids GRAFT/PRUNE races
+                // TRUE MESH FIX: When a BOOTNODE is identified, trigger subscription re-announcement
+                // This ensures SUBSCRIBE messages are sent which triggers GRAFT from the bootnode
+                // NOTE: We do NOT add explicit peers - that bypasses mesh formation!
                 if self.bootnode_peer_ids.contains(&peer_id) {
-                    info!("✓ Bootnode {} identified - triggering subscription re-announcement", peer_id);
+                    info!("✓ Bootnode {} identified - triggering mesh formation", peer_id);
                     
-                    // Always re-announce subscriptions when a bootnode connects
-                    // This ensures the bootnode knows we're interested in block/tx topics
                     if !self.initial_subscription_sent {
                         self.force_mesh_with_connected_peers();
                         self.initial_subscription_sent = true;
-                    } else {
-                        // Just add this bootnode as explicit peer
-                        self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                     }
-                } else if self.initial_subscription_sent {
-                    // MESH FIX: For regular peers, also add as explicit after identify
-                    // This ensures all peers receive our messages via flood_publish
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                    debug!("Added peer {} as explicit GossipSub peer after identify", peer_id);
+                    // Bootnode will GRAFT us on their next heartbeat after receiving our SUBSCRIBE
                 }
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
