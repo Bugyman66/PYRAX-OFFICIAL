@@ -728,6 +728,62 @@ impl Network {
         addr.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit))
     }
     
+    /// WRONGPEERID FIX: Check if an address points to a known bootnode IP
+    /// This prevents DHT pollution where peers advertise bootnode IPs with their own peer ID
+    fn is_bootnode_ip(addr: &Multiaddr, bootnode_ips: &[std::net::IpAddr]) -> bool {
+        for protocol in addr.iter() {
+            match protocol {
+                libp2p::multiaddr::Protocol::Ip4(ip) => {
+                    if bootnode_ips.contains(&std::net::IpAddr::V4(ip)) {
+                        return true;
+                    }
+                }
+                libp2p::multiaddr::Protocol::Ip6(ip) => {
+                    if bootnode_ips.contains(&std::net::IpAddr::V6(ip)) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+    
+    /// WRONGPEERID FIX: Validate that an address is safe to add to the DHT
+    /// Rejects addresses that point to bootnode IPs with non-bootnode peer IDs
+    fn is_valid_dht_address(&self, addr: &Multiaddr, peer_id: &PeerId) -> bool {
+        // Circuit addresses are always valid - they go through relay
+        if Self::is_relay_address(addr) {
+            return true;
+        }
+        
+        // Get bootnode IPs from our bootstrap peers
+        let bootnode_ips: Vec<std::net::IpAddr> = self.bootstrap_peers.iter()
+            .filter_map(|peer_addr| {
+                peer_addr.parse::<Multiaddr>().ok().and_then(|ma| {
+                    ma.iter().find_map(|p| match p {
+                        libp2p::multiaddr::Protocol::Ip4(ip) => Some(std::net::IpAddr::V4(ip)),
+                        libp2p::multiaddr::Protocol::Ip6(ip) => Some(std::net::IpAddr::V6(ip)),
+                        _ => None,
+                    })
+                })
+            })
+            .collect();
+        
+        // If address points to a bootnode IP, the peer ID MUST be a bootnode
+        if Self::is_bootnode_ip(addr, &bootnode_ips) {
+            if !self.bootnode_peer_ids.contains(peer_id) {
+                // This is DHT pollution - a non-bootnode peer claiming a bootnode address
+                debug!("WRONGPEERID FIX: Rejecting address {} for peer {} - points to bootnode IP but peer is not a bootnode", 
+                    addr, peer_id);
+                return false;
+            }
+        }
+        
+        // Must be routable
+        Self::is_routable_address(addr)
+    }
+    
     /// Filter and prioritize addresses: prefer direct connections over relay
     /// This prevents ResourceLimitExceeded errors by reducing relay usage when direct is available
     fn prioritize_direct_addresses(addrs: Vec<Multiaddr>) -> Vec<Multiaddr> {
@@ -1730,14 +1786,21 @@ impl Network {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
                         // DEFINITIVE FIX: Remove invalid addresses from Kademlia's routing table
                         // This prevents localhost/private IPs/pure-p2p from being used in dial attempts
+                        // WRONGPEERID FIX: Also reject addresses that point to bootnode IPs with wrong peer ID
                         let mut valid_addrs: Vec<String> = Vec::new();
                         let mut removed_count = 0;
+                        let mut bootnode_pollution_count = 0;
                         
                         for addr in addresses.iter() {
-                            // Accept routable addresses OR relay circuit addresses (for NAT traversal)
-                            if Self::is_routable_address(addr) || Self::is_relay_address(addr) {
+                            // WRONGPEERID FIX: Use comprehensive DHT address validation
+                            // This catches bootnode IP pollution that causes WrongPeerId errors
+                            if self.is_valid_dht_address(addr, &peer) {
                                 valid_addrs.push(addr.to_string());
                             } else {
+                                // Check if this was bootnode pollution specifically
+                                if Self::is_routable_address(addr) && !Self::is_relay_address(addr) {
+                                    bootnode_pollution_count += 1;
+                                }
                                 // CRITICAL: Actually REMOVE bad addresses from Kademlia
                                 // Just filtering isn't enough - Kademlia will still use them for dials
                                 self.swarm.behaviour_mut().kademlia.remove_address(&peer, addr);
@@ -1745,8 +1808,12 @@ impl Network {
                             }
                         }
                         
+                        if bootnode_pollution_count > 0 {
+                            warn!("WRONGPEERID FIX: Removed {} bootnode-polluted addresses from peer {} (peer claiming bootnode IP)", 
+                                bootnode_pollution_count, peer);
+                        }
                         if removed_count > 0 {
-                            debug!("Kademlia: REMOVED {} invalid addresses from peer {} (localhost/private/no-transport)", 
+                            debug!("Kademlia: REMOVED {} invalid addresses from peer {} (localhost/private/no-transport/bootnode-pollution)", 
                                 removed_count, peer);
                         }
                         
@@ -1860,9 +1927,26 @@ impl Network {
                                 info!("  → DCUtR will attempt hole-punching when possible");
                                 self.metrics.nat_status = NatStatus::Private;
                                 
-                                // When we detect we're behind NAT, ensure we listen on relay
+                                // NORESERVATION FIX: When we detect we're behind NAT, 
+                                // AGGRESSIVELY request relay reservations from ALL bootnodes
+                                // This ensures other nodes can connect to us via relay circuit
+                                info!("  → Requesting relay reservations from {} bootnodes...", self.bootstrap_peers.len());
+                                let mut reservation_count = 0;
                                 for bootnode in &self.bootstrap_peers.clone() {
-                                    let _ = self.listen_on_relay(bootnode);
+                                    match self.listen_on_relay(bootnode) {
+                                        Ok(_) => {
+                                            reservation_count += 1;
+                                            info!("  ✓ Requested relay reservation from {}", bootnode);
+                                        }
+                                        Err(e) => {
+                                            warn!("  ✗ Failed to request relay from {}: {:?}", bootnode, e);
+                                        }
+                                    }
+                                }
+                                if reservation_count > 0 {
+                                    info!("  → Relay reservations requested from {} bootnodes", reservation_count);
+                                } else {
+                                    warn!("  ⚠ Could not request relay from ANY bootnode - connectivity may be limited!");
                                 }
                             }
                             autonat::NatStatus::Unknown => {
