@@ -314,7 +314,7 @@ jobs:
           echo "All bundle files:"
           find "$BUNDLE_DIR" -type f 2>/dev/null || true
 
-      # Upload Windows assets using GitHub API with release ID (ensures correct release target)
+      # Upload Windows assets using curl to uploads.github.com (correct endpoint for release assets)
       - name: Upload Windows assets
         if: matrix.platform == 'windows-latest'
         shell: bash
@@ -327,10 +327,12 @@ jobs:
             local asset_name="$2"
             if [ -f "$file_path" ]; then
               echo "Uploading $asset_name..."
-              gh api --method POST \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
-                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
             fi
           }
           
@@ -351,7 +353,7 @@ jobs:
             upload_asset "${{ steps.find-bundle-windows.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_windows-x64.nsis.zip.sig"
           fi
 
-      # Upload macOS assets using GitHub API with release ID
+      # Upload macOS assets using curl to uploads.github.com
       - name: Upload macOS assets
         if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
         env:
@@ -363,10 +365,12 @@ jobs:
             local asset_name="$2"
             if [ -f "$file_path" ]; then
               echo "Uploading $asset_name..."
-              gh api --method POST \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
-                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
             fi
           }
           
@@ -388,7 +392,7 @@ jobs:
             upload_asset "${{ steps.find-bundle-macos.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.app.tar.gz.sig"
           fi
 
-      # Upload Linux assets using GitHub API with release ID
+      # Upload Linux assets using curl to uploads.github.com
       - name: Upload Linux assets
         if: matrix.platform == 'ubuntu-22.04'
         env:
@@ -400,10 +404,12 @@ jobs:
             local asset_name="$2"
             if [ -f "$file_path" ]; then
               echo "Uploading $asset_name..."
-              gh api --method POST \
-                -H "Accept: application/vnd.github+json" \
-                "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
-                --input "$file_path" || echo "Warning: Failed to upload $asset_name"
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
             fi
           }
           
@@ -438,23 +444,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Upload installation guides using release ID
+      # Upload installation guides using curl to uploads.github.com
       - name: Upload Installation Guides
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
           # Upload macOS guide
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_macOS.md" \
-            --input "pyrax-desktop/MACOS_INSTALL.md"
+          curl -sS -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: text/markdown" \
+            --data-binary @"pyrax-desktop/MACOS_INSTALL.md" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_macOS.md"
           
           # Upload Linux guide
-          gh api --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_Linux.md" \
-            --input "pyrax-desktop/LINUX_INSTALL.md"
+          curl -sS -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: text/markdown" \
+            --data-binary @"pyrax-desktop/LINUX_INSTALL.md" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_Linux.md"
       
       - name: Publish release
         uses: actions/github-script@v7
