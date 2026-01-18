@@ -258,8 +258,16 @@ impl ConnectionManager {
     /// Check if an address is publicly routable (not localhost/private/link-local)
     /// This prevents dialing addresses that will either fail or connect to wrong peers
     fn is_routable_address(address: &str) -> bool {
-        // Parse the multiaddr to extract IP
+        // Check if it's a relay address first (those are always OK for NAT traversal)
+        if address.contains("/p2p-circuit") {
+            return true;
+        }
+        
+        // Parse the multiaddr to extract IP and port
         let parts: Vec<&str> = address.split('/').collect();
+        let mut has_valid_ip = false;
+        let mut port: Option<u16> = None;
+        
         for (i, part) in parts.iter().enumerate() {
             if *part == "ip4" {
                 if let Some(ip_str) = parts.get(i + 1) {
@@ -281,17 +289,34 @@ impl ConnectionManager {
                         if ip.is_unspecified() {
                             return false;
                         }
-                        return true;
+                        has_valid_ip = true;
                     }
+                }
+            } else if *part == "tcp" {
+                if let Some(port_str) = parts.get(i + 1) {
+                    port = port_str.parse().ok();
                 }
             }
         }
-        // If no IPv4 found, check if it's a relay address (those are OK)
-        if address.contains("/p2p-circuit/") {
-            return true;
+        
+        // Must have a valid IP
+        if !has_valid_ip {
+            return false;
         }
-        // Default: reject unknown formats to be safe
-        false
+        
+        // Reject suspicious ports that are likely ephemeral/random
+        if let Some(p) = port {
+            // Reject ephemeral ports (32768-65535 on most systems)
+            if p >= 32768 {
+                return false;
+            }
+            // Reject very low ports (< 1024) except well-known ones
+            if p < 1024 && p != 443 && p != 80 {
+                return false;
+            }
+        }
+        
+        true
     }
 
     /// Get the best address to dial for a peer, preferring relay addresses

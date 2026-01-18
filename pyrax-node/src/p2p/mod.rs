@@ -611,6 +611,7 @@ impl Network {
     /// This prevents address pollution where nodes advertise non-routable addresses
     fn is_routable_address(addr: &Multiaddr) -> bool {
         let mut has_valid_ip = false;
+        let mut has_transport = false;
         let mut port: Option<u16> = None;
         
         for protocol in addr.iter() {
@@ -648,23 +649,46 @@ impl Network {
                 }
                 libp2p::multiaddr::Protocol::Tcp(p) => {
                     port = Some(p);
+                    has_transport = true;
+                }
+                libp2p::multiaddr::Protocol::Udp(_) => {
+                    has_transport = true;
+                }
+                libp2p::multiaddr::Protocol::Quic | libp2p::multiaddr::Protocol::QuicV1 => {
+                    has_transport = true;
                 }
                 _ => {}
             }
         }
         
-        // Reject ephemeral ports (49152-65535) - these are outbound connection ports, not listen ports
-        // This prevents pollution from peers advertising their ephemeral connection ports
+        // CRITICAL: Must have BOTH valid IP AND transport protocol
+        // Pure /p2p/PEERID addresses without transport info are NOT dialable
+        // This was causing MultiaddrNotSupported errors
+        if !has_valid_ip || !has_transport {
+            return false;
+        }
+        
+        // Reject suspicious ports that are likely ephemeral/random
+        // Standard P2P ports are typically in specific ranges
         if let Some(p) = port {
-            if has_valid_ip && p >= 49152 {
+            // Reject ephemeral ports (32768-65535 on most systems)
+            // These are outbound connection ports, not listen ports
+            if p >= 32768 {
+                return false;
+            }
+            // Also reject very low ports (< 1024) except well-known ones
+            // as they require root and are rarely used for P2P
+            if p < 1024 && p != 443 && p != 80 {
                 return false;
             }
         }
         
-        // CRITICAL FIX: Only return true if we found a valid routable IP
-        // Pure /p2p/PEERID addresses without transport info are NOT routable
-        // This was causing MultiaddrNotSupported errors
-        has_valid_ip
+        true
+    }
+    
+    /// Check if address is a relay circuit address (always valid for NAT traversal)
+    fn is_relay_address(addr: &Multiaddr) -> bool {
+        addr.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit))
     }
 
     /// Bootstrap Kademlia DHT for peer discovery
@@ -947,10 +971,10 @@ impl Network {
                     best_height: 0,
                 }).await;
                 
-                // Add to Kademlia for discovery (only routable addresses)
+                // Add to Kademlia for discovery (only routable or relay addresses)
                 // This prevents localhost/private IP pollution that causes WrongPeerId errors
                 if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                    if Self::is_routable_address(&addr) {
+                    if Self::is_routable_address(&addr) || Self::is_relay_address(&addr) {
                         self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
                     } else {
                         debug!("Skipping non-routable address for peer {}: {}", peer_id, addr_str);
@@ -1322,37 +1346,38 @@ impl Network {
                     }
                 }
                 
-                // DEFINITIVE FIX: Partition addresses into routable and non-routable
-                let mut routable_addrs: Vec<Multiaddr> = Vec::new();
+                // DEFINITIVE FIX: Partition addresses into valid (routable or relay) and invalid
+                let mut valid_addrs: Vec<Multiaddr> = Vec::new();
                 let mut bad_addrs: Vec<Multiaddr> = Vec::new();
                 
                 for addr in info.listen_addrs.iter() {
-                    if Self::is_routable_address(addr) {
-                        routable_addrs.push(addr.clone());
+                    // Accept routable addresses OR relay circuit addresses (for NAT traversal)
+                    if Self::is_routable_address(addr) || Self::is_relay_address(addr) {
+                        valid_addrs.push(addr.clone());
                     } else {
                         bad_addrs.push(addr.clone());
                     }
                 }
                 
-                // CRITICAL: Remove non-routable addresses from Kademlia to prevent WrongPeerId errors
+                // CRITICAL: Remove invalid addresses from Kademlia to prevent WrongPeerId errors
                 // These addresses may have been added from other sources (DHT propagation, etc.)
                 for bad_addr in &bad_addrs {
                     self.swarm.behaviour_mut().kademlia.remove_address(&peer_id, bad_addr);
                 }
                 
                 if !bad_addrs.is_empty() {
-                    info!("Filtered {} non-routable addresses from peer {}", bad_addrs.len(), peer_id);
+                    debug!("Filtered {} invalid addresses from peer {} (localhost/private/no-transport)", bad_addrs.len(), peer_id);
                 }
                 
-                // Update connection manager with peer info (only routable addresses)
-                let listen_addrs: Vec<String> = routable_addrs.iter().map(|a| a.to_string()).collect();
+                // Update connection manager with peer info (only valid addresses)
+                let listen_addrs: Vec<String> = valid_addrs.iter().map(|a| a.to_string()).collect();
                 self.conn_manager.on_peer_identified(peer_id, info.agent_version.clone(), listen_addrs.clone());
                 
                 // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
-                // Add only routable listen addresses to Kademlia
-                for addr in &routable_addrs {
+                // Add only valid listen addresses to Kademlia
+                for addr in &valid_addrs {
                     self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
                 }
                 
@@ -1386,14 +1411,15 @@ impl Network {
             PyraxBehaviourEvent::Kademlia(event) => {
                 match event {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
-                        // DEFINITIVE FIX: Remove non-routable addresses from Kademlia's routing table
-                        // This prevents localhost/private IPs from being used in dial attempts
-                        let mut routable_addrs: Vec<String> = Vec::new();
+                        // DEFINITIVE FIX: Remove invalid addresses from Kademlia's routing table
+                        // This prevents localhost/private IPs/pure-p2p from being used in dial attempts
+                        let mut valid_addrs: Vec<String> = Vec::new();
                         let mut removed_count = 0;
                         
                         for addr in addresses.iter() {
-                            if Self::is_routable_address(addr) {
-                                routable_addrs.push(addr.to_string());
+                            // Accept routable addresses OR relay circuit addresses (for NAT traversal)
+                            if Self::is_routable_address(addr) || Self::is_relay_address(addr) {
+                                valid_addrs.push(addr.to_string());
                             } else {
                                 // CRITICAL: Actually REMOVE bad addresses from Kademlia
                                 // Just filtering isn't enough - Kademlia will still use them for dials
@@ -1403,15 +1429,15 @@ impl Network {
                         }
                         
                         if removed_count > 0 {
-                            info!("Kademlia: REMOVED {} non-routable addresses from peer {} (localhost/private IPs)", 
+                            debug!("Kademlia: REMOVED {} invalid addresses from peer {} (localhost/private/no-transport)", 
                                 removed_count, peer);
                         }
                         
-                        if routable_addrs.is_empty() {
-                            debug!("Kademlia: Peer {} has NO routable addresses after filtering", peer);
+                        if valid_addrs.is_empty() {
+                            debug!("Kademlia: Peer {} has NO valid addresses after filtering", peer);
                         } else {
-                            info!("Kademlia: Routing updated for peer {} ({} routable addresses)", peer, routable_addrs.len());
-                            self.conn_manager.on_peer_discovered(peer, routable_addrs);
+                            debug!("Kademlia: Routing updated for peer {} ({} valid addresses)", peer, valid_addrs.len());
+                            self.conn_manager.on_peer_discovered(peer, valid_addrs);
                         }
                     }
                     kad::Event::OutboundQueryProgressed { result, .. } => {
