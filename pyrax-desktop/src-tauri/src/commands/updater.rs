@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::fs;
 use tauri::{AppHandle, Manager};
-use tracing::{info, error};
+use tracing::{info, warn, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -83,6 +84,11 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
     match app.updater().check().await {
         Ok(update) => {
             if update.is_update_available() {
+                // CRITICAL: Wipe all blockchain data before installing update
+                // This prevents stale/orphan block issues when users update
+                // The node will sync fresh after the update
+                wipe_all_blockchain_data(&app);
+                
                 match update.download_and_install().await {
                     Ok(_) => {
                         info!("Update installed successfully, restarting...");
@@ -105,6 +111,68 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         }
         Err(e) => Err(format!("Failed to check for updates: {}", e)),
     }
+}
+
+/// Wipe all blockchain data for all networks before update
+/// This is a critical stop-gap to prevent stale/orphan block issues
+/// when users update from older versions with incompatible chain data
+fn wipe_all_blockchain_data(app: &AppHandle) {
+    info!("CRITICAL: Wiping all blockchain data before update to prevent orphan block issues");
+    
+    let _ = app.emit_all("node-log", serde_json::json!({
+        "level": "warn",
+        "category": "system",
+        "message": "Clearing all blockchain data before update (required for network compatibility)..."
+    }));
+    
+    // Get the app data directory
+    let app_data_dir = match app.path_resolver().app_data_dir() {
+        Some(dir) => dir,
+        None => {
+            warn!("Could not get app data directory for cleanup");
+            return;
+        }
+    };
+    
+    // Networks to clear
+    let networks = ["testnet", "devnet", "mainnet"];
+    
+    for network in networks {
+        let data_path = app_data_dir.join("data").join(network);
+        
+        if data_path.exists() {
+            match fs::remove_dir_all(&data_path) {
+                Ok(_) => {
+                    info!("Cleared {} blockchain data at {:?}", network, data_path);
+                    let _ = app.emit_all("node-log", serde_json::json!({
+                        "level": "info",
+                        "category": "system",
+                        "message": format!("Cleared {} blockchain data", network)
+                    }));
+                }
+                Err(e) => {
+                    warn!("Failed to clear {} data: {} (will be overwritten on sync)", network, e);
+                }
+            }
+        }
+    }
+    
+    // Also clear any peer/node data that might have stale addresses
+    let node_data_path = app_data_dir.join("node_data");
+    if node_data_path.exists() {
+        if let Err(e) = fs::remove_dir_all(&node_data_path) {
+            warn!("Failed to clear node_data: {}", e);
+        } else {
+            info!("Cleared node_data directory");
+        }
+    }
+    
+    info!("Blockchain data wipe complete - node will sync fresh after update");
+    let _ = app.emit_all("node-log", serde_json::json!({
+        "level": "info",
+        "category": "system",
+        "message": "Data cleanup complete. Node will sync fresh after update."
+    }));
 }
 
 #[tauri::command]
