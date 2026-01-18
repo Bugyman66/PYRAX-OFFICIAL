@@ -67,19 +67,19 @@ jobs:
             tauri_target: windows-x86_64
             node_binary: pyrax-node.exe
             bundle_type: nsis
-          # macOS Intel (use macos-15-intel which is x86_64)
-          - platform: macos-15-intel
+          # macOS Intel (macos-13 is the last Intel runner)
+          - platform: macos-13
             rust_target: x86_64-apple-darwin
             tauri_target: darwin-x86_64
             node_binary: pyrax-node
             bundle_type: dmg
-          # macOS Apple Silicon (use macos-14 which is ARM)
+          # macOS Apple Silicon (macos-14 is ARM M1)
           - platform: macos-14
             rust_target: aarch64-apple-darwin
             tauri_target: darwin-aarch64
             node_binary: pyrax-node
             bundle_type: dmg
-          # Linux (build on ubuntu-22.04 for Tauri v1 webkit2gtk-4.0 compat, AppImage works on 24/25)
+          # Linux (ubuntu-22.04 for Tauri v1 webkit2gtk-4.0 compat)
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_target: linux-x86_64
@@ -198,7 +198,7 @@ jobs:
       # Ad-hoc sign macOS app to reduce Gatekeeper warnings
       # Note: This is NOT a full Apple Developer signature - users will still need to bypass Gatekeeper
       - name: Ad-hoc sign macOS app
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
         run: |
           echo "Ad-hoc signing macOS app bundle..."
           APP_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/macos -name "*.app" -type d | head -1)
@@ -236,7 +236,7 @@ jobs:
 
       # Find and upload bundles - macOS
       - name: Find bundle files (macOS)
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
         id: find-bundle-macos
         run: |
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
@@ -347,7 +347,7 @@ jobs:
 
       # Upload macOS assets using gh CLI (modern approach, no deprecated warnings)
       - name: Upload macOS DMG
-        if: (matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.dmg_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.dmg_path != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -356,7 +356,7 @@ jobs:
             --clobber
 
       - name: Upload macOS tar.gz (for updates)
-        if: (matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.tar_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.tar_path != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -365,7 +365,7 @@ jobs:
             --clobber
 
       - name: Upload macOS signature
-        if: (matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.sig_path != ''
+        if: (matrix.platform == 'macos-13' || matrix.platform == 'macos-14') && steps.find-bundle-macos.outputs.sig_path != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
