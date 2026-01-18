@@ -412,7 +412,7 @@ jobs:
 
   publish-release:
     needs: [create-release, build-tauri]
-    if: ${{ always() && needs.create-release.result == 'success' }}
+    if: ${{ needs.create-release.result == 'success' && needs.build-tauri.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -449,7 +449,7 @@ jobs:
 
   generate-update-manifest:
     needs: [create-release, build-tauri, publish-release]
-    if: ${{ always() && needs.publish-release.result == 'success' }}
+    if: ${{ needs.publish-release.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
