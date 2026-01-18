@@ -1063,7 +1063,17 @@ impl Network {
                 }
             }
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic }) => {
-                debug!("Peer {} subscribed to {}", peer_id, topic);
+                info!("Peer {} subscribed to topic {}", peer_id, topic);
+                
+                // CRITICAL: When a peer subscribes to our topics, add them as explicit peer
+                // This ensures mesh formation even with few peers
+                let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
+                let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
+                
+                if topic.to_string().contains(&our_blocks_topic) || topic.to_string().contains(&our_txs_topic) {
+                    info!("✓ Peer {} subscribed to our topic - adding to GossipSub mesh", peer_id);
+                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
                 // mDNS discovery - for LOCAL network peers only

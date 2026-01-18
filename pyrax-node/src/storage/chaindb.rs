@@ -90,9 +90,15 @@ impl ChainDB {
         }
 
         // Initialize with genesis block
-        info!("Initializing new chain with genesis block");
+        info!("╔══════════════════════════════════════════════════════════════╗");
+        info!("║  INITIALIZING NEW CHAIN WITH GENESIS BLOCK                   ║");
+        info!("╚══════════════════════════════════════════════════════════════╝");
         let genesis = genesis_block(network);
         let genesis_hash = genesis.hash();
+        info!("Network: {:?} (chain_id: {})", network, network.0);
+        info!("Genesis hash: {}", genesis_hash);
+        info!("Genesis timestamp: {}", genesis.header.timestamp);
+        info!("Genesis difficulty: {}", genesis.header.difficulty);
 
         let mut batch = WriteBatch::default();
 
