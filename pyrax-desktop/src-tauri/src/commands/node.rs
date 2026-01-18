@@ -365,8 +365,8 @@ pub async fn start_node(
            .arg("--datadir").arg(&data_dir)
            .arg("--verbosity").arg(log_verbosity.to_string());
         
-        // Add first bootstrap peer (--peer only takes one)
-        if let Some(peer) = bootstrap_peers.first() {
+        // Add ALL bootstrap peers for relay redundancy (--peer can be specified multiple times)
+        for peer in &bootstrap_peers {
             cmd.arg("--peer").arg(*peer);
         }
         

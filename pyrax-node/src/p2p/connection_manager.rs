@@ -294,6 +294,27 @@ impl ConnectionManager {
         false
     }
 
+    /// Get the best address to dial for a peer, preferring relay addresses
+    /// RELAY-FIRST STRATEGY: For NAT traversal, we prefer relay addresses because:
+    /// 1. They work through any NAT type
+    /// 2. Direct addresses often fail for nodes behind NAT
+    /// 3. DCUtR can upgrade to direct connection after relay is established
+    fn get_best_dial_address(addresses: &[String]) -> Option<String> {
+        // First, try to find a relay address (most reliable for NAT traversal)
+        let relay_addr = addresses.iter()
+            .find(|addr| addr.contains("/p2p-circuit/"))
+            .cloned();
+        
+        if relay_addr.is_some() {
+            return relay_addr;
+        }
+        
+        // Fall back to first routable direct address
+        addresses.iter()
+            .find(|addr| Self::is_routable_address(addr))
+            .cloned()
+    }
+
     /// Queue a peer for dialing
     pub fn queue_dial(&mut self, peer_id: PeerId, address: String) {
         // CRITICAL: Filter out non-routable addresses to prevent WrongPeerId errors
@@ -503,8 +524,9 @@ impl ConnectionManager {
         // Queue for dialing if we need more peers
         let connected = self.peer_store.connected_count();
         if connected < self.config.target_peers {
-            if let Some(addr) = routable_addrs.first() {
-                self.queue_dial(peer_id, addr.clone());
+            // Use relay-first strategy for NAT traversal
+            if let Some(addr) = Self::get_best_dial_address(&routable_addrs) {
+                self.queue_dial(peer_id, addr);
             }
         }
     }
@@ -575,11 +597,11 @@ impl ConnectionManager {
             return;
         }
         
-        // Queue dials
+        // Queue dials using relay-first strategy
         for peer_id in candidates {
             if let Some(peer) = self.peer_store.get_peer(&peer_id) {
-                if let Some(addr) = peer.addresses.first() {
-                    self.queue_dial(peer_id, addr.clone());
+                if let Some(addr) = Self::get_best_dial_address(&peer.addresses) {
+                    self.queue_dial(peer_id, addr);
                 }
             }
         }

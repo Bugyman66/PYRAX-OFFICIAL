@@ -58,9 +58,9 @@ struct Args {
     #[arg(long, default_value = "/ip4/0.0.0.0/tcp/30303")]
     p2p_addr: String,
 
-    /// Bootstrap peer to connect to
-    #[arg(long)]
-    peer: Option<String>,
+    /// Bootstrap peers to connect to (can specify multiple times)
+    #[arg(long, action = clap::ArgAction::Append)]
+    peer: Vec<String>,
 
     /// Enable P2P networking
     #[arg(long)]
@@ -300,7 +300,7 @@ async fn main() -> anyhow::Result<()> {
         
         let p2p_config = P2PConfig {
             listen_addr: args.p2p_addr.clone(),
-            bootstrap_peers: args.peer.clone().map(|p| vec![p]).unwrap_or_default(),
+            bootstrap_peers: args.peer.clone(),
             target_peers: 50,
             min_peers: 30,
             max_peers: 60,
@@ -320,11 +320,12 @@ async fn main() -> anyhow::Result<()> {
         // Subscribe to gossip topics
         network.subscribe()?;
         
-        // Connect to bootstrap peer if provided and register for relay (NAT traversal)
-        if let Some(peer_addr) = &args.peer {
-            info!("Connecting to peer: {}", peer_addr);
+        // Connect to ALL bootstrap peers and register for relay on each (NAT traversal)
+        // Using multiple relays provides redundancy and distributes load
+        for peer_addr in &args.peer {
+            info!("Connecting to bootstrap peer: {}", peer_addr);
             if let Err(e) = network.dial_and_relay(peer_addr) {
-                warn!("Failed to dial peer: {}", e);
+                warn!("Failed to dial peer {}: {}", peer_addr, e);
             }
         }
 

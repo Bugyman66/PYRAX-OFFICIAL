@@ -371,14 +371,14 @@ export async function GET() {
       averageLatency,
     };
 
-    // Generate connections between nodes (bootnodes connect to all peers)
-    const connections: Array<{ from: string; to: string; fromCoords: [number, number]; toCoords: [number, number] }> = [];
+    // Generate connections between nodes (bootnodes connect to all peers via relay or direct)
+    const connections: Array<{ from: string; to: string; fromCoords: [number, number]; toCoords: [number, number]; isRelay?: boolean }> = [];
     
-    // Each online peer is connected to at least one bootnode
+    // Each online peer is connected to at least one bootnode (via relay or direct)
     const onlineBootnodes = bootnodeNodes.filter(bn => bn.online);
     const onlinePeers = peerNodes.filter(p => p.online && (p.lat !== 0 || p.lon !== 0));
     
-    // Connect bootnodes to each other
+    // Connect bootnodes to each other (direct connections)
     for (let i = 0; i < onlineBootnodes.length; i++) {
       for (let j = i + 1; j < onlineBootnodes.length; j++) {
         const bn1 = onlineBootnodes[i];
@@ -388,13 +388,19 @@ export async function GET() {
           to: bn2.id,
           fromCoords: [bn1.lon, bn1.lat],
           toCoords: [bn2.lon, bn2.lat],
+          isRelay: false, // Bootnode-to-bootnode is always direct
         });
       }
     }
     
-    // Connect peers to their nearest bootnode
+    // Connect peers to their nearest bootnode (may be relay or direct)
+    // Most home users are behind NAT and connect via relay
     for (const peer of onlinePeers) {
       if (onlineBootnodes.length > 0) {
+        // Check if peer address indicates relay connection
+        const peerData = uniquePeers.find((p: any) => (p.peer_id || p.id) === peer.id);
+        const isRelayConnection = peerData?.address?.includes('/p2p-circuit/') ?? true; // Assume relay if unknown
+        
         // Find nearest bootnode by simple distance
         let nearestBn = onlineBootnodes[0];
         let minDist = Math.abs(peer.lat - nearestBn.lat) + Math.abs(peer.lon - nearestBn.lon);
@@ -410,6 +416,7 @@ export async function GET() {
           to: peer.id,
           fromCoords: [nearestBn.lon, nearestBn.lat],
           toCoords: [peer.lon, peer.lat],
+          isRelay: isRelayConnection,
         });
       }
     }

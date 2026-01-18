@@ -350,7 +350,18 @@ impl Network {
                 kademlia.set_mode(Some(kad::Mode::Server));
 
                 // Relay SERVER behaviour - allows this node to act as a relay for others
-                let relay_server = relay::Behaviour::new(local_peer_id, relay::Config::default());
+                // CRITICAL: Increased limits to support 500+ concurrent users
+                // Default limits (16 circuits, 128 reservations) caused ResourceLimitExceeded errors
+                let relay_config = relay::Config {
+                    max_reservations: 2048,           // Slots for peers to register (was 128)
+                    max_circuits: 1024,               // Active relay circuits (was 16)
+                    max_circuits_per_peer: 16,        // Circuits per peer (was 4)
+                    reservation_duration: Duration::from_secs(7200), // 2 hours (was 1 hour)
+                    max_circuit_duration: Duration::from_secs(7200), // 2 hours
+                    max_circuit_bytes: 1024 * 1024 * 10, // 10MB per circuit
+                    ..Default::default()
+                };
+                let relay_server = relay::Behaviour::new(local_peer_id, relay_config);
                 
                 // AutoNAT for automatic NAT detection
                 // This allows the node to discover if it's behind NAT by asking other peers to dial it
@@ -858,15 +869,27 @@ impl Network {
                     }
                 }
                 
-                // Add to gossipsub mesh
+                // Add to gossipsub mesh - CRITICAL for message propagation
                 self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                
+                // IMPORTANT: Check if this is a bootnode and ensure GossipSub mesh formation
+                let is_bootnode = self.bootstrap_peers.iter()
+                    .any(|bp| bp.contains(&peer_id.to_string()));
+                
+                if is_bootnode {
+                    info!("✓ BOOTNODE {} connected - ensuring GossipSub mesh formation", peer_id);
+                    // Force add bootnode as explicit peer to guarantee mesh membership
+                    // This ensures blocks/txs can propagate even with few peers
+                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                }
                 
                 // Update metrics
                 self.update_metrics();
                 
                 let peer_count = self.peer_count();
-                info!("✓ Peer {} connected ({}) [{}/{}]", 
-                    peer_id, direction, peer_count, self.config.target_peers);
+                info!("✓ Peer {} connected ({}) [{}/{}]{}", 
+                    peer_id, direction, peer_count, self.config.target_peers,
+                    if is_bootnode { " [BOOTNODE]" } else { "" });
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 // Update connection manager
@@ -891,8 +914,14 @@ impl Network {
                 }
             }
             SwarmEvent::NewListenAddr { address, .. } => {
-                info!("Listening on {}/p2p/{}", address, self.local_peer_id);
-                self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
+                // CRITICAL: Only advertise routable addresses to prevent localhost/private IP pollution
+                // Non-routable addresses cause WrongPeerId errors when other peers try to dial them
+                if Self::is_routable_address(&address) {
+                    info!("Listening on {}/p2p/{}", address, self.local_peer_id);
+                    self.peer_registry.add_listen_address(format!("{}/p2p/{}", address, self.local_peer_id)).await;
+                } else {
+                    debug!("Not advertising non-routable listen address: {}", address);
+                }
             }
             SwarmEvent::IncomingConnection { local_addr, send_back_addr, .. } => {
                 debug!("Incoming connection from {} to {}", send_back_addr, local_addr);
@@ -909,10 +938,22 @@ impl Network {
         match event {
             ConnectionEvent::DialPeers(peers) => {
                 for (peer_id, addr) in peers {
+                    // CRITICAL: Prevent self-dial (LocalPeerId error)
+                    if peer_id == self.local_peer_id {
+                        debug!("Skipping self-dial attempt");
+                        continue;
+                    }
                     if self.dialing.contains(&peer_id) {
                         continue;
                     }
                     if let Ok(multiaddr) = addr.parse::<Multiaddr>() {
+                        // CRITICAL: Final validation - reject non-routable addresses
+                        // This is defense-in-depth against WrongPeerId errors
+                        if !Self::is_routable_address(&multiaddr) {
+                            debug!("Rejecting non-routable dial address for {}: {}", peer_id, addr);
+                            continue;
+                        }
+                        
                         self.dialing.insert(peer_id);
                         self.metrics.dial_attempts += 1;
                         if let Err(e) = self.swarm.dial(multiaddr) {
@@ -1119,25 +1160,16 @@ impl Network {
                                 info!("Kademlia: Found {} closest peers", ok.peers.len());
                                 
                                 // Notify connection manager of discovered peers
-                                // The peers list contains peer IDs - we'll dial them directly
-                                // and let the swarm use addresses from its routing table
+                                // IMPORTANT: Do NOT dial by peer_id directly - this bypasses address filtering
+                                // and causes WrongPeerId errors when swarm uses cached non-routable addresses
+                                // Addresses will come via RoutingUpdated events which are already filtered
                                 for peer_id in &ok.peers {
                                     if *peer_id == self.local_peer_id {
                                         continue;
                                     }
-                                    
-                                    // Queue dial with empty address - swarm will resolve from routing table
-                                    // We notify the connection manager which will queue the dial
-                                    self.conn_manager.on_peer_discovered(*peer_id, vec![]);
-                                    
-                                    // Also try direct dial for immediate connectivity
-                                    if !self.dialing.contains(peer_id) {
-                                        self.dialing.insert(*peer_id);
-                                        if let Err(e) = self.swarm.dial(*peer_id) {
-                                            debug!("Kademlia: Failed to dial {}: {:?}", peer_id, e);
-                                            self.dialing.remove(peer_id);
-                                        }
-                                    }
+                                    // Peer discovered - addresses will arrive via RoutingUpdated event
+                                    // which already has filtering. Don't dial here without addresses.
+                                    debug!("Kademlia: Discovered peer {}, waiting for RoutingUpdated with addresses", peer_id);
                                 }
                             }
                             kad::QueryResult::Bootstrap(Ok(ok)) => {
