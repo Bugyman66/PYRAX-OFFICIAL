@@ -1263,9 +1263,7 @@ impl Network {
                 let topic_str = topic.to_string();
                 info!("Peer {} subscribed to topic {}", peer_id, topic_str);
                 
-                // MESH FIX: Track subscribed peers in topic_peers map
-                // This is the CORRECT way to enable mesh formation
-                // DO NOT add as explicit peer - that bypasses the mesh!
+                // Track subscribed peers in topic_peers map for our own management
                 self.topic_peers
                     .entry(topic_str.clone())
                     .or_insert_with(HashSet::new)
@@ -1274,9 +1272,16 @@ impl Network {
                 let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
                 let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
                 
-                if topic_str.contains(&our_blocks_topic) || topic_str.contains(&our_txs_topic) {
+                // MESH FIX: Add peers as explicit ONLY when they subscribe to OUR topics
+                // This is the CORRECT place to add explicit peers:
+                // - NOT on ConnectionEstablished (too early, not all peers need mesh)
+                // - NOT on Identify (not all peers are interested in our topics)
+                // - YES on Subscribed (peer has indicated interest in our topics)
+                // Explicit peers ensure message delivery even before full mesh formation
+                if topic_str == our_blocks_topic || topic_str == our_txs_topic {
+                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                     let topic_peer_count = self.topic_peers.get(&topic_str).map(|s| s.len()).unwrap_or(0);
-                    info!("✓ Peer {} subscribed to our topic {} (now {} peers in topic)", 
+                    info!("✓ Peer {} subscribed to {} - added as explicit peer ({} peers in topic)", 
                         peer_id, topic_str, topic_peer_count);
                 }
             }
@@ -1287,6 +1292,19 @@ impl Network {
                 // Remove from topic_peers tracking
                 if let Some(peers) = self.topic_peers.get_mut(&topic_str) {
                     peers.remove(&peer_id);
+                }
+                
+                // Check if peer is still subscribed to any of our topics
+                let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
+                let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
+                
+                let still_in_blocks = self.topic_peers.get(&our_blocks_topic).map(|p| p.contains(&peer_id)).unwrap_or(false);
+                let still_in_txs = self.topic_peers.get(&our_txs_topic).map(|p| p.contains(&peer_id)).unwrap_or(false);
+                
+                // Remove as explicit peer only if they're not subscribed to ANY of our topics
+                if !still_in_blocks && !still_in_txs {
+                    self.swarm.behaviour_mut().gossipsub.remove_explicit_peer(&peer_id);
+                    debug!("Removed {} as explicit peer (unsubscribed from all our topics)", peer_id);
                 }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
