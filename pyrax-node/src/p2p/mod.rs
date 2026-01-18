@@ -275,6 +275,13 @@ pub struct Network {
     tx_rx: Option<mpsc::Receiver<Transaction>>,
     /// Metrics
     metrics: NetworkMetrics,
+    /// MESH FIX: Track peers that have subscribed to our topics (for proper mesh formation)
+    /// Key: topic hash, Value: set of peer IDs subscribed to that topic
+    topic_peers: HashMap<String, HashSet<PeerId>>,
+    /// STABILITY FIX: Track last successful ping time per peer for liveness detection
+    last_ping_success: HashMap<PeerId, Instant>,
+    /// STABILITY FIX: Track bootnode peer IDs for priority reconnection
+    bootnode_peer_ids: HashSet<PeerId>,
 }
 
 /// NAT status for tracking reachability
@@ -442,7 +449,10 @@ impl Network {
 
                 PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay_server, relay_client, autonat, dcutr }
             })?
-            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
+            // STABILITY FIX: Increased idle timeout from 5 minutes to 30 minutes
+            // This prevents connections from being dropped during low-activity periods
+            // Combined with regular ping keepalives, this ensures stable long-running connections
+            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(1800)))
             .build();
 
         // Create block/tx channels
@@ -469,10 +479,12 @@ impl Network {
         let peer_store_config = PeerStoreConfig::default();
         let mut conn_manager = ConnectionManager::new(conn_manager_config, peer_store_config, conn_event_tx);
 
-        // Register bootstrap peers in connection manager
+        // Register bootstrap peers in connection manager and track their peer IDs
+        let mut bootnode_peer_ids = HashSet::new();
         for peer_addr in &config.bootstrap_peers {
             if let Some(peer_id) = Self::extract_peer_id_from_str(peer_addr) {
                 conn_manager.add_bootnode(peer_id, vec![peer_addr.clone()]);
+                bootnode_peer_ids.insert(peer_id);
                 info!("Registered bootnode: {} at {}", peer_id, peer_addr);
             }
         }
@@ -503,6 +515,9 @@ impl Network {
             tx_tx,
             tx_rx: Some(tx_rx),
             metrics,
+            topic_peers: HashMap::new(),
+            last_ping_success: HashMap::new(),
+            bootnode_peer_ids,
         })
     }
 
@@ -765,6 +780,10 @@ impl Network {
         let mut metrics_timer = tokio::time::interval(Duration::from_secs(30));
         metrics_timer.tick().await;
         
+        // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
+        let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
+        bootnode_check_timer.tick().await;
+        
         loop {
             tokio::select! {
                 // Handle swarm events
@@ -815,6 +834,11 @@ impl Network {
                 _ = metrics_timer.tick() => {
                     self.log_metrics();
                 }
+                
+                // STABILITY FIX: Periodic bootnode connectivity check
+                _ = bootnode_check_timer.tick() => {
+                    self.ensure_bootnode_connectivity().await;
+                }
             }
         }
     }
@@ -841,6 +865,10 @@ impl Network {
         
         let mut metrics_timer = tokio::time::interval(Duration::from_secs(30));
         metrics_timer.tick().await;
+        
+        // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
+        let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
+        bootnode_check_timer.tick().await;
         
         loop {
             tokio::select! {
@@ -880,6 +908,11 @@ impl Network {
                 // Metrics logging
                 _ = metrics_timer.tick() => {
                     self.log_metrics();
+                }
+                
+                // STABILITY FIX: Periodic bootnode connectivity check
+                _ = bootnode_check_timer.tick() => {
+                    self.ensure_bootnode_connectivity().await;
                 }
             }
         }
@@ -924,20 +957,19 @@ impl Network {
                     }
                 }
                 
-                // DEFINITIVE FIX 3: Aggressive GossipSub mesh formation
-                // Adding as explicit peer ensures they receive our messages even before subscribing
-                self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                
                 // Check if this is a bootnode
-                let is_bootnode = self.bootstrap_peers.iter()
-                    .any(|bp| bp.contains(&peer_id.to_string()));
+                let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
                 
+                // MESH FIX: Only add BOOTNODES as explicit peers
+                // Regular peers should join mesh naturally via subscriptions
+                // Adding all peers as explicit bypasses the mesh protocol entirely!
                 if is_bootnode {
+                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                     info!("✓ BOOTNODE {} connected - added as explicit GossipSub peer", peer_id);
                 }
                 
-                // Log mesh status for debugging
-                debug!("GossipSub: Added {} as explicit peer for mesh formation", peer_id);
+                // STABILITY FIX: Initialize last ping success time
+                self.last_ping_success.insert(peer_id, Instant::now());
                 
                 // Update metrics
                 self.update_metrics();
@@ -954,12 +986,26 @@ impl Network {
                 // Update legacy registry
                 self.peer_registry.remove_peer(&peer_id.to_string()).await;
                 
+                // MESH FIX: Remove peer from all topic_peers sets
+                for peers in self.topic_peers.values_mut() {
+                    peers.remove(&peer_id);
+                }
+                
+                // STABILITY FIX: Clean up ping tracking
+                self.last_ping_success.remove(&peer_id);
+                
                 // Update metrics
                 self.update_metrics();
                 
                 let peer_count = self.peer_count();
-                info!("✗ Peer {} disconnected ({:?}) [{}/{}]", 
-                    peer_id, cause, peer_count, self.config.target_peers);
+                let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
+                
+                if is_bootnode {
+                    warn!("⚠ BOOTNODE {} disconnected! Will attempt reconnection. ({:?})", peer_id, cause);
+                } else {
+                    info!("✗ Peer {} disconnected ({:?}) [{}/{}]", 
+                        peer_id, cause, peer_count, self.config.target_peers);
+                }
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 if let Some(peer_id) = peer_id {
@@ -1073,6 +1119,77 @@ impl Network {
         self.metrics.state = conn_metrics.state;
     }
 
+    /// STABILITY FIX: Ensure we maintain connectivity to at least one bootnode
+    /// This prevents the network from disappearing if all bootnodes disconnect
+    async fn ensure_bootnode_connectivity(&mut self) {
+        // Check if we're connected to any bootnode
+        let connected_bootnodes: Vec<PeerId> = self.bootnode_peer_ids.iter()
+            .filter(|peer_id| {
+                self.conn_manager.peer_store().get_peer(peer_id)
+                    .map(|p| p.state == peer_store::PeerState::Connected)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect();
+        
+        if connected_bootnodes.is_empty() && !self.bootnode_peer_ids.is_empty() {
+            warn!("⚠ Lost connection to ALL bootnodes! Initiating reconnection...");
+            
+            // Re-dial all bootnodes
+            for bootnode_addr in &self.bootstrap_peers.clone() {
+                if let Some(peer_id) = Self::extract_peer_id_from_str(bootnode_addr) {
+                    // Skip if already dialing
+                    if self.dialing.contains(&peer_id) {
+                        continue;
+                    }
+                    
+                    info!("Reconnecting to bootnode {} at {}", peer_id, bootnode_addr);
+                    
+                    // First try direct dial
+                    if let Ok(multiaddr) = bootnode_addr.parse::<Multiaddr>() {
+                        self.dialing.insert(peer_id);
+                        if let Err(e) = self.swarm.dial(multiaddr.clone()) {
+                            warn!("Failed to dial bootnode {}: {:?}", peer_id, e);
+                            self.dialing.remove(&peer_id);
+                        }
+                    }
+                    
+                    // Also try to listen on relay through this bootnode (for NAT traversal)
+                    let _ = self.listen_on_relay(bootnode_addr);
+                }
+            }
+            
+            // Trigger Kademlia bootstrap to rediscover the network
+            if let Err(e) = self.swarm.behaviour_mut().kademlia.bootstrap() {
+                warn!("Kademlia re-bootstrap failed: {:?}", e);
+            }
+        } else if !connected_bootnodes.is_empty() {
+            debug!("Bootnode connectivity OK: {} bootnodes connected", connected_bootnodes.len());
+        }
+        
+        // Also check for stale connections (no successful ping in 5 minutes)
+        let stale_threshold = Duration::from_secs(300);
+        let now = Instant::now();
+        let mut stale_peers = Vec::new();
+        
+        for (peer_id, last_ping) in &self.last_ping_success {
+            if now.duration_since(*last_ping) > stale_threshold {
+                // Don't disconnect bootnodes, just log warning
+                if self.bootnode_peer_ids.contains(peer_id) {
+                    warn!("Bootnode {} has stale connection (no ping in {:?})", peer_id, stale_threshold);
+                } else {
+                    stale_peers.push(*peer_id);
+                }
+            }
+        }
+        
+        // Schedule stale non-bootnode peers for disconnection
+        for peer_id in stale_peers {
+            debug!("Scheduling stale peer {} for disconnection", peer_id);
+            self.pending_disconnect.insert(peer_id);
+        }
+    }
+
     /// Log current network metrics
     fn log_metrics(&self) {
         let m = &self.metrics;
@@ -1119,16 +1236,33 @@ impl Network {
                 }
             }
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic }) => {
-                info!("Peer {} subscribed to topic {}", peer_id, topic);
+                let topic_str = topic.to_string();
+                info!("Peer {} subscribed to topic {}", peer_id, topic_str);
                 
-                // CRITICAL: When a peer subscribes to our topics, add them as explicit peer
-                // This ensures mesh formation even with few peers
+                // MESH FIX: Track subscribed peers in topic_peers map
+                // This is the CORRECT way to enable mesh formation
+                // DO NOT add as explicit peer - that bypasses the mesh!
+                self.topic_peers
+                    .entry(topic_str.clone())
+                    .or_insert_with(HashSet::new)
+                    .insert(peer_id);
+                
                 let our_blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
                 let our_txs_topic = format!("pyrax/{}/txs", self.network_id.name());
                 
-                if topic.to_string().contains(&our_blocks_topic) || topic.to_string().contains(&our_txs_topic) {
-                    info!("✓ Peer {} subscribed to our topic - adding to GossipSub mesh", peer_id);
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                if topic_str.contains(&our_blocks_topic) || topic_str.contains(&our_txs_topic) {
+                    let topic_peer_count = self.topic_peers.get(&topic_str).map(|s| s.len()).unwrap_or(0);
+                    info!("✓ Peer {} subscribed to our topic {} (now {} peers in topic)", 
+                        peer_id, topic_str, topic_peer_count);
+                }
+            }
+            PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Unsubscribed { peer_id, topic }) => {
+                let topic_str = topic.to_string();
+                debug!("Peer {} unsubscribed from topic {}", peer_id, topic_str);
+                
+                // Remove from topic_peers tracking
+                if let Some(peers) = self.topic_peers.get_mut(&topic_str) {
+                    peers.remove(&peer_id);
                 }
             }
             PyraxBehaviourEvent::Mdns(mdns::Event::Discovered(peers)) => {
@@ -1222,13 +1356,17 @@ impl Network {
                     self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
                 }
                 
-                // Add to gossipsub as explicit peer for mesh formation
-                self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                // MESH FIX: Do NOT add every peer as explicit peer here
+                // Only bootnodes should be explicit peers (done in ConnectionEstablished)
+                // Let regular peers join mesh naturally via subscriptions
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
                 match result {
                     Ok(rtt) => {
                         debug!("Ping to {} successful: {:?}", peer, rtt);
+                        
+                        // STABILITY FIX: Track last successful ping time
+                        self.last_ping_success.insert(peer, Instant::now());
                         
                         // Update RTT in connection manager for scoring
                         self.conn_manager.on_ping_result(peer, Some(rtt));
@@ -1237,8 +1375,11 @@ impl Network {
                         self.peer_registry.update_peer_seen(&peer.to_string()).await;
                     }
                     Err(e) => {
-                        debug!("Ping to {} failed: {:?}", peer, e);
+                        warn!("Ping to {} failed: {:?}", peer, e);
                         self.conn_manager.on_ping_result(peer, None);
+                        
+                        // STABILITY FIX: If ping fails and it's been too long since last success,
+                        // the connection might be stale - connection manager will handle reconnection
                     }
                 }
             }
