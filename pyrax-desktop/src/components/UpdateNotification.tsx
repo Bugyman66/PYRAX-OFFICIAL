@@ -10,8 +10,16 @@ interface UpdateInfo {
   downloadUrl: string | null;
 }
 
+interface VersionMismatch {
+  detected: boolean;
+  currentVersion: string;
+  minimumRequired: string;
+  message: string;
+}
+
 export default function UpdateNotification() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [versionMismatch, setVersionMismatch] = useState<VersionMismatch | null>(null);
   const [checking, setChecking] = useState(true); // Start true to show loading on launch
   const [initialCheck, setInitialCheck] = useState(true);
   const [installing, setInstalling] = useState(false);
@@ -26,6 +34,18 @@ export default function UpdateNotification() {
       setUpdateInfo(info);
       if (info.available) {
         setDismissed(false);
+      }
+      
+      // Also check for version mismatch from node
+      try {
+        const mismatch = await invoke<VersionMismatch>('check_version_compatibility');
+        if (mismatch.detected) {
+          setVersionMismatch(mismatch);
+          setDismissed(false); // Force show for version mismatch
+        }
+      } catch (e) {
+        // Version check not available, ignore
+        console.debug('Version compatibility check not available:', e);
       }
     } catch (e) {
       console.error('Failed to check for updates:', e);
@@ -64,6 +84,67 @@ export default function UpdateNotification() {
         <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/90 rounded-lg border border-gray-700 shadow-lg">
           <Loader2 size={16} className="animate-spin text-purple-400" />
           <span className="text-sm text-gray-300">Checking for updates...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Version mismatch takes priority - CANNOT be dismissed
+  if (versionMismatch?.detected) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div className="max-w-md mx-4 bg-gradient-to-b from-red-900 to-red-950 rounded-xl border border-red-500/50 shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-4 bg-red-800/50 border-b border-red-500/30">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-500/20 rounded-full">
+                <RefreshCw className="text-red-400" size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Update Required</h2>
+                <p className="text-sm text-red-300">Your app version is outdated</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-gray-300">
+              Your current version is <strong className="text-red-400">v{versionMismatch.currentVersion}</strong> but 
+              the network requires at least <strong className="text-green-400">v{versionMismatch.minimumRequired}</strong>.
+            </p>
+            
+            <div className="bg-black/30 rounded-lg p-4 text-sm text-gray-400">
+              <p className="font-medium text-yellow-400 mb-2">⚠️ Why is this required?</p>
+              <p>Outdated versions cannot connect to the network due to protocol changes. 
+              Please update to continue using Inferno Node.</p>
+            </div>
+
+            {error && (
+              <div className="text-sm text-red-400 bg-red-900/30 rounded-lg p-3">
+                {error}
+              </div>
+            )}
+
+            {/* Action */}
+            <button
+              onClick={installUpdate}
+              disabled={installing}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50 font-semibold text-lg"
+            >
+              {installing ? (
+                <>
+                  <RefreshCw size={20} className="animate-spin" />
+                  Installing Update...
+                </>
+              ) : (
+                <>
+                  <Download size={20} />
+                  Update Now
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     );

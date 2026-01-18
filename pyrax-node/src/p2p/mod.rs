@@ -56,6 +56,54 @@ use futures::StreamExt;
 use crate::types::{Block, Transaction, H256, NetworkId, BlockHeader};
 use crate::storage::ChainDB;
 
+/// Minimum required client version for network participation
+/// Format: (major, minor, patch)
+/// Peers with versions below this will be disconnected with a warning
+pub const MIN_REQUIRED_VERSION: (u32, u32, u32) = (0, 2, 0);
+
+/// Parse a version string like "pyrax-node/0.2.0" or "rust-libp2p/0.44.2" into (major, minor, patch)
+fn parse_version(agent_version: &str) -> Option<(u32, u32, u32)> {
+    // Extract version number from agent string
+    // Formats: "pyrax-node/0.2.0", "rust-libp2p/0.44.2", "Inferno/0.2.0"
+    let version_part = agent_version.split('/').last()?;
+    let parts: Vec<&str> = version_part.split('.').collect();
+    
+    if parts.len() >= 3 {
+        let major = parts[0].parse().ok()?;
+        let minor = parts[1].parse().ok()?;
+        let patch = parts[2].split('-').next()?.parse().ok()?; // Handle "0.2.0-beta"
+        Some((major, minor, patch))
+    } else if parts.len() == 2 {
+        let major = parts[0].parse().ok()?;
+        let minor = parts[1].parse().ok()?;
+        Some((major, minor, 0))
+    } else {
+        None
+    }
+}
+
+/// Check if a version meets the minimum required version
+fn version_meets_minimum(version: (u32, u32, u32)) -> bool {
+    let (major, minor, patch) = version;
+    let (min_major, min_minor, min_patch) = MIN_REQUIRED_VERSION;
+    
+    if major > min_major {
+        return true;
+    }
+    if major < min_major {
+        return false;
+    }
+    // major == min_major
+    if minor > min_minor {
+        return true;
+    }
+    if minor < min_minor {
+        return false;
+    }
+    // minor == min_minor
+    patch >= min_patch
+}
+
 /// P2P network configuration with mesh networking parameters
 #[derive(Debug, Clone)]
 pub struct P2PConfig {
@@ -320,11 +368,15 @@ impl Network {
                 ).expect("Valid mDNS behaviour");
 
                 // Identify protocol - learn peer info
+                // CRITICAL: Limit cache size to prevent AutoNAT "len > max when encoding" errors
+                // When nodes accumulate many addresses (especially long relay addresses),
+                // the AutoNAT dial-back request can exceed protocol message size limits
                 let identify = identify::Behaviour::new(
                     identify::Config::new(
                         format!("/pyrax/{}/1.0.0", network_id.name()),
                         key.public(),
                     )
+                    .with_cache_size(10) // Limit cached addresses to prevent message overflow
                 );
 
                 // Ping for keep-alive and RTT measurement
@@ -872,19 +924,20 @@ impl Network {
                     }
                 }
                 
-                // Add to gossipsub mesh - CRITICAL for message propagation
+                // DEFINITIVE FIX 3: Aggressive GossipSub mesh formation
+                // Adding as explicit peer ensures they receive our messages even before subscribing
                 self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
                 
-                // IMPORTANT: Check if this is a bootnode and ensure GossipSub mesh formation
+                // Check if this is a bootnode
                 let is_bootnode = self.bootstrap_peers.iter()
                     .any(|bp| bp.contains(&peer_id.to_string()));
                 
                 if is_bootnode {
-                    info!("✓ BOOTNODE {} connected - ensuring GossipSub mesh formation", peer_id);
-                    // Force add bootnode as explicit peer to guarantee mesh membership
-                    // This ensures blocks/txs can propagate even with few peers
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+                    info!("✓ BOOTNODE {} connected - added as explicit GossipSub peer", peer_id);
                 }
+                
+                // Log mesh status for debugging
+                debug!("GossipSub: Added {} as explicit peer for mesh formation", peer_id);
                 
                 // Update metrics
                 self.update_metrics();
@@ -1104,10 +1157,58 @@ impl Network {
                 info!("Identified peer {}: {} ({})", 
                     peer_id, info.protocol_version, info.agent_version);
                 
-                // Filter to only routable addresses (exclude localhost, private networks)
-                let routable_addrs: Vec<&Multiaddr> = info.listen_addrs.iter()
-                    .filter(|a| Self::is_routable_address(a))
-                    .collect();
+                // VERSION CHECK: Enforce minimum version requirement
+                // This prevents outdated clients from connecting to the network
+                let peer_version = parse_version(&info.agent_version);
+                let is_pyrax_client = info.agent_version.to_lowercase().contains("pyrax") || 
+                                      info.agent_version.to_lowercase().contains("inferno");
+                
+                if is_pyrax_client {
+                    match peer_version {
+                        Some(version) => {
+                            if !version_meets_minimum(version) {
+                                let (min_maj, min_min, min_pat) = MIN_REQUIRED_VERSION;
+                                warn!("⚠️ VERSION MISMATCH: Peer {} has version {}.{}.{}, minimum required is {}.{}.{}",
+                                    peer_id, version.0, version.1, version.2, min_maj, min_min, min_pat);
+                                warn!("⚠️ DISCONNECTING peer {} - please update your Inferno Node app!", peer_id);
+                                
+                                // Schedule disconnect for outdated peer
+                                self.pending_disconnect.insert(peer_id);
+                                
+                                // Don't process this peer further
+                                return;
+                            }
+                            debug!("✓ Peer {} version {}.{}.{} meets minimum requirement", 
+                                peer_id, version.0, version.1, version.2);
+                        }
+                        None => {
+                            // Can't parse version, allow connection but log warning
+                            debug!("Could not parse version from '{}' for peer {}", info.agent_version, peer_id);
+                        }
+                    }
+                }
+                
+                // DEFINITIVE FIX: Partition addresses into routable and non-routable
+                let mut routable_addrs: Vec<Multiaddr> = Vec::new();
+                let mut bad_addrs: Vec<Multiaddr> = Vec::new();
+                
+                for addr in info.listen_addrs.iter() {
+                    if Self::is_routable_address(addr) {
+                        routable_addrs.push(addr.clone());
+                    } else {
+                        bad_addrs.push(addr.clone());
+                    }
+                }
+                
+                // CRITICAL: Remove non-routable addresses from Kademlia to prevent WrongPeerId errors
+                // These addresses may have been added from other sources (DHT propagation, etc.)
+                for bad_addr in &bad_addrs {
+                    self.swarm.behaviour_mut().kademlia.remove_address(&peer_id, bad_addr);
+                }
+                
+                if !bad_addrs.is_empty() {
+                    info!("Filtered {} non-routable addresses from peer {}", bad_addrs.len(), peer_id);
+                }
                 
                 // Update connection manager with peer info (only routable addresses)
                 let listen_addrs: Vec<String> = routable_addrs.iter().map(|a| a.to_string()).collect();
@@ -1117,17 +1218,11 @@ impl Network {
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
                 // Add only routable listen addresses to Kademlia
-                // This prevents address pollution from localhost/private IPs
-                for addr in routable_addrs {
+                for addr in &routable_addrs {
                     self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
                 }
                 
-                if info.listen_addrs.len() != listen_addrs.len() {
-                    debug!("Filtered {} non-routable addresses from peer {}", 
-                        info.listen_addrs.len() - listen_addrs.len(), peer_id);
-                }
-                
-                // Add to gossipsub mesh
+                // Add to gossipsub as explicit peer for mesh formation
                 self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
@@ -1150,20 +1245,31 @@ impl Network {
             PyraxBehaviourEvent::Kademlia(event) => {
                 match event {
                     kad::Event::RoutingUpdated { peer, addresses, .. } => {
-                        // Filter to only routable addresses before notifying connection manager
-                        let routable_addrs: Vec<String> = addresses.iter()
-                            .filter(|a| Self::is_routable_address(a))
-                            .map(|a| a.to_string())
-                            .collect();
+                        // DEFINITIVE FIX: Remove non-routable addresses from Kademlia's routing table
+                        // This prevents localhost/private IPs from being used in dial attempts
+                        let mut routable_addrs: Vec<String> = Vec::new();
+                        let mut removed_count = 0;
                         
-                        let filtered_count = addresses.len() - routable_addrs.len();
-                        if filtered_count > 0 {
-                            debug!("Kademlia: Filtered {} non-routable addresses for peer {}", filtered_count, peer);
+                        for addr in addresses.iter() {
+                            if Self::is_routable_address(addr) {
+                                routable_addrs.push(addr.to_string());
+                            } else {
+                                // CRITICAL: Actually REMOVE bad addresses from Kademlia
+                                // Just filtering isn't enough - Kademlia will still use them for dials
+                                self.swarm.behaviour_mut().kademlia.remove_address(&peer, addr);
+                                removed_count += 1;
+                            }
                         }
                         
-                        info!("Kademlia: Routing updated for peer {} ({} routable addresses)", peer, routable_addrs.len());
+                        if removed_count > 0 {
+                            info!("Kademlia: REMOVED {} non-routable addresses from peer {} (localhost/private IPs)", 
+                                removed_count, peer);
+                        }
                         
-                        if !routable_addrs.is_empty() {
+                        if routable_addrs.is_empty() {
+                            debug!("Kademlia: Peer {} has NO routable addresses after filtering", peer);
+                        } else {
+                            info!("Kademlia: Routing updated for peer {} ({} routable addresses)", peer, routable_addrs.len());
                             self.conn_manager.on_peer_discovered(peer, routable_addrs);
                         }
                     }

@@ -137,6 +137,9 @@ fn main() {
             commands::settings::get_data_dir,
             commands::settings::set_data_dir,
             commands::settings::browse_directory,
+            commands::settings::check_firewall_status,
+            commands::settings::configure_firewall,
+            commands::settings::remove_firewall_rules,
             
             // Remote logging commands
             commands::node::get_remote_server_logs,
@@ -154,6 +157,7 @@ fn main() {
             commands::updater::check_for_updates,
             commands::updater::install_update,
             commands::updater::get_app_version,
+            commands::updater::check_version_compatibility,
         ])
         .setup(|app| {
             info!("Application setup complete");

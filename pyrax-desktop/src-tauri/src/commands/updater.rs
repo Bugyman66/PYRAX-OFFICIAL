@@ -111,3 +111,61 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
 pub fn get_app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
 }
+
+/// Minimum required version for network participation
+/// This MUST match MIN_REQUIRED_VERSION in pyrax-node/src/p2p/mod.rs
+const MIN_REQUIRED_VERSION: (u32, u32, u32) = (0, 2, 0);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VersionMismatch {
+    pub detected: bool,
+    pub current_version: String,
+    pub minimum_required: String,
+    pub message: String,
+}
+
+/// Check if the current app version meets the minimum network requirement
+#[tauri::command]
+pub fn check_version_compatibility(app: AppHandle) -> Result<VersionMismatch, String> {
+    let current = app.package_info().version.clone();
+    let (min_major, min_minor, min_patch) = MIN_REQUIRED_VERSION;
+    
+    // Parse current version
+    let current_major = current.major as u32;
+    let current_minor = current.minor as u32;
+    let current_patch = current.patch as u32;
+    
+    // Check if current version meets minimum
+    let meets_minimum = if current_major > min_major {
+        true
+    } else if current_major < min_major {
+        false
+    } else if current_minor > min_minor {
+        true
+    } else if current_minor < min_minor {
+        false
+    } else {
+        current_patch >= min_patch
+    };
+    
+    let current_str = format!("{}.{}.{}", current_major, current_minor, current_patch);
+    let min_str = format!("{}.{}.{}", min_major, min_minor, min_patch);
+    
+    if meets_minimum {
+        Ok(VersionMismatch {
+            detected: false,
+            current_version: current_str,
+            minimum_required: min_str,
+            message: "Version is compatible".to_string(),
+        })
+    } else {
+        info!("VERSION MISMATCH: Current {} < Required {}", current_str, min_str);
+        Ok(VersionMismatch {
+            detected: true,
+            current_version: current_str,
+            minimum_required: min_str.clone(),
+            message: format!("Your app version is outdated. Please update to v{} or later.", min_str),
+        })
+    }
+}
