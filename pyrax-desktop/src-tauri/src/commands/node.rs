@@ -272,18 +272,69 @@ pub async fn start_node(
     app: AppHandle,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<NodeStatus, String> {
-    let (network, rpc_port, data_dir, log_verbosity) = {
-        let app_state = state.lock();
-        if app_state.node_running {
-            return Err("Node is already running".to_string());
+    // RELIABILITY FIX: Clean up any stale state before checking
+    // This handles cases where the app was force-closed while node was running
+    let (network, rpc_port, data_dir, log_verbosity, had_stale_process) = {
+        let mut app_state = state.lock();
+        
+        // Check if we have a stale process handle
+        let mut had_stale = false;
+        if let Some(ref mut child) = app_state.node_process {
+            // Check if process is actually still running
+            match child.try_wait() {
+                Ok(Some(_status)) => {
+                    // Process exited - clean up stale state
+                    info!("Cleaning up stale node process state");
+                    had_stale = true;
+                    app_state.node_running = false;
+                }
+                Ok(None) => {
+                    // Process still running
+                    return Err("Node is already running".to_string());
+                }
+                Err(_) => {
+                    // Can't check - assume stale
+                    had_stale = true;
+                    app_state.node_running = false;
+                }
+            }
         }
+        
+        // Clean up stale process handle
+        if had_stale {
+            app_state.node_process = None;
+        }
+        
+        if app_state.node_running && app_state.node_process.is_none() {
+            // Flag is set but no process - reset stale state
+            info!("Resetting stale node_running flag");
+            app_state.node_running = false;
+        }
+        
         (
             app_state.network.clone(),
             get_rpc_port(&app_state.network),
             app_state.data_dir.clone(),
             app_state.settings.log_verbosity,
+            had_stale,
         )
     };
+    
+    // On Windows, kill any orphaned pyrax-node processes before starting
+    #[cfg(target_os = "windows")]
+    {
+        if had_stale_process {
+            emit_log(&app, "info", "node", "Cleaning up orphaned processes...");
+            let _ = Command::new("taskkill")
+                .args(["/IM", "pyrax-node.exe", "/F"])
+                .output();
+            // Brief delay to ensure cleanup
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        }
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    let _ = had_stale_process; // Suppress unused warning
     
     emit_log(&app, "info", "node", &format!("Starting PYRAX full node on {:?} network...", network));
     info!("Starting PYRAX full node on {:?} network...", network);
@@ -580,42 +631,85 @@ pub async fn stop_node(
     app: AppHandle,
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<(), String> {
-    let mut app_state = state.lock();
-    
-    // Allow stopping even if not "running" - reset state
     emit_log(&app, "info", "node", "Stopping node...");
     info!("Stopping node...");
     
-    // Kill the node process if we have one
-    if let Some(mut child) = app_state.node_process.take() {
-        emit_log(&app, "info", "node", &format!("Stopping local node process (PID: {})", child.id()));
-        info!("Stopping local node process (PID: {})", child.id());
+    // Extract child process WITHOUT holding the mutex during wait
+    let child_opt = {
+        let mut app_state = state.lock();
+        app_state.node_process.take()
+    };
+    
+    // Kill the node process if we have one (mutex NOT held here)
+    if let Some(mut child) = child_opt {
+        let pid = child.id();
+        emit_log(&app, "info", "node", &format!("Stopping local node process (PID: {})", pid));
+        info!("Stopping local node process (PID: {})", pid);
         
         #[cfg(target_os = "windows")]
         {
-            // On Windows, use taskkill for graceful shutdown
+            // On Windows, use taskkill for forceful shutdown of process tree
             let _ = Command::new("taskkill")
-                .args(["/PID", &child.id().to_string(), "/T", "/F"])
+                .args(["/PID", &pid.to_string(), "/T", "/F"])
+                .output();
+            
+            // Also kill any orphaned pyrax-node processes
+            let _ = Command::new("taskkill")
+                .args(["/IM", "pyrax-node.exe", "/F"])
                 .output();
         }
         
         #[cfg(not(target_os = "windows"))]
         {
-            // On Unix, send SIGTERM
+            // On Unix, send SIGTERM then SIGKILL
             let _ = child.kill();
         }
         
-        // Wait for process to exit
-        let _ = child.wait();
-        emit_log(&app, "info", "node", "Node process stopped successfully");
-        info!("Node process stopped");
-    } else if app_state.node_running {
-        // Light client mode - just disconnect
-        emit_log(&app, "info", "rpc", "Disconnecting from remote RPC (light client mode)");
-        info!("Disconnecting from remote RPC (light client mode)");
+        // Wait for process to exit (with timeout)
+        let wait_result = std::thread::spawn(move || {
+            child.wait()
+        });
+        
+        // Wait up to 5 seconds for graceful exit
+        match wait_result.join() {
+            Ok(_) => {
+                emit_log(&app, "info", "node", "Node process stopped successfully");
+                info!("Node process stopped");
+            }
+            Err(_) => {
+                emit_log(&app, "warn", "node", "Process wait timed out, force killed");
+                warn!("Process wait timed out");
+            }
+        }
+    } else {
+        // No process handle - check if node_running flag is stale
+        let was_running = {
+            let app_state = state.lock();
+            app_state.node_running
+        };
+        
+        if was_running {
+            emit_log(&app, "info", "rpc", "Disconnecting (no local process to stop)");
+            info!("Disconnecting (no local process to stop)");
+            
+            // On Windows, also try to kill any orphaned pyrax-node processes
+            #[cfg(target_os = "windows")]
+            {
+                let _ = Command::new("taskkill")
+                    .args(["/IM", "pyrax-node.exe", "/F"])
+                    .output();
+            }
+        }
     }
     
-    app_state.node_running = false;
+    // Reset state AFTER process is stopped
+    {
+        let mut app_state = state.lock();
+        app_state.node_running = false;
+        app_state.node_process = None;
+    }
+    
+    emit_log(&app, "info", "node", "Node stopped");
     Ok(())
 }
 
