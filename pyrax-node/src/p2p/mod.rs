@@ -361,17 +361,15 @@ impl Network {
             )?
             .with_behaviour(|key, relay_client| {
                 // GossipSub config - optimized for blockchain propagation
-                // Constraints: mesh_n_low <= mesh_n <= mesh_n_high, gossip_lazy <= mesh_n_low
-                // MESH FIX: Reduced mesh_n_low to 1 to allow small networks (2 bootnodes + 1 user = 3 nodes)
-                // With mesh_n_low=1, even a single bootnode connection forms a valid mesh
+                // Constraints: mesh_n_low <= mesh_n <= mesh_n_high
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(10))
                     .validation_mode(gossipsub::ValidationMode::Strict)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(1)      // Minimum peers in mesh (1 allows tiny networks: bootnode + user)
-                    .mesh_n(3)          // Target peers in mesh (reduced for small devnet)
-                    .mesh_n_high(6)     // Maximum peers in mesh
-                    .gossip_lazy(1)     // Peers to gossip to (must be <= mesh_n_low)
+                    .mesh_n_low(2)      // Minimum peers in mesh (2 for redundancy)
+                    .mesh_n(4)          // Target peers in mesh (small for devnet)
+                    .mesh_n_high(8)     // Maximum peers in mesh
+                    .gossip_lazy(2)     // Peers for lazy gossip
                     .build()
                     .expect("Valid gossipsub config");
 
