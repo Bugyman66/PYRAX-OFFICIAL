@@ -690,6 +690,33 @@ impl Network {
     fn is_relay_address(addr: &Multiaddr) -> bool {
         addr.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit))
     }
+    
+    /// Filter and prioritize addresses: prefer direct connections over relay
+    /// This prevents ResourceLimitExceeded errors by reducing relay usage when direct is available
+    fn prioritize_direct_addresses(addrs: Vec<Multiaddr>) -> Vec<Multiaddr> {
+        let mut direct_addrs: Vec<Multiaddr> = Vec::new();
+        let mut relay_addrs: Vec<Multiaddr> = Vec::new();
+        
+        for addr in addrs {
+            if Self::is_relay_address(&addr) {
+                relay_addrs.push(addr);
+            } else if Self::is_routable_address(&addr) {
+                direct_addrs.push(addr);
+            }
+        }
+        
+        // If we have direct addresses, use those (limit to 3 best)
+        // Only fall back to relay addresses if no direct ones available
+        if !direct_addrs.is_empty() {
+            // Limit direct addresses to prevent flooding
+            direct_addrs.truncate(3);
+            direct_addrs
+        } else {
+            // No direct addresses available, use relay (limit to 2)
+            relay_addrs.truncate(2);
+            relay_addrs
+        }
+    }
 
     /// Bootstrap Kademlia DHT for peer discovery
     pub fn bootstrap_kademlia(&mut self) {
@@ -1387,16 +1414,24 @@ impl Network {
                     debug!("Filtered {} invalid addresses from peer {} (localhost/private/no-transport)", bad_addrs.len(), peer_id);
                 }
                 
-                // Update connection manager with peer info (only valid addresses)
-                let listen_addrs: Vec<String> = valid_addrs.iter().map(|a| a.to_string()).collect();
+                // RELAY FIX: Prioritize direct addresses over relay to prevent ResourceLimitExceeded
+                // Only use relay addresses when no direct addresses are available
+                let prioritized_addrs = Self::prioritize_direct_addresses(valid_addrs);
+                
+                // Update connection manager with peer info (only prioritized addresses)
+                let listen_addrs: Vec<String> = prioritized_addrs.iter().map(|a| a.to_string()).collect();
                 self.conn_manager.on_peer_identified(peer_id, info.agent_version.clone(), listen_addrs.clone());
                 
                 // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
-                // Add only valid listen addresses to Kademlia
-                for addr in &valid_addrs {
+                // Add only prioritized addresses to Kademlia (direct preferred over relay)
+                for addr in &prioritized_addrs {
                     self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                }
+                
+                if prioritized_addrs.iter().any(|a| Self::is_relay_address(a)) {
+                    debug!("Peer {} only has relay addresses (no direct connectivity)", peer_id);
                 }
                 
                 // MESH FIX: Do NOT add every peer as explicit peer here
