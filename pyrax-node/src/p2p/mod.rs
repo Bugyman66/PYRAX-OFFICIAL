@@ -594,7 +594,10 @@ impl Network {
             }
         }
         
-        true
+        // CRITICAL FIX: Only return true if we found a valid routable IP
+        // Pure /p2p/PEERID addresses without transport info are NOT routable
+        // This was causing MultiaddrNotSupported errors
+        has_valid_ip
     }
 
     /// Bootstrap Kademlia DHT for peer discovery
