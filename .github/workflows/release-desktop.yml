@@ -109,11 +109,12 @@ jobs:
           key: ${{ matrix.rust_target }}
 
       # Linux dependencies (ubuntu-22.04 has webkit2gtk-4.0 required by Tauri v1)
+      # libfuse2 is required for AppImage to run properly
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
 
       # Build pyrax-node for the target platform
       - name: Build pyrax-node binary

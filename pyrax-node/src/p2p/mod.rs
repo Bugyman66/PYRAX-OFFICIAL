@@ -288,6 +288,10 @@ pub struct Network {
     upnp_manager: Option<upnp::UPnPManager>,
     /// TURN-like relay fallback manager for ultimate NAT traversal
     relay_manager: relay_fallback::RelayFallbackManager,
+    /// MESH FIX: Track consecutive empty mesh heartbeats for subscription retry
+    empty_mesh_count: u32,
+    /// MESH FIX: Track if initial subscription announcement has been sent after first bootnode connection
+    initial_subscription_sent: bool,
 }
 
 /// NAT status for tracking reachability
@@ -358,14 +362,16 @@ impl Network {
             .with_behaviour(|key, relay_client| {
                 // GossipSub config - optimized for blockchain propagation
                 // Constraints: mesh_n_low <= mesh_n <= mesh_n_high, gossip_lazy <= mesh_n_low
+                // MESH FIX: Reduced mesh_n_low to 1 to allow small networks (2 bootnodes + 1 user = 3 nodes)
+                // With mesh_n_low=1, even a single bootnode connection forms a valid mesh
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
                     .heartbeat_interval(Duration::from_secs(10))
                     .validation_mode(gossipsub::ValidationMode::Strict)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(2)      // Minimum peers in mesh (2 allows small networks)
-                    .mesh_n(4)          // Target peers in mesh
-                    .mesh_n_high(8)     // Maximum peers in mesh
-                    .gossip_lazy(2)     // Peers to gossip to (must be <= mesh_n_low)
+                    .mesh_n_low(1)      // Minimum peers in mesh (1 allows tiny networks: bootnode + user)
+                    .mesh_n(3)          // Target peers in mesh (reduced for small devnet)
+                    .mesh_n_high(6)     // Maximum peers in mesh
+                    .gossip_lazy(1)     // Peers to gossip to (must be <= mesh_n_low)
                     .build()
                     .expect("Valid gossipsub config");
 
@@ -541,6 +547,8 @@ impl Network {
             bootnode_peer_ids,
             upnp_manager,
             relay_manager,
+            empty_mesh_count: 0,
+            initial_subscription_sent: false,
         })
     }
 
@@ -761,6 +769,79 @@ impl Network {
         Ok(())
     }
 
+    /// MESH FIX: Force mesh formation by adding all connected peers as explicit peers
+    /// This bypasses the subscription announcement timing issue without the GRAFT/PRUNE race
+    /// condition that unsubscribe/resubscribe caused.
+    /// 
+    /// Explicit peers are always included in message propagation regardless of mesh state.
+    /// Called after bootnode connection is established and identified.
+    fn force_mesh_with_connected_peers(&mut self) {
+        // Get all connected peer IDs from the connection manager
+        let connected_peers: Vec<PeerId> = self.conn_manager.peer_store()
+            .connected_peers()
+            .iter()
+            .map(|p| p.peer_id)
+            .collect();
+        
+        let mut added_count = 0;
+        for peer_id in &connected_peers {
+            // Add as explicit peer - this ensures they receive our messages
+            // and we receive theirs, bypassing the mesh protocol's peer selection
+            self.swarm.behaviour_mut().gossipsub.add_explicit_peer(peer_id);
+            added_count += 1;
+            
+            // Also track in our topic_peers for mesh health monitoring
+            let blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
+            let txs_topic = format!("pyrax/{}/txs", self.network_id.name());
+            
+            self.topic_peers
+                .entry(blocks_topic)
+                .or_insert_with(HashSet::new)
+                .insert(*peer_id);
+            self.topic_peers
+                .entry(txs_topic)
+                .or_insert_with(HashSet::new)
+                .insert(*peer_id);
+        }
+        
+        if added_count > 0 {
+            info!("✓ Forced mesh formation: added {} connected peers as explicit GossipSub peers", added_count);
+        }
+    }
+
+    /// MESH FIX: Check mesh health and trigger subscription re-announcement if needed
+    /// Returns true if mesh is healthy (has peers in topics), false otherwise
+    fn check_mesh_health(&mut self) -> bool {
+        let blocks_topic = format!("pyrax/{}/blocks", self.network_id.name());
+        let txs_topic = format!("pyrax/{}/txs", self.network_id.name());
+        
+        let blocks_peers = self.topic_peers.get(&blocks_topic).map(|s| s.len()).unwrap_or(0);
+        let txs_peers = self.topic_peers.get(&txs_topic).map(|s| s.len()).unwrap_or(0);
+        
+        // Mesh is healthy if we have at least 1 peer in each topic
+        let mesh_healthy = blocks_peers > 0 && txs_peers > 0;
+        
+        if mesh_healthy {
+            // Reset empty mesh counter when healthy
+            self.empty_mesh_count = 0;
+            true
+        } else if self.peer_count() > 0 {
+            // We have peers but empty mesh - this is the bug we're fixing
+            self.empty_mesh_count += 1;
+            
+            // After 3 consecutive empty mesh heartbeats (30 seconds), force mesh formation
+            if self.empty_mesh_count >= 3 && self.empty_mesh_count % 3 == 0 {
+                warn!("⚠ Mesh empty despite {} connected peers - forcing mesh formation (attempt {})", 
+                    self.peer_count(), self.empty_mesh_count / 3);
+                self.force_mesh_with_connected_peers();
+            }
+            false
+        } else {
+            // No peers connected, mesh can't form yet
+            false
+        }
+    }
+
     /// Broadcast a block
     pub fn broadcast_block(&mut self, block: &Block) -> anyhow::Result<()> {
         let topic = gossipsub::IdentTopic::new(format!("pyrax/{}/blocks", self.network_id.name()));
@@ -925,9 +1006,12 @@ impl Network {
                     }
                 }
                 
-                // Metrics logging
+                // Metrics logging and mesh health check
                 _ = metrics_timer.tick() => {
                     self.log_metrics();
+                    
+                    // MESH FIX: Check mesh health and trigger subscription retry if needed
+                    self.check_mesh_health();
                 }
                 
                 // STABILITY FIX: Periodic bootnode connectivity check
@@ -1027,9 +1111,12 @@ impl Network {
                     }
                 }
                 
-                // Metrics logging
+                // Metrics logging and mesh health check
                 _ = metrics_timer.tick() => {
                     self.log_metrics();
+                    
+                    // MESH FIX: Check mesh health and trigger subscription retry if needed
+                    self.check_mesh_health();
                 }
                 
                 // STABILITY FIX: Periodic bootnode connectivity check
@@ -1512,9 +1599,14 @@ impl Network {
                     debug!("Peer {} only has relay addresses (no direct connectivity)", peer_id);
                 }
                 
-                // MESH FIX: Do NOT add every peer as explicit peer here
-                // Only bootnodes should be explicit peers (done in ConnectionEstablished)
-                // Let regular peers join mesh naturally via subscriptions
+                // MESH FIX: When a BOOTNODE is identified, force mesh formation
+                // This ensures all connected peers are added as explicit GossipSub peers
+                // which bypasses the subscription timing issue and avoids GRAFT/PRUNE races
+                if self.bootnode_peer_ids.contains(&peer_id) && !self.initial_subscription_sent {
+                    info!("✓ Bootnode {} identified - forcing mesh formation with all connected peers", peer_id);
+                    self.force_mesh_with_connected_peers();
+                    self.initial_subscription_sent = true;
+                }
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
                 match result {
