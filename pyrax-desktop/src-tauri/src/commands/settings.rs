@@ -356,7 +356,7 @@ pub struct FirewallStatus {
 }
 
 /// Configure Windows Firewall to allow Inferno Node P2P connections
-/// This requires administrator privileges
+/// This requires administrator privileges - uses PowerShell with elevation
 #[tauri::command]
 pub async fn configure_firewall(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -370,65 +370,70 @@ pub async fn configure_firewall(
     {
         info!("Configuring Windows Firewall for P2P port {}", p2p_port);
         
-        // Create inbound rule for TCP
-        let tcp_inbound = Command::new("netsh")
-            .args([
-                "advfirewall", "firewall", "add", "rule",
-                "name=Inferno Node P2P",
-                "dir=in",
-                "action=allow",
-                &format!("protocol=TCP"),
-                &format!("localport={}", p2p_port),
-                "profile=any",
-                "description=Allow inbound P2P connections for Inferno Node blockchain sync"
-            ])
+        // Build PowerShell commands to add firewall rules
+        // We use Start-Process with -Verb RunAs to request elevation (UAC prompt)
+        let tcp_rule = format!(
+            "netsh advfirewall firewall add rule name='Inferno Node P2P' dir=in action=allow protocol=TCP localport={} profile=any description='Allow inbound P2P connections for Inferno Node blockchain sync'",
+            p2p_port
+        );
+        let udp_rule = format!(
+            "netsh advfirewall firewall add rule name='Inferno Node P2P UDP' dir=in action=allow protocol=UDP localport={} profile=any description='Allow UDP for P2P hole-punching'",
+            p2p_port
+        );
+        
+        // Combine commands into a single script
+        let combined_script = format!(
+            "{} ; {}",
+            tcp_rule, udp_rule
+        );
+        
+        // Use PowerShell Start-Process with -Verb RunAs to elevate
+        // -Wait ensures we wait for completion, -WindowStyle Hidden hides the cmd window
+        let ps_command = format!(
+            "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c {}' -Verb RunAs -Wait -WindowStyle Hidden",
+            combined_script.replace("'", "''") // Escape single quotes for PowerShell
+        );
+        
+        info!("Running elevated firewall command via PowerShell");
+        
+        let result = Command::new("powershell")
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps_command])
             .output();
         
-        // Create inbound rule for UDP (for hole-punching)
-        let udp_inbound = Command::new("netsh")
-            .args([
-                "advfirewall", "firewall", "add", "rule",
-                "name=Inferno Node P2P UDP",
-                "dir=in",
-                "action=allow",
-                &format!("protocol=UDP"),
-                &format!("localport={}", p2p_port),
-                "profile=any",
-                "description=Allow UDP for P2P hole-punching"
-            ])
-            .output();
-        
-        match (tcp_inbound, udp_inbound) {
-            (Ok(tcp), Ok(udp)) => {
-                let tcp_success = tcp.status.success();
-                let udp_success = udp.status.success();
+        match result {
+            Ok(output) => {
+                // Check if the rules now exist (since elevated process output is separate)
+                std::thread::sleep(std::time::Duration::from_millis(500)); // Brief wait for rule to apply
                 
-                if tcp_success && udp_success {
-                    info!("Firewall rules configured successfully for port {}", p2p_port);
-                    Ok(FirewallResult {
-                        success: true,
-                        message: format!("Firewall configured for port {} (TCP + UDP)", p2p_port),
-                        requires_restart: false,
-                    })
-                } else if tcp_success || udp_success {
-                    warn!("Partial firewall configuration");
-                    Ok(FirewallResult {
-                        success: true,
-                        message: "Firewall partially configured. Some rules may require manual setup.".to_string(),
-                        requires_restart: false,
-                    })
-                } else {
-                    let stderr = String::from_utf8_lossy(&tcp.stderr);
-                    if stderr.contains("requires elevation") || stderr.contains("Access is denied") {
-                        Err("Administrator privileges required. Please run as Administrator.".to_string())
-                    } else {
-                        Err(format!("Failed to configure firewall: {}", stderr))
+                let check = Command::new("netsh")
+                    .args(["advfirewall", "firewall", "show", "rule", "name=Inferno Node P2P"])
+                    .output();
+                
+                match check {
+                    Ok(check_result) => {
+                        let stdout = String::from_utf8_lossy(&check_result.stdout);
+                        if stdout.contains("Inferno Node P2P") {
+                            info!("Firewall rules configured successfully for port {}", p2p_port);
+                            Ok(FirewallResult {
+                                success: true,
+                                message: format!("✓ Firewall configured for port {} (TCP + UDP)", p2p_port),
+                                requires_restart: false,
+                            })
+                        } else {
+                            // User may have clicked No on UAC prompt
+                            warn!("Firewall rules not found after configuration attempt");
+                            Err("Firewall configuration was cancelled or failed. Please click 'Yes' on the Administrator prompt.".to_string())
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to verify firewall rules: {}", e);
+                        Err(format!("Failed to verify firewall configuration: {}", e))
                     }
                 }
             }
-            (Err(e), _) | (_, Err(e)) => {
-                error!("Failed to execute netsh: {}", e);
-                Err(format!("Failed to configure firewall: {}", e))
+            Err(e) => {
+                error!("Failed to execute PowerShell: {}", e);
+                Err(format!("Failed to configure firewall: {}. Please ensure PowerShell is available.", e))
             }
         }
     }
@@ -559,25 +564,58 @@ pub async fn remove_firewall_rules() -> Result<FirewallResult, String> {
     {
         info!("Removing Windows Firewall rules for Inferno Node");
         
-        let tcp_result = Command::new("netsh")
-            .args(["advfirewall", "firewall", "delete", "rule", "name=Inferno Node P2P"])
+        // Build commands to remove firewall rules
+        let remove_script = "netsh advfirewall firewall delete rule name='Inferno Node P2P' ; netsh advfirewall firewall delete rule name='Inferno Node P2P UDP'";
+        
+        // Use PowerShell Start-Process with -Verb RunAs to elevate
+        let ps_command = format!(
+            "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c {}' -Verb RunAs -Wait -WindowStyle Hidden",
+            remove_script.replace("'", "''")
+        );
+        
+        info!("Running elevated firewall removal command via PowerShell");
+        
+        let result = Command::new("powershell")
+            .args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &ps_command])
             .output();
         
-        let udp_result = Command::new("netsh")
-            .args(["advfirewall", "firewall", "delete", "rule", "name=Inferno Node P2P UDP"])
-            .output();
-        
-        match (tcp_result, udp_result) {
-            (Ok(_), Ok(_)) => {
-                info!("Firewall rules removed successfully");
-                Ok(FirewallResult {
-                    success: true,
-                    message: "Firewall rules removed".to_string(),
-                    requires_restart: false,
-                })
+        match result {
+            Ok(_) => {
+                // Brief wait then verify rules are gone
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                
+                let check = Command::new("netsh")
+                    .args(["advfirewall", "firewall", "show", "rule", "name=Inferno Node P2P"])
+                    .output();
+                
+                match check {
+                    Ok(check_result) => {
+                        let stdout = String::from_utf8_lossy(&check_result.stdout);
+                        if !stdout.contains("Inferno Node P2P") || stdout.contains("No rules match") {
+                            info!("Firewall rules removed successfully");
+                            Ok(FirewallResult {
+                                success: true,
+                                message: "✓ Firewall rules removed".to_string(),
+                                requires_restart: false,
+                            })
+                        } else {
+                            warn!("Firewall rules still exist after removal attempt");
+                            Err("Failed to remove firewall rules. Please click 'Yes' on the Administrator prompt.".to_string())
+                        }
+                    }
+                    Err(_) => {
+                        // If check fails, assume success (rule doesn't exist)
+                        Ok(FirewallResult {
+                            success: true,
+                            message: "✓ Firewall rules removed".to_string(),
+                            requires_restart: false,
+                        })
+                    }
+                }
             }
-            _ => {
-                Err("Failed to remove firewall rules. Administrator privileges may be required.".to_string())
+            Err(e) => {
+                error!("Failed to execute PowerShell: {}", e);
+                Err(format!("Failed to remove firewall rules: {}", e))
             }
         }
     }
