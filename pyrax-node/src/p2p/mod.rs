@@ -35,6 +35,8 @@
 mod registry;
 mod peer_store;
 mod connection_manager;
+mod upnp;
+mod relay_fallback;
 
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
 pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
@@ -282,6 +284,10 @@ pub struct Network {
     last_ping_success: HashMap<PeerId, Instant>,
     /// STABILITY FIX: Track bootnode peer IDs for priority reconnection
     bootnode_peer_ids: HashSet<PeerId>,
+    /// UPnP manager for automatic NAT port mapping
+    upnp_manager: Option<upnp::UPnPManager>,
+    /// TURN-like relay fallback manager for ultimate NAT traversal
+    relay_manager: relay_fallback::RelayFallbackManager,
 }
 
 /// NAT status for tracking reachability
@@ -498,6 +504,21 @@ impl Network {
             ..Default::default()
         };
 
+        // Initialize UPnP manager for automatic NAT port mapping
+        let upnp_manager = Some(upnp::UPnPManager::from_listen_addr(&config.listen_addr));
+        
+        // Initialize relay fallback manager with bootstrap peers as relays
+        let mut relay_manager = relay_fallback::RelayFallbackManager::new();
+        for (idx, peer_addr) in config.bootstrap_peers.iter().enumerate() {
+            if let Some(peer_id) = Self::extract_peer_id_from_str(peer_addr) {
+                relay_manager.add_relay(
+                    peer_addr.clone(),
+                    peer_id.to_string(),
+                    idx == 0, // First bootnode is primary
+                );
+            }
+        }
+        
         Ok(Self {
             local_peer_id,
             swarm,
@@ -518,6 +539,8 @@ impl Network {
             topic_peers: HashMap::new(),
             last_ping_success: HashMap::new(),
             bootnode_peer_ids,
+            upnp_manager,
+            relay_manager,
         })
     }
 
@@ -815,6 +838,23 @@ impl Network {
         info!("║     PYRAX P2P Mesh Network Starting (with broadcast)          ║");
         info!("╚═══════════════════════════════════════════════════════════════╝");
         
+        // UPnP: Attempt automatic port mapping for NAT traversal
+        if let Some(ref mut upnp) = self.upnp_manager {
+            if let Some(mapping) = upnp.setup_port_mapping().await {
+                info!("✓ UPnP NAT traversal enabled: external {}:{}", 
+                    mapping.external_ip, mapping.external_port);
+                // Add external address to our listen addresses for advertising
+                if let Some(ext_addr) = upnp.get_external_address() {
+                    if let Ok(ma) = ext_addr.parse::<Multiaddr>() {
+                        self.swarm.add_external_address(ma);
+                        info!("Added UPnP external address to swarm");
+                    }
+                }
+            } else {
+                info!("UPnP not available - using relay for NAT traversal");
+            }
+        }
+        
         // Start connection manager - this will dial bootnodes
         self.conn_manager.start().await;
         
@@ -834,6 +874,10 @@ impl Network {
         // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
         let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
         bootnode_check_timer.tick().await;
+        
+        // UPnP renewal timer (every 30 minutes - well before 2 hour lease expires)
+        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(1800));
+        upnp_renewal_timer.tick().await;
         
         loop {
             tokio::select! {
@@ -890,6 +934,13 @@ impl Network {
                 _ = bootnode_check_timer.tick() => {
                     self.ensure_bootnode_connectivity().await;
                 }
+                
+                // UPnP renewal - renew port mappings before lease expires
+                _ = upnp_renewal_timer.tick() => {
+                    if let Some(ref mut upnp) = self.upnp_manager {
+                        upnp.renew_mappings().await;
+                    }
+                }
             }
         }
     }
@@ -900,6 +951,22 @@ impl Network {
         info!("╔═══════════════════════════════════════════════════════════════╗");
         info!("║     PYRAX P2P Mesh Network Starting                            ║");
         info!("╚═══════════════════════════════════════════════════════════════╝");
+        
+        // UPnP: Attempt automatic port mapping for NAT traversal
+        if let Some(ref mut upnp) = self.upnp_manager {
+            if let Some(mapping) = upnp.setup_port_mapping().await {
+                info!("✓ UPnP NAT traversal enabled: external {}:{}", 
+                    mapping.external_ip, mapping.external_port);
+                if let Some(ext_addr) = upnp.get_external_address() {
+                    if let Ok(ma) = ext_addr.parse::<Multiaddr>() {
+                        self.swarm.add_external_address(ma);
+                        info!("Added UPnP external address to swarm");
+                    }
+                }
+            } else {
+                info!("UPnP not available - using relay for NAT traversal");
+            }
+        }
         
         // Start connection manager - this will dial bootnodes
         self.conn_manager.start().await;
@@ -920,6 +987,10 @@ impl Network {
         // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
         let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
         bootnode_check_timer.tick().await;
+        
+        // UPnP renewal timer (every 30 minutes)
+        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(1800));
+        upnp_renewal_timer.tick().await;
         
         loop {
             tokio::select! {
@@ -964,6 +1035,13 @@ impl Network {
                 // STABILITY FIX: Periodic bootnode connectivity check
                 _ = bootnode_check_timer.tick() => {
                     self.ensure_bootnode_connectivity().await;
+                }
+                
+                // UPnP renewal
+                _ = upnp_renewal_timer.tick() => {
+                    if let Some(ref mut upnp) = self.upnp_manager {
+                        upnp.renew_mappings().await;
+                    }
                 }
             }
         }
@@ -1535,19 +1613,24 @@ impl Network {
             }
             PyraxBehaviourEvent::RelayClient(event) => {
                 // Log relay client events (when we use relay for NAT traversal)
+                // Also track relay health for TURN-like fallback
                 match &event {
                     relay::client::Event::ReservationReqAccepted { relay_peer_id, renewal, limit } => {
                         info!("✓ Relay reservation accepted by {} (renewal: {}, limit: {:?})", 
                             relay_peer_id, renewal, limit);
                         info!("  → NAT traversal: Nodes can now reach us via /p2p/{}/p2p-circuit/p2p/{}", 
                             relay_peer_id, self.local_peer_id);
-                        if !renewal {
+                        if !*renewal {
                             self.metrics.relay_reservations += 1;
                         }
+                        // Track relay success
+                        self.relay_manager.record_success(&relay_peer_id.to_string(), None);
                     }
                     relay::client::Event::OutboundCircuitEstablished { relay_peer_id, limit } => {
                         info!("✓ Outbound circuit established via relay {} (limit: {:?})", 
                             relay_peer_id, limit);
+                        // Track relay success
+                        self.relay_manager.record_success(&relay_peer_id.to_string(), None);
                     }
                     relay::client::Event::InboundCircuitEstablished { src_peer_id, limit } => {
                         info!("✓ Inbound circuit established from {} via relay (limit: {:?})", 

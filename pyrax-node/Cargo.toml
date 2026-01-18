@@ -55,6 +55,9 @@ rocksdb = "0.22"
 # P2P Networking
 libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "identify", "ping", "kad", "tokio", "macros", "relay", "autonat", "dcutr"] }
 
+# UPnP for automatic NAT port mapping
+igd-next = "0.14"
+
 # CLI & Config
 clap = { version = "4.4", features = ["derive"] }
 toml = "0.8"
