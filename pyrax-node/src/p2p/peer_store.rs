@@ -572,11 +572,11 @@ impl PeerStore {
             if let Some(peer) = self.peers.get_mut(&peer_id) {
                 peer.score = score;
                 
-                // Auto-ban if score too low
-                if peer.should_ban() && !peer.is_bootnode {
+                // Auto-ban if score too low (only if not already banned to avoid log spam)
+                if peer.should_ban() && !peer.is_bootnode && peer.state != PeerState::Banned {
                     self.banned.insert(peer_id, Instant::now() + Duration::from_secs(3600));
                     peer.state = PeerState::Banned;
-                    warn!("Auto-banning peer {} due to low score: {}", peer_id, score);
+                    warn!("Auto-banning peer {} due to low score: {} (banned for 1 hour)", peer_id, score);
                 }
             }
         }
