@@ -12,8 +12,8 @@ use crate::instance::InstanceManager;
 
 #[derive(Args)]
 pub struct DashboardArgs {
-    /// Port to run dashboard on
-    #[arg(short, long, default_value = "8080")]
+    /// Port to run dashboard on (default 3000, avoid 8080 which is stealth P2P)
+    #[arg(short, long, default_value = "3000")]
     pub port: u16,
 
     /// Bind address
