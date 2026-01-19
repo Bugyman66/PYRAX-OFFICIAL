@@ -172,14 +172,13 @@ jobs:
           echo "=== BUILDING PYRAX-NODE ==="
           cd /opt/pyrax
           
-          # Clean old build artifacts to force fresh compilation with updated dependencies
+          # Clean old build artifacts to force fresh compilation
           echo "Cleaning old build artifacts..."
           cargo clean -p pyrax-node 2>/dev/null || true
           rm -f /opt/pyrax/target/release/pyrax-node
           
-          # Update dependencies and build fresh
-          cargo update -p libp2p -p libp2p-kad 2>/dev/null || true
-          cargo build --release -p pyrax-node
+          # Build using locked dependencies from Cargo.lock (DO NOT update - API breaking changes)
+          cargo build --release --locked -p pyrax-node
           
           # Stop running service and kill any orphan processes before replacing binary
           echo "=== STOPPING PYRAX-NODE SERVICE ==="
