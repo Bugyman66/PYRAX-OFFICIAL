@@ -462,8 +462,9 @@ export async function GET() {
       }
     }
     
-    // USER-TO-USER CONNECTIONS from mesh topology
-    // These show peers that are connected via GossipSub mesh (sharing topics)
+    // USER-TO-USER CONNECTIONS inferred from shared mesh topics
+    // Bootnodes report mesh_connections as bootnode->user, so we infer user-to-user
+    // by finding users that share the same mesh topic on the same bootnode
     const allMeshConnections = [...streamA.meshConnections, ...streamC.meshConnections];
     const peerIdToNode = new Map<string, ConnectedNode>();
     
@@ -472,32 +473,59 @@ export async function GET() {
       peerIdToNode.set(node.peerId, node);
     }
     
+    // Group user peers by topic to infer user-to-user connections
+    // If users A and B are both in mesh for topic "blocks", they can communicate
+    const topicToUsers = new Map<string, string[]>();
+    
+    for (const meshConn of allMeshConnections) {
+      // peer_a is bootnode, peer_b is user in mesh for this topic
+      const userPeer = peerIdToNode.get(meshConn.peer_b);
+      if (userPeer && !userPeer.isBootnode && meshConn.connection_type === 'mesh') {
+        const topic = meshConn.topic;
+        if (!topicToUsers.has(topic)) {
+          topicToUsers.set(topic, []);
+        }
+        const users = topicToUsers.get(topic)!;
+        if (!users.includes(meshConn.peer_b)) {
+          users.push(meshConn.peer_b);
+        }
+      }
+    }
+    
     // Track which user-to-user connections we've already added (avoid duplicates)
     const seenUserConnections = new Set<string>();
     
-    for (const meshConn of allMeshConnections) {
-      const peerA = peerIdToNode.get(meshConn.peer_a);
-      const peerB = peerIdToNode.get(meshConn.peer_b);
+    // Create connections between all users sharing the same topic
+    for (const [topic, userPeerIds] of topicToUsers) {
+      // Connect users pairwise (limit to avoid O(n²) explosion with many users)
+      const maxPairs = 20; // Limit visual clutter
+      let pairCount = 0;
       
-      // Only add if both peers are user nodes (not bootnodes) with valid coordinates
-      if (peerA && peerB && !peerA.isBootnode && !peerB.isBootnode) {
-        // Skip if no valid coordinates
-        if ((peerA.lat === 0 && peerA.lon === 0) || (peerB.lat === 0 && peerB.lon === 0)) continue;
-        
-        // Create unique key for this connection (order-independent)
-        const connKey = [meshConn.peer_a, meshConn.peer_b].sort().join('-');
-        if (seenUserConnections.has(connKey)) continue;
-        seenUserConnections.add(connKey);
-        
-        connections.push({
-          from: peerA.id,
-          to: peerB.id,
-          fromCoords: [peerA.lon, peerA.lat],
-          toCoords: [peerB.lon, peerB.lat],
-          isRelay: false, // Mesh connections are logical, not necessarily relay
-          isMesh: true,   // Mark as mesh connection for different styling
-          connectionType: meshConn.connection_type,
-        } as any);
+      for (let i = 0; i < userPeerIds.length && pairCount < maxPairs; i++) {
+        for (let j = i + 1; j < userPeerIds.length && pairCount < maxPairs; j++) {
+          const peerA = peerIdToNode.get(userPeerIds[i]);
+          const peerB = peerIdToNode.get(userPeerIds[j]);
+          
+          if (!peerA || !peerB) continue;
+          // Skip if no valid coordinates
+          if ((peerA.lat === 0 && peerA.lon === 0) || (peerB.lat === 0 && peerB.lon === 0)) continue;
+          
+          // Create unique key for this connection (order-independent)
+          const connKey = [userPeerIds[i], userPeerIds[j]].sort().join('-');
+          if (seenUserConnections.has(connKey)) continue;
+          seenUserConnections.add(connKey);
+          
+          connections.push({
+            from: peerA.id,
+            to: peerB.id,
+            fromCoords: [peerA.lon, peerA.lat],
+            toCoords: [peerB.lon, peerB.lat],
+            isRelay: false,
+            isMesh: true,
+            connectionType: 'mesh',
+          } as any);
+          pairCount++;
+        }
       }
     }
 
