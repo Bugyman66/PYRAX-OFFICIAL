@@ -336,6 +336,9 @@ pub struct Network {
     seen_blocks: std::collections::VecDeque<H256>,
     /// STALE DATA FIX: LRU cache of recently seen transaction hashes
     seen_txs: std::collections::VecDeque<H256>,
+    /// VISUALIZER FIX: Track active relay circuits for visualization
+    /// Key: (src_peer, dst_peer), Value: established_at timestamp
+    active_relay_circuits: HashMap<(PeerId, PeerId), u64>,
 }
 
 /// NAT status for tracking reachability
@@ -473,7 +476,9 @@ impl Network {
                 kademlia_config.set_protocol_names(vec![
                     libp2p::StreamProtocol::try_from_owned(format!("/pyrax/{}/kad/1.0.0", network_id.name())).unwrap()
                 ]);
-                kademlia_config.set_query_timeout(Duration::from_secs(60));
+                // FIX: Reduced from 60s to 30s for faster peer discovery
+                // Long timeouts slow down discovery when unreachable peers are in DHT
+                kademlia_config.set_query_timeout(Duration::from_secs(30));
                 kademlia_config.set_replication_factor(std::num::NonZeroUsize::new(20).unwrap());
                 kademlia_config.set_parallelism(std::num::NonZeroUsize::new(5).unwrap());
                 let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
@@ -613,6 +618,7 @@ impl Network {
             initial_subscription_sent: false,
             seen_blocks: std::collections::VecDeque::with_capacity(5000),
             seen_txs: std::collections::VecDeque::with_capacity(10000),
+            active_relay_circuits: HashMap::new(),
         })
     }
 
@@ -1464,6 +1470,14 @@ impl Network {
                     if self.dialing.contains(&peer_id) {
                         continue;
                     }
+                    
+                    // FIX: Pre-dial health check - skip peers with recent dial failures
+                    // This prevents wasting connection slots on stale Kademlia entries
+                    if self.conn_manager.should_skip_dial(&peer_id).await {
+                        debug!("Skipping dial to {} - recent failures (stale entry)", peer_id);
+                        continue;
+                    }
+                    
                     if let Ok(multiaddr) = addr.parse::<Multiaddr>() {
                         // CRITICAL: Final validation - reject non-routable addresses
                         // This is defense-in-depth against WrongPeerId errors
@@ -1678,7 +1692,13 @@ impl Network {
             mesh_peers: mesh_peers.len(),
             gossip_peers: gossip_peers.len(),
             mesh_connections,
-            relay_circuits: Vec::new(), // TODO: Track relay circuits when they're established
+            relay_circuits: self.active_relay_circuits.iter().map(|((src, dst), established_at)| {
+                registry::RelayCircuit {
+                    src_peer: src.to_string(),
+                    dst_peer: dst.to_string(),
+                    established_at: *established_at,
+                }
+            }).collect(),
         };
         self.peer_registry.update_metrics(registry_metrics).await;
         
@@ -1994,8 +2014,29 @@ impl Network {
                 }
             }
             PyraxBehaviourEvent::RelayServer(event) => {
-                // Log relay server events (when we act as relay for others)
-                debug!("Relay Server: {:?}", event);
+                // Track relay server events for visualization (when we act as relay for others)
+                match &event {
+                    relay::Event::ReservationReqAccepted { src_peer_id, .. } => {
+                        info!("Relay Server: Accepted reservation from {}", src_peer_id);
+                    }
+                    relay::Event::CircuitReqAccepted { src_peer_id, dst_peer_id, .. } => {
+                        info!("Relay Server: Circuit established {} <-> {} (via us)", src_peer_id, dst_peer_id);
+                        // Track this circuit for visualizer with timestamp
+                        let timestamp = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs();
+                        self.active_relay_circuits.insert((*src_peer_id, *dst_peer_id), timestamp);
+                    }
+                    relay::Event::CircuitClosed { src_peer_id, dst_peer_id, .. } => {
+                        info!("Relay Server: Circuit closed {} <-> {}", src_peer_id, dst_peer_id);
+                        // Remove from tracking
+                        self.active_relay_circuits.remove(&(*src_peer_id, *dst_peer_id));
+                    }
+                    _ => {
+                        debug!("Relay Server: {:?}", event);
+                    }
+                }
             }
             PyraxBehaviourEvent::RelayClient(event) => {
                 // Log relay client events (when we use relay for NAT traversal)

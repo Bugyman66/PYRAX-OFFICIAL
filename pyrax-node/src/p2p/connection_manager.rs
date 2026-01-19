@@ -502,6 +502,30 @@ impl ConnectionManager {
             warn!("Bootnode {} unreachable, will retry", peer_id);
         }
     }
+    
+    /// FIX: Pre-dial health check - skip peers with recent failures
+    /// This prevents wasting connection slots on stale Kademlia entries
+    pub async fn should_skip_dial(&self, peer_id: &PeerId) -> bool {
+        // Never skip bootnodes - they're critical for connectivity
+        if self.bootnodes.contains(peer_id) {
+            return false;
+        }
+        
+        // Check if peer has too many recent failures
+        if let Some(peer) = self.peer_store.get_peer(peer_id) {
+            // Skip if peer has 3+ consecutive failures in the last 5 minutes
+            if peer.consecutive_failures >= 3 {
+                let backoff_duration = Duration::from_secs(300); // 5 minutes
+                if let Some(last_failure) = peer.last_failure_time {
+                    if last_failure.elapsed() < backoff_duration {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        false
+    }
 
     /// Handle identify event (peer identified)
     pub fn on_peer_identified(&mut self, peer_id: PeerId, agent_version: String, listen_addrs: Vec<String>) {

@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::fs;
 use std::io::{BufRead, BufReader};
 use tauri::{State, Manager, AppHandle};
-use tracing::{info, error, warn};
+use tracing::{info, error, warn, debug};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -110,23 +110,48 @@ fn parse_node_log(line: &str) -> (String, String, String) {
     let message = parts.get(2).unwrap_or(&line).trim().to_string();
     
     // Detect category from message content
+    // Categories: p2p, block, rpc, mining, staking, node (default)
     let category = if message.contains("peer") || message.contains("Peer") || 
                       message.contains("P2P") || message.contains("Kademlia") ||
                       message.contains("Connected to") || message.contains("Disconnected") ||
-                      message.contains("mDNS") || message.contains("DHT") {
+                      message.contains("mDNS") || message.contains("DHT") ||
+                      message.contains("GossipSub") || message.contains("mesh") ||
+                      message.contains("MESH") || message.contains("relay") ||
+                      message.contains("Relay") || message.contains("NAT") ||
+                      message.contains("AutoNAT") || message.contains("bootnode") ||
+                      message.contains("Bootnode") || message.contains("dial") ||
+                      message.contains("Dial") || message.contains("listen") ||
+                      message.contains("Listen") || message.contains("swarm") ||
+                      message.contains("Swarm") || message.contains("circuit") ||
+                      message.contains("reservation") || message.contains("UPnP") ||
+                      message.contains("DCUtR") || message.contains("hole punch") {
         "p2p"
     } else if message.contains("block") || message.contains("Block") || 
-              message.contains("height") || message.contains("sync") {
+              message.contains("height") || message.contains("sync") ||
+              message.contains("Sync") || message.contains("chain") ||
+              message.contains("Chain") || message.contains("genesis") ||
+              message.contains("Genesis") || message.contains("tip") ||
+              message.contains("orphan") || message.contains("reorg") ||
+              message.contains("fork") || message.contains("UTXO") {
         "block"
     } else if message.contains("RPC") || message.contains("rpc") ||
-              message.contains("JSON") || message.contains("request") {
+              message.contains("JSON") || message.contains("request") ||
+              message.contains("endpoint") || message.contains("API") ||
+              message.contains("WebSocket") || message.contains("ws://") {
         "rpc"
     } else if message.contains("mining") || message.contains("Mining") ||
               message.contains("Stratum") || message.contains("worker") ||
-              message.contains("Worker") || message.contains("KAWPOW") {
+              message.contains("Worker") || message.contains("KAWPOW") ||
+              message.contains("BLAKE3") || message.contains("hashrate") ||
+              message.contains("nonce") || message.contains("difficulty") ||
+              message.contains("target") || message.contains("share") ||
+              message.contains("mined") || message.contains("Mined") {
         "mining"
     } else if message.contains("staking") || message.contains("Staking") ||
-              message.contains("stake") || message.contains("ZK") {
+              message.contains("stake") || message.contains("ZK") ||
+              message.contains("validator") || message.contains("Validator") ||
+              message.contains("checkpoint") || message.contains("slash") ||
+              message.contains("delegation") || message.contains("reward") {
         "staking"
     } else {
         "node"
@@ -214,24 +239,250 @@ fn get_remote_rpc_url(network: &crate::state::Network) -> &'static str {
     }
 }
 
-/// Get bootstrap P2P peers for a network
-/// IMPORTANT: Addresses MUST include /p2p/<peer_id> suffix for relay reservation to work
-fn get_bootstrap_peers(network: &crate::state::Network) -> Vec<&'static str> {
+/// Bootnode configuration with geolocation for proximity-based selection
+#[derive(Clone)]
+struct BootnodeConfig {
+    ip: &'static str,
+    rpc_port: u16,
+    p2p_port: u16,
+    lat: f64,
+    lon: f64,
+    region: &'static str,
+}
+
+/// Get bootnode configurations for a network with geolocation data
+fn get_bootnode_configs(network: &crate::state::Network) -> Vec<BootnodeConfig> {
     match network {
         crate::state::Network::Mainnet => vec![
-            "/ip4/bootstrap.pyrax.org/tcp/30303",
+            BootnodeConfig { ip: "bootstrap.pyrax.org", rpc_port: 8545, p2p_port: 30303, lat: 40.7128, lon: -74.0060, region: "NYC" },
         ],
         crate::state::Network::Testnet => vec![
-            "/ip4/bootstrap.pyrax-testnet.org/tcp/30303",
+            BootnodeConfig { ip: "bootstrap.pyrax-testnet.org", rpc_port: 18545, p2p_port: 30303, lat: 40.7128, lon: -74.0060, region: "NYC" },
         ],
         crate::state::Network::Devnet => vec![
-            // Full multiaddr with PERMANENT peer ID (persisted via --node-key)
             // Bootnode 1: Digital Ocean NYC
-            "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGCFPC1eRd8fWZE6GSZfbGe5UgRVDSXhLkg3H7b95MMk",
-            // Bootnode 2: Digital Ocean SFO (redundancy)
-            "/ip4/137.184.118.228/tcp/30303/p2p/12D3KooWJdyvLrvNngQSoGND3BwXGVk1cno3ygSdT9k2Cechk3WM",
+            BootnodeConfig { ip: "209.38.137.105", rpc_port: 28545, p2p_port: 30303, lat: 40.7128, lon: -74.0060, region: "NYC" },
+            // Bootnode 2: Digital Ocean SFO
+            BootnodeConfig { ip: "137.184.118.228", rpc_port: 28545, p2p_port: 30303, lat: 37.7749, lon: -122.4194, region: "SFO" },
         ],
     }
+}
+
+/// User's geolocation from IP lookup
+#[derive(Debug, Clone)]
+struct UserLocation {
+    lat: f64,
+    lon: f64,
+    city: String,
+    country: String,
+}
+
+/// Fetch user's geolocation using ip-api.com (free, no API key required)
+async fn get_user_location() -> Option<UserLocation> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    
+    // Use ip-api.com - free tier, no API key, 45 requests/minute
+    let response = client
+        .get("http://ip-api.com/json/?fields=status,lat,lon,city,country")
+        .send()
+        .await
+        .ok()?;
+    
+    let json: serde_json::Value = response.json().await.ok()?;
+    
+    if json.get("status")?.as_str()? != "success" {
+        return None;
+    }
+    
+    Some(UserLocation {
+        lat: json.get("lat")?.as_f64()?,
+        lon: json.get("lon")?.as_f64()?,
+        city: json.get("city")?.as_str()?.to_string(),
+        country: json.get("country")?.as_str()?.to_string(),
+    })
+}
+
+/// Calculate distance between two points using Haversine formula
+/// Returns distance in kilometers
+fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    const EARTH_RADIUS_KM: f64 = 6371.0;
+    
+    let lat1_rad = lat1.to_radians();
+    let lat2_rad = lat2.to_radians();
+    let delta_lat = (lat2 - lat1).to_radians();
+    let delta_lon = (lon2 - lon1).to_radians();
+    
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1_rad.cos() * lat2_rad.cos() * (delta_lon / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    
+    EARTH_RADIUS_KM * c
+}
+
+/// Sort bootnodes by distance from user and return the closest ones first
+fn sort_bootnodes_by_distance(configs: Vec<BootnodeConfig>, user_loc: &UserLocation) -> Vec<BootnodeConfig> {
+    let mut configs_with_distance: Vec<(BootnodeConfig, f64)> = configs
+        .into_iter()
+        .map(|config| {
+            let distance = haversine_distance(user_loc.lat, user_loc.lon, config.lat, config.lon);
+            (config, distance)
+        })
+        .collect();
+    
+    // Sort by distance (closest first)
+    configs_with_distance.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    
+    configs_with_distance.into_iter().map(|(config, _)| config).collect()
+}
+
+/// Fetch peer ID from a bootnode's RPC endpoint
+async fn fetch_peer_id(ip: &str, rpc_port: u16) -> Option<String> {
+    let url = format!("http://{}:{}", ip, rpc_port);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body(r#"{"jsonrpc":"2.0","method":"pyrax_getPeerId","params":[],"id":1}"#)
+        .send()
+        .await
+        .ok()?;
+    
+    let json: serde_json::Value = response.json().await.ok()?;
+    let peer_id = json.get("result")?.as_str()?;
+    
+    if peer_id.is_empty() || !peer_id.starts_with("12D3KooW") {
+        return None;
+    }
+    
+    Some(peer_id.to_string())
+}
+
+/// Dynamically discover bootstrap peers by fetching peer IDs from bootnodes
+/// Connects to the 2 closest bootnodes first based on user's geolocation
+/// This eliminates hardcoded peer IDs - bootnodes can regenerate keys freely
+async fn discover_bootstrap_peers(network: &crate::state::Network) -> Vec<String> {
+    let mut configs = get_bootnode_configs(network);
+    
+    // Get user's location and sort bootnodes by proximity
+    match get_user_location().await {
+        Some(user_loc) => {
+            info!("User location: {}, {} (lat: {:.2}, lon: {:.2})", 
+                user_loc.city, user_loc.country, user_loc.lat, user_loc.lon);
+            
+            // Sort bootnodes by distance (closest first)
+            configs = sort_bootnodes_by_distance(configs, &user_loc);
+            
+            // Log the order of bootnodes by proximity
+            for (i, config) in configs.iter().enumerate() {
+                let distance = haversine_distance(user_loc.lat, user_loc.lon, config.lat, config.lon);
+                info!("Bootnode #{}: {} ({}) - {:.0} km away", 
+                    i + 1, config.ip, config.region, distance);
+            }
+        }
+        None => {
+            warn!("Could not determine user location - using default bootnode order");
+        }
+    }
+    
+    let mut peers = Vec::new();
+    
+    // Connect to bootnodes in order (closest first)
+    for (i, config) in configs.iter().enumerate() {
+        match fetch_peer_id(config.ip, config.rpc_port).await {
+            Some(peer_id) => {
+                let multiaddr = format!("/ip4/{}/tcp/{}/p2p/{}", config.ip, config.p2p_port, peer_id);
+                if i < 2 {
+                    info!("✓ Priority bootnode #{} ({}): {}", i + 1, config.region, multiaddr);
+                } else {
+                    info!("Discovered bootnode #{} ({}): {}", i + 1, config.region, multiaddr);
+                }
+                peers.push(multiaddr);
+            }
+            None => {
+                warn!("Failed to discover peer ID for bootnode {} ({})", config.ip, config.region);
+            }
+        }
+    }
+    
+    if peers.is_empty() {
+        warn!("No bootnodes discovered via RPC - trying cached fallback peer IDs");
+        
+        // FALLBACK FIX: Use last known working peer IDs if dynamic discovery fails
+        // These are periodically updated from successful discoveries
+        let fallback_peers = get_fallback_peer_ids(network);
+        if !fallback_peers.is_empty() {
+            info!("Using {} fallback peer IDs", fallback_peers.len());
+            return fallback_peers;
+        }
+        
+        warn!("No fallback peer IDs available - P2P may not work correctly");
+    } else {
+        info!("Connecting to {} bootnodes (closest {} first)", peers.len(), std::cmp::min(2, peers.len()));
+        
+        // Cache successful discovery for future fallback
+        cache_peer_ids(network, &peers);
+    }
+    
+    peers
+}
+
+/// Get cached fallback peer IDs from local storage
+/// These are saved from the last successful dynamic discovery
+fn get_fallback_peer_ids(network: &crate::state::Network) -> Vec<String> {
+    let cache_file = get_peer_cache_path(network);
+    
+    if let Ok(content) = std::fs::read_to_string(&cache_file) {
+        let peers: Vec<String> = content.lines()
+            .filter(|line| !line.is_empty() && line.contains("/p2p/"))
+            .map(|s| s.to_string())
+            .collect();
+        
+        if !peers.is_empty() {
+            info!("Loaded {} cached peer IDs from {:?}", peers.len(), cache_file);
+            return peers;
+        }
+    }
+    
+    Vec::new()
+}
+
+/// Cache successfully discovered peer IDs for fallback
+fn cache_peer_ids(network: &crate::state::Network, peers: &[String]) {
+    let cache_file = get_peer_cache_path(network);
+    
+    // Ensure parent directory exists
+    if let Some(parent) = cache_file.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    
+    let content = peers.join("\n");
+    if let Err(e) = std::fs::write(&cache_file, content) {
+        warn!("Failed to cache peer IDs: {}", e);
+    } else {
+        debug!("Cached {} peer IDs to {:?}", peers.len(), cache_file);
+    }
+}
+
+/// Get path to peer ID cache file
+fn get_peer_cache_path(network: &crate::state::Network) -> std::path::PathBuf {
+    let network_name = match network {
+        crate::state::Network::Mainnet => "mainnet",
+        crate::state::Network::Testnet => "testnet",
+        crate::state::Network::Devnet => "devnet",
+    };
+    
+    // Use directories crate for cross-platform data directory
+    directories::ProjectDirs::from("com", "pyrax", "pyrax-desktop")
+        .map(|dirs| dirs.data_local_dir().to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(format!("peer_cache_{}.txt", network_name))
 }
 
 fn get_node_binary_path() -> Option<std::path::PathBuf> {
@@ -445,8 +696,10 @@ pub async fn start_node(
         let stratum_port = 3333;
         let stratum_addr = format!("0.0.0.0:{}", stratum_port);
         
-        // Get bootstrap peers for this network
-        let bootstrap_peers = get_bootstrap_peers(&network);
+        // Dynamically discover bootstrap peers (fetches peer IDs from bootnodes)
+        emit_log(&app, "info", "p2p", "Discovering bootnode peer IDs...");
+        let bootstrap_peers = discover_bootstrap_peers(&network).await;
+        emit_log(&app, "info", "p2p", &format!("Discovered {} bootnodes", bootstrap_peers.len()));
         
         // Determine connection mode string for pyrax-node
         let conn_mode_str = match connection_mode {
@@ -486,7 +739,7 @@ pub async fn start_node(
         
         // Add ALL bootstrap peers for relay redundancy (--peer can be specified multiple times)
         for peer in &bootstrap_peers {
-            cmd.arg("--peer").arg(*peer);
+            cmd.arg("--peer").arg(peer);
         }
         
         // Ensure data directory exists

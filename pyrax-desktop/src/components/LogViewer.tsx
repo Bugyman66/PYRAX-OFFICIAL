@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { 
   Terminal, 
   Trash2, 
@@ -7,7 +7,8 @@ import {
   Play,
   ChevronDown,
   Copy,
-  Check
+  Check,
+  ArrowDown
 } from 'lucide-react';
 import { useLogStore, LogEntry } from '../stores/logStore';
 
@@ -54,13 +55,63 @@ export default function LogViewer() {
   const [copied, setCopied] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [userScrolledAway, setUserScrolledAway] = useState(false);
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-scroll to bottom when new logs arrive
-  useEffect(() => {
-    if (autoScroll && !paused && logContainerRef.current) {
-      logContainerRef.current.scrollTop = 0;
+  // Handle scroll events to detect user scrolling away from bottom
+  const handleScroll = useCallback(() => {
+    if (!logContainerRef.current) return;
+    
+    const container = logContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    
+    // Check if user is at or near the bottom (within 50px)
+    // Note: scrollTop is 0 at top, increases as you scroll down
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+    
+    // If user scrolled away from bottom, pause auto-scroll
+    if (!isAtBottom && !isUserScrollingRef.current) {
+      isUserScrollingRef.current = true;
+      setUserScrolledAway(true);
+      setAutoScroll(false);
     }
-  }, [logs, autoScroll, paused]);
+    
+    // If user scrolled back to bottom, resume auto-scroll
+    if (isAtBottom && isUserScrollingRef.current) {
+      isUserScrollingRef.current = false;
+      setUserScrolledAway(false);
+      setAutoScroll(true);
+    }
+    
+    // Clear existing timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Set timeout to detect scroll end
+    scrollTimeoutRef.current = setTimeout(() => {
+      isUserScrollingRef.current = false;
+    }, 150);
+  }, []);
+
+  // Resume auto-scroll and scroll to bottom
+  const resumeAutoScroll = useCallback(() => {
+    setAutoScroll(true);
+    setUserScrolledAway(false);
+    isUserScrollingRef.current = false;
+    
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, []);
+
+  // Auto-scroll to bottom when new logs arrive (only if auto-scroll is enabled)
+  useEffect(() => {
+    if (autoScroll && !paused && !userScrolledAway && logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [logs, autoScroll, paused, userScrolledAway]);
 
   const filteredLogs = logs.filter((log) => 
     filters.level.includes(log.level) && 
@@ -147,6 +198,18 @@ export default function LogViewer() {
           >
             <Trash2 size={14} />
           </button>
+          
+          {/* Resume auto-scroll button - shown when user has scrolled away */}
+          {userScrolledAway && !paused && (
+            <button
+              onClick={resumeAutoScroll}
+              className="ml-2 px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 transition-colors text-white text-xs flex items-center gap-1 animate-pulse"
+              title="Resume auto-scroll"
+            >
+              <ArrowDown size={12} />
+              <span>Resume</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -192,6 +255,7 @@ export default function LogViewer() {
       {/* Log Content - Terminal style */}
       <div 
         ref={logContainerRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto font-mono text-[11px] leading-relaxed bg-black"
         style={{ 
           backgroundImage: 'linear-gradient(rgba(0, 255, 0, 0.02) 1px, transparent 1px)',

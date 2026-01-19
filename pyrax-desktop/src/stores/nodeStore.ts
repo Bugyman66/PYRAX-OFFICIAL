@@ -68,6 +68,8 @@ interface NodeStore {
   reconnectAttempts: number;
   maxReconnectAttempts: number;
   isReconnecting: boolean;
+  // Flag to track user-requested stop - prevents auto-reconnect after manual stop
+  userRequestedStop: boolean;
   
   fetchStatus: () => Promise<void>;
   fetchChainInfo: () => Promise<void>;
@@ -88,6 +90,7 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
   reconnectAttempts: 0,
   maxReconnectAttempts: 5,
   isReconnecting: false,
+  userRequestedStop: false,
 
   fetchStatus: async () => {
     try {
@@ -95,10 +98,14 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
       const prevStatus = get().status;
       set({ status, error: null });
       
-      // Auto-reconnect if connection was lost
-      if (prevStatus?.connected && !status.connected && status.running) {
-        console.log('[NodeStore] Connection lost, attempting reconnect...');
+      // Auto-reconnect if connection was lost (but NOT if user manually stopped)
+      const { userRequestedStop } = get();
+      if (prevStatus?.connected && !status.connected && status.running && !userRequestedStop) {
+        console.log('[NodeStore] Connection lost (network issue), attempting reconnect...');
         get().attemptReconnect();
+      } else if (userRequestedStop && !status.running) {
+        // User stopped the node, reset the flag for next start
+        console.log('[NodeStore] User-requested stop completed, skipping auto-reconnect');
       }
       
       // Reset reconnect attempts on successful connection
@@ -139,7 +146,13 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
   },
 
   attemptReconnect: async () => {
-    const { reconnectAttempts, maxReconnectAttempts, isReconnecting, status } = get();
+    const { reconnectAttempts, maxReconnectAttempts, isReconnecting, status, userRequestedStop } = get();
+    
+    // Don't reconnect if user manually stopped the node
+    if (userRequestedStop) {
+      console.log('[NodeStore] Skipping reconnect - user requested stop');
+      return;
+    }
     
     if (isReconnecting || reconnectAttempts >= maxReconnectAttempts) {
       if (reconnectAttempts >= maxReconnectAttempts) {
@@ -176,7 +189,8 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
   },
 
   startNode: async () => {
-    set({ loading: true, error: null, reconnectAttempts: 0 });
+    // Clear userRequestedStop flag - user wants the node running
+    set({ loading: true, error: null, reconnectAttempts: 0, userRequestedStop: false });
     try {
       const status = await invoke<NodeStatus>('start_node');
       if (status) {
@@ -207,7 +221,9 @@ export const useNodeStore = create<NodeStore>((set, get) => ({
   },
 
   stopNode: async () => {
-    set({ loading: true, error: null, isReconnecting: false, reconnectAttempts: 0 });
+    // Set userRequestedStop flag - prevents auto-reconnect after manual stop
+    set({ loading: true, error: null, isReconnecting: false, reconnectAttempts: 0, userRequestedStop: true });
+    console.log('[NodeStore] User requested stop - auto-reconnect disabled');
     try {
       await invoke('stop_node');
       await get().fetchStatus();

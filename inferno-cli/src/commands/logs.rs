@@ -206,49 +206,79 @@ fn colorize_log_line(line: &str) -> String {
     // Detect log level and colorize accordingly
     let line_upper = line.to_uppercase();
 
-    if line_upper.contains("ERROR") || line_upper.contains("ERR") {
-        format!(
-            "{}  {}",
-            "ERROR".bright_red().bold(),
-            line.replace("ERROR", "").replace("error", "").replace("ERR", "").trim()
-        )
+    // First, determine the log level
+    let (level_prefix, message) = if line_upper.contains("ERROR") || line_upper.contains("ERR") {
+        (format!("{}", "ERROR".bright_red().bold()), 
+         line.replace("ERROR", "").replace("error", "").replace("ERR", "").trim().to_string())
     } else if line_upper.contains("WARN") {
-        format!(
-            "{}   {}",
-            "WARN".bright_yellow().bold(),
-            line.replace("WARN", "").replace("warn", "").trim()
-        )
+        (format!("{}", "WARN".bright_yellow().bold()), 
+         line.replace("WARN", "").replace("warn", "").trim().to_string())
     } else if line_upper.contains("DEBUG") {
-        format!(
-            "{}  {}",
-            "DEBUG".bright_blue(),
-            line.replace("DEBUG", "").replace("debug", "").trim()
-        )
+        (format!("{}", "DEBUG".bright_blue()), 
+         line.replace("DEBUG", "").replace("debug", "").trim().to_string())
     } else if line_upper.contains("TRACE") {
-        format!(
-            "{}  {}",
-            "TRACE".dimmed(),
-            line.replace("TRACE", "").replace("trace", "").trim()
-        )
+        (format!("{}", "TRACE".dimmed()), 
+         line.replace("TRACE", "").replace("trace", "").trim().to_string())
     } else if line_upper.contains("INFO") {
-        format!(
-            "{}   {}",
-            "INFO".bright_green(),
-            line.replace("INFO", "").replace("info", "").trim()
-        )
+        (format!("{}", "INFO".bright_green()), 
+         line.replace("INFO", "").replace("info", "").trim().to_string())
     } else {
-        // Check for common patterns
-        if line.contains("block") || line.contains("Block") {
-            format!("{} {}", "📦".bright_cyan(), line)
-        } else if line.contains("peer") || line.contains("Peer") || line.contains("connect") {
-            format!("{} {}", "🔗".bright_blue(), line)
-        } else if line.contains("sync") || line.contains("Sync") {
-            format!("{} {}", "🔄".bright_yellow(), line)
-        } else if line.contains("mining") || line.contains("Mining") || line.contains("mined") {
-            format!("{} {}", "⛏️".bright_green(), line)
-        } else {
-            line.to_string()
-        }
+        (String::new(), line.to_string())
+    };
+
+    // Detect category and add appropriate icon
+    // Categories match desktop app: p2p, block, rpc, mining, staking, node
+    let category_icon = if message.contains("peer") || message.contains("Peer") || 
+                           message.contains("P2P") || message.contains("Kademlia") ||
+                           message.contains("Connected to") || message.contains("Disconnected") ||
+                           message.contains("mDNS") || message.contains("DHT") ||
+                           message.contains("GossipSub") || message.contains("mesh") ||
+                           message.contains("MESH") || message.contains("relay") ||
+                           message.contains("Relay") || message.contains("NAT") ||
+                           message.contains("AutoNAT") || message.contains("bootnode") ||
+                           message.contains("Bootnode") || message.contains("dial") ||
+                           message.contains("Dial") || message.contains("listen") ||
+                           message.contains("Listen") || message.contains("swarm") ||
+                           message.contains("Swarm") || message.contains("circuit") ||
+                           message.contains("reservation") || message.contains("UPnP") ||
+                           message.contains("DCUtR") || message.contains("hole punch") {
+        format!("{}", "[p2p]".bright_cyan())
+    } else if message.contains("block") || message.contains("Block") || 
+              message.contains("height") || message.contains("sync") ||
+              message.contains("Sync") || message.contains("chain") ||
+              message.contains("Chain") || message.contains("genesis") ||
+              message.contains("Genesis") || message.contains("tip") ||
+              message.contains("orphan") || message.contains("reorg") ||
+              message.contains("fork") || message.contains("UTXO") {
+        format!("{}", "[block]".bright_green())
+    } else if message.contains("RPC") || message.contains("rpc") ||
+              message.contains("JSON") || message.contains("request") ||
+              message.contains("endpoint") || message.contains("API") ||
+              message.contains("WebSocket") || message.contains("ws://") {
+        format!("{}", "[rpc]".bright_blue())
+    } else if message.contains("mining") || message.contains("Mining") ||
+              message.contains("Stratum") || message.contains("worker") ||
+              message.contains("Worker") || message.contains("KAWPOW") ||
+              message.contains("BLAKE3") || message.contains("hashrate") ||
+              message.contains("nonce") || message.contains("difficulty") ||
+              message.contains("target") || message.contains("share") ||
+              message.contains("mined") || message.contains("Mined") {
+        format!("{}", "[mining]".bright_yellow())
+    } else if message.contains("staking") || message.contains("Staking") ||
+              message.contains("stake") || message.contains("ZK") ||
+              message.contains("validator") || message.contains("Validator") ||
+              message.contains("checkpoint") || message.contains("slash") ||
+              message.contains("delegation") || message.contains("reward") {
+        format!("{}", "[staking]".bright_magenta())
+    } else {
+        format!("{}", "[node]".white())
+    };
+
+    // Format the complete log line
+    if level_prefix.is_empty() {
+        format!("{} {}", category_icon, message)
+    } else {
+        format!("{:5} {} {}", level_prefix, category_icon, message)
     }
 }
 

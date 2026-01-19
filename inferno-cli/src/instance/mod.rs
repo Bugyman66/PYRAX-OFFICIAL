@@ -210,12 +210,14 @@ impl InstanceManager {
         #[cfg(windows)]
         {
             use std::process::Command;
+            let pid_str = pid.to_string();
+            let args: Vec<&str> = if force {
+                vec!["/F", "/PID", &pid_str]
+            } else {
+                vec!["/PID", &pid_str]
+            };
             Command::new("taskkill")
-                .args(if force {
-                    vec!["/F", "/PID", &pid.to_string()]
-                } else {
-                    vec!["/PID", &pid.to_string()]
-                })
+                .args(args)
                 .output()
                 .context("Failed to kill process")?;
         }

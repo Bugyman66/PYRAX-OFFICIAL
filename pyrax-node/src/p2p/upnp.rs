@@ -16,6 +16,8 @@ pub struct UPnPManager {
     p2p_port: u16,
     lease_duration: u32,
     mappings: Vec<UPnPMapping>,
+    /// Track consecutive renewal failures to trigger relay fallback
+    consecutive_failures: u32,
 }
 
 impl UPnPManager {
@@ -24,6 +26,7 @@ impl UPnPManager {
             p2p_port,
             lease_duration: 7200, // 2 hours - will be renewed periodically
             mappings: Vec::new(),
+            consecutive_failures: 0,
         }
     }
     
@@ -201,11 +204,25 @@ impl UPnPManager {
         match result {
             Ok(Some(_)) => {
                 debug!("UPnP mappings renewed successfully");
+                self.consecutive_failures = 0;
             }
             Ok(None) | Err(_) => {
-                warn!("Failed to renew UPnP mappings - NAT traversal may degrade");
+                self.consecutive_failures += 1;
+                warn!("Failed to renew UPnP mappings (attempt {}) - NAT traversal may degrade", 
+                    self.consecutive_failures);
+                
+                // FIX: After 3 consecutive failures, UPnP is likely broken
+                // Caller should trigger relay fallback
+                if self.consecutive_failures >= 3 {
+                    warn!("UPnP appears permanently broken - recommend switching to relay mode");
+                }
             }
         }
+    }
+    
+    /// Check if UPnP has failed repeatedly and relay fallback should be used
+    pub fn should_use_relay_fallback(&self) -> bool {
+        self.consecutive_failures >= 3
     }
     
     /// Remove all port mappings (call on shutdown)

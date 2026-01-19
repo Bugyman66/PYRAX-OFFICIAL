@@ -7,6 +7,180 @@ use tokio::process::Command;
 use crate::config::InfernoConfig;
 use crate::instance::{InstanceInfo, InstanceManager, InstanceStatus};
 
+/// Bootnode configuration with geolocation for proximity-based selection
+#[derive(Clone)]
+struct BootnodeConfig {
+    ip: &'static str,
+    p2p_port: u16,
+    rpc_port: u16,
+    lat: f64,
+    lon: f64,
+    region: &'static str,
+}
+
+/// Get bootnode configurations for devnet with geolocation data
+fn get_bootnode_configs() -> Vec<BootnodeConfig> {
+    vec![
+        // Bootnode 1: Digital Ocean NYC
+        BootnodeConfig { ip: "209.38.137.105", rpc_port: 28545, p2p_port: 30303, lat: 40.7128, lon: -74.0060, region: "NYC" },
+        // Bootnode 2: Digital Ocean SFO
+        BootnodeConfig { ip: "137.184.118.228", rpc_port: 28545, p2p_port: 30303, lat: 37.7749, lon: -122.4194, region: "SFO" },
+    ]
+}
+
+/// User's geolocation from IP lookup
+#[derive(Debug, Clone)]
+struct UserLocation {
+    lat: f64,
+    lon: f64,
+    city: String,
+    country: String,
+}
+
+/// Fetch user's geolocation using ip-api.com (free, no API key required)
+async fn get_user_location() -> Option<UserLocation> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    
+    let response = client
+        .get("http://ip-api.com/json/?fields=status,lat,lon,city,country")
+        .send()
+        .await
+        .ok()?;
+    
+    let json: serde_json::Value = response.json().await.ok()?;
+    
+    if json.get("status")?.as_str()? != "success" {
+        return None;
+    }
+    
+    Some(UserLocation {
+        lat: json.get("lat")?.as_f64()?,
+        lon: json.get("lon")?.as_f64()?,
+        city: json.get("city")?.as_str()?.to_string(),
+        country: json.get("country")?.as_str()?.to_string(),
+    })
+}
+
+/// Calculate distance between two points using Haversine formula (returns km)
+fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    const EARTH_RADIUS_KM: f64 = 6371.0;
+    
+    let lat1_rad = lat1.to_radians();
+    let lat2_rad = lat2.to_radians();
+    let delta_lat = (lat2 - lat1).to_radians();
+    let delta_lon = (lon2 - lon1).to_radians();
+    
+    let a = (delta_lat / 2.0).sin().powi(2)
+        + lat1_rad.cos() * lat2_rad.cos() * (delta_lon / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    
+    EARTH_RADIUS_KM * c
+}
+
+/// Sort bootnodes by distance from user (closest first)
+fn sort_bootnodes_by_distance(configs: Vec<BootnodeConfig>, user_loc: &UserLocation) -> Vec<BootnodeConfig> {
+    let mut configs_with_distance: Vec<(BootnodeConfig, f64)> = configs
+        .into_iter()
+        .map(|config| {
+            let distance = haversine_distance(user_loc.lat, user_loc.lon, config.lat, config.lon);
+            (config, distance)
+        })
+        .collect();
+    
+    configs_with_distance.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+    configs_with_distance.into_iter().map(|(config, _)| config).collect()
+}
+
+/// Fetch peer ID from a bootnode's RPC endpoint for dynamic discovery
+/// Uses explicit RPC port from config instead of deriving it
+async fn fetch_peer_id_from_bootnode(ip: &str, rpc_port: u16) -> Option<String> {
+    let url = format!("http://{}:{}", ip, rpc_port);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body(r#"{"jsonrpc":"2.0","method":"pyrax_getPeerId","params":[],"id":1}"#)
+        .send()
+        .await
+        .ok()?;
+    
+    let json: serde_json::Value = response.json().await.ok()?;
+    let peer_id = json.get("result")?.as_str()?;
+    
+    if peer_id.is_empty() || !peer_id.starts_with("12D3KooW") {
+        return None;
+    }
+    
+    Some(peer_id.to_string())
+}
+
+/// Resolve bootnodes by fetching peer IDs dynamically
+/// Sorts bootnodes by proximity to user - connects to closest 2 first
+async fn resolve_bootnodes(_bootnodes: &[String]) -> Vec<String> {
+    let mut configs = get_bootnode_configs();
+    
+    // Get user's location and sort bootnodes by proximity
+    println!("  {} Detecting your location for optimal bootnode selection...", "🌍".bright_blue());
+    match get_user_location().await {
+        Some(user_loc) => {
+            println!("  {} Location: {}, {}", "📍".bright_green(), user_loc.city.bright_cyan(), user_loc.country);
+            
+            // Sort bootnodes by distance (closest first)
+            configs = sort_bootnodes_by_distance(configs, &user_loc);
+            
+            // Show bootnode distances
+            for (i, config) in configs.iter().enumerate() {
+                let distance = haversine_distance(user_loc.lat, user_loc.lon, config.lat, config.lon);
+                if i < 2 {
+                    println!("  {} Priority #{}: {} ({}) - {:.0} km", 
+                        "★".bright_yellow(), i + 1, config.ip.bright_cyan(), config.region, distance);
+                } else {
+                    println!("  {} Bootnode #{}: {} ({}) - {:.0} km", 
+                        "○".dimmed(), i + 1, config.ip, config.region, distance);
+                }
+            }
+        }
+        None => {
+            println!("  {} Could not determine location - using default order", "!".bright_yellow());
+        }
+    }
+    
+    let mut resolved = Vec::new();
+    
+    // Connect to bootnodes in proximity order using explicit RPC port from config
+    for (i, config) in configs.iter().enumerate() {
+        // FIX: Use explicit RPC port from config instead of deriving it
+        match fetch_peer_id_from_bootnode(config.ip, config.rpc_port).await {
+            Some(peer_id) => {
+                let full_addr = format!("/ip4/{}/tcp/{}/p2p/{}", config.ip, config.p2p_port, peer_id);
+                if i < 2 {
+                    println!("  {} Connected to priority bootnode #{} ({})", "✓".bright_green(), i + 1, config.region);
+                }
+                resolved.push(full_addr);
+            }
+            None => {
+                println!("  {} Could not connect to {} ({})", "✗".bright_red(), config.ip, config.region);
+            }
+        }
+    }
+    
+    if resolved.is_empty() {
+        println!("  {} No bootnodes available!", "!".bright_red());
+    } else {
+        println!("  {} Connecting to {} bootnodes (closest {} first)", 
+            "🔗".bright_blue(), resolved.len(), std::cmp::min(2, resolved.len()));
+    }
+    
+    resolved
+}
+
 pub async fn start(instance: u32, all: bool, foreground: bool, network: &str) -> Result<()> {
     let instance_manager = InstanceManager::new()?;
 
@@ -106,8 +280,13 @@ async fn start_instance(
         }
     }
 
-    for bootnode in &config.network.bootnodes {
-        args.push("--bootnode".to_string());
+    // Dynamically resolve bootnode peer IDs before connecting
+    println!("  {} Discovering bootnode peer IDs...", "🔍".bright_blue());
+    let resolved_bootnodes = resolve_bootnodes(&config.network.bootnodes).await;
+    
+    // FIX: Use --peer argument (not --bootnode) as expected by pyrax-node
+    for bootnode in &resolved_bootnodes {
+        args.push("--peer".to_string());
         args.push(bootnode.clone());
     }
 

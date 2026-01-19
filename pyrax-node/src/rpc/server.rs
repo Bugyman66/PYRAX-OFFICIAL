@@ -72,6 +72,11 @@ pub trait PyraxRpc {
     /// Simple health check - returns immediately without database access
     #[method(name = "pyrax_health")]
     async fn health(&self) -> RpcResult<String>;
+
+    /// Get local peer ID for P2P bootstrap discovery
+    /// Desktop/CLI apps use this to dynamically discover bootnode peer IDs
+    #[method(name = "pyrax_getPeerId")]
+    async fn get_peer_id(&self) -> RpcResult<String>;
 }
 
 /// RPC server state
@@ -512,6 +517,15 @@ impl PyraxRpcServer for RpcServerImpl {
 
     async fn health(&self) -> RpcResult<String> {
         Ok("ok".to_string())
+    }
+
+    async fn get_peer_id(&self) -> RpcResult<String> {
+        if let Some(ref registry) = self.peer_registry {
+            Ok(registry.local_peer_id().await)
+        } else {
+            // No P2P enabled - return empty string
+            Ok(String::new())
+        }
     }
 }
 

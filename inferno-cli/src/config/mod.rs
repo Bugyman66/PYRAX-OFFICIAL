@@ -55,8 +55,10 @@ impl InfernoConfig {
                 rpc_port,
                 rpc_enabled: true,
                 bootnodes: vec![
-                    "/ip4/209.38.137.105/tcp/30303/p2p/12D3KooWQGzw3hMqiL7bNDzRBfYKBjZ5vBrx9oQKGEMG4iczDH4W".to_string(),
-                    "/ip4/137.184.118.228/tcp/30303/p2p/12D3KooWQGzw3hMqiL7bNDzRBfYKBjZ5vBrx9oQKGEMG4iczDH4W".to_string(),
+                    // Peer IDs are discovered dynamically at runtime via pyrax_getPeerId RPC
+                    // Only IP:port is needed here - peer IDs are fetched before connecting
+                    "/ip4/209.38.137.105/tcp/30303".to_string(),
+                    "/ip4/137.184.118.228/tcp/30303".to_string(),
                 ],
                 max_peers: 50,
             },

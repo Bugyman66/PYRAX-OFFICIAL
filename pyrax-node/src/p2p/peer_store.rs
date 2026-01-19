@@ -126,6 +126,10 @@ pub struct PeerData {
     disconnect_times: Vec<Instant>,
     /// Timestamps of recent failures (for hourly tracking)
     failure_times: Vec<Instant>,
+    /// FIX: Track consecutive dial failures for pre-dial health check
+    pub consecutive_failures: u32,
+    /// FIX: Track last failure time for backoff calculation
+    pub last_failure_time: Option<Instant>,
 }
 
 impl PeerData {
@@ -152,6 +156,8 @@ impl PeerData {
             best_height: 0,
             disconnect_times: Vec::new(),
             failure_times: Vec::new(),
+            consecutive_failures: 0,
+            last_failure_time: None,
         }
     }
 
@@ -196,6 +202,8 @@ impl PeerData {
     pub fn record_success(&mut self) {
         self.successful_interactions += 1;
         self.last_seen = Instant::now();
+        // FIX: Reset consecutive failures on success
+        self.consecutive_failures = 0;
     }
 
     /// Clean up events older than 1 hour
@@ -463,6 +471,9 @@ impl PeerStore {
         if let Some(peer) = self.peers.get_mut(peer_id) {
             peer.record_failure();
             peer.state = PeerState::Disconnected;
+            // FIX: Track consecutive failures for pre-dial health check
+            peer.consecutive_failures += 1;
+            peer.last_failure_time = Some(Instant::now());
         }
         
         // Update backoff
