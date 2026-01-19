@@ -364,24 +364,22 @@ impl Network {
                 // Constraints: mesh_n_low <= mesh_n <= mesh_n_high
                 // MESH FIX: Increased parameters to ensure mesh forms even with few peers
                 // Previous values (2,4,8) were too restrictive for small networks
-                // TRUE MESH FIX: Configure GossipSub for guaranteed mesh formation
-                // Key insight: add_explicit_peer() puts peers OUTSIDE mesh by design!
-                // For true mesh, peers must flow through SUBSCRIBE → GRAFT path
+                // MINIMAL GOSSIPSUB CONFIG for reliable mesh formation
+                // After many iterations, keeping it simple:
+                // - mesh_outbound_min=0: bootnodes only have inbound connections
+                // - flood_publish=true: ensures messages propagate even if mesh is empty
+                // - No do_px(), no aggressive settings that might cause PRUNE
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .heartbeat_interval(Duration::from_secs(1)) // Fast heartbeat for rapid mesh formation
-                    .validation_mode(gossipsub::ValidationMode::Permissive) // Accept all valid messages
+                    .heartbeat_interval(Duration::from_secs(5)) // Standard 5s heartbeat
+                    .validation_mode(gossipsub::ValidationMode::Permissive)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(1)      // Accept even 1 peer in mesh
-                    .mesh_n(2)          // Target 2 peers in mesh
-                    .mesh_n_high(6)     // Maximum peers in mesh
-                    .mesh_outbound_min(0) // CRITICAL: Allow mesh with only inbound peers (bootnodes have all inbound!)
-                    .gossip_lazy(3)     // More peers for lazy gossip
-                    .gossip_factor(0.25) // Gossip to 25% of non-mesh peers
-                    .heartbeat_initial_delay(Duration::from_millis(100)) // Start heartbeat quickly
-                    .history_length(5)  // Keep 5 heartbeats of history
-                    .history_gossip(3)  // Gossip about last 3 heartbeats
-                    .flood_publish(true) // Flood publish as backup
-                    .do_px()            // Enable peer exchange
+                    .mesh_n_low(1)      // Minimum 1 peer in mesh
+                    .mesh_n(3)          // Target 3 peers
+                    .mesh_n_high(12)    // Allow up to 12 peers in mesh
+                    .mesh_outbound_min(0) // CRITICAL: Allow inbound-only mesh
+                    .gossip_lazy(6)     // Standard lazy gossip
+                    .gossip_factor(0.25)
+                    .flood_publish(true) // Ensures delivery even with empty mesh
                     .build()
                     .expect("Valid gossipsub config");
 
