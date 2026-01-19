@@ -1137,10 +1137,22 @@ pub async fn get_node_status(
             
             // Try to get extended P2P stats from network info
             let (peer_count, p2p_stats) = match rpc.get_network_info().await {
-                Ok(net_info) => (
-                    net_info.peer_count as u32,
-                    Some(net_info)
-                ),
+                Ok(net_info) => {
+                    // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
+                    // This ensures accurate display even during race conditions or registry sync delays
+                    let effective_count = if net_info.peer_count > 0 {
+                        net_info.peer_count as u32
+                    } else if net_info.mesh_peers > 0 {
+                        net_info.mesh_peers as u32
+                    } else if net_info.gossip_peers > 0 {
+                        net_info.gossip_peers as u32
+                    } else if (net_info.inbound_peers + net_info.outbound_peers) > 0 {
+                        (net_info.inbound_peers + net_info.outbound_peers) as u32
+                    } else {
+                        0
+                    };
+                    (effective_count, Some(net_info))
+                },
                 Err(_) => (if is_remote { 1 } else { 0 }, None)
             };
             

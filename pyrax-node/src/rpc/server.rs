@@ -77,6 +77,11 @@ pub trait PyraxRpc {
     /// Desktop/CLI apps use this to dynamically discover bootnode peer IDs
     #[method(name = "pyrax_getPeerId")]
     async fn get_peer_id(&self) -> RpcResult<String>;
+
+    /// Debug P2P state - shows both registry peers and metrics for troubleshooting
+    /// Use this to diagnose peer count mismatches
+    #[method(name = "pyrax_debugP2PState")]
+    async fn debug_p2p_state(&self) -> RpcResult<super::RpcP2PDebugState>;
 }
 
 /// RPC server state
@@ -468,8 +473,16 @@ impl PyraxRpcServer for RpcServerImpl {
                 }
             }).collect();
             
+            // PEER COUNT FIX: Use metrics as fallback if peer list is empty but metrics show connections
+            // This handles race conditions where metrics update before peer registry
+            let effective_peer_count = if rpc_peers.is_empty() && (metrics.inbound_peers + metrics.outbound_peers) > 0 {
+                metrics.inbound_peers + metrics.outbound_peers
+            } else {
+                rpc_peers.len()
+            };
+            
             Ok(super::RpcNetworkInfo {
-                peer_count: rpc_peers.len(),
+                peer_count: effective_peer_count,
                 peers: rpc_peers,
                 local_peer_id,
                 listen_addresses,
@@ -525,6 +538,70 @@ impl PyraxRpcServer for RpcServerImpl {
         } else {
             // No P2P enabled - return empty string
             Ok(String::new())
+        }
+    }
+
+    async fn debug_p2p_state(&self) -> RpcResult<super::RpcP2PDebugState> {
+        if let Some(ref registry) = self.peer_registry {
+            let peers = registry.get_peers().await;
+            let metrics = registry.get_metrics().await;
+            
+            let registry_peer_count = peers.len();
+            let registry_peers: Vec<String> = peers.iter().map(|p| p.peer_id.clone()).collect();
+            
+            let metrics_total = metrics.inbound_peers + metrics.outbound_peers;
+            
+            // Calculate effective peer count (same logic as get_network_info)
+            let effective_peer_count = if registry_peer_count > 0 {
+                registry_peer_count
+            } else if metrics_total > 0 {
+                metrics_total
+            } else {
+                0
+            };
+            
+            // Generate diagnosis
+            let diagnosis = if registry_peer_count == metrics_total {
+                "OK: Registry and metrics are in sync".to_string()
+            } else if registry_peer_count == 0 && metrics_total > 0 {
+                format!("MISMATCH: Registry empty but metrics show {} peers - using metrics fallback", metrics_total)
+            } else if registry_peer_count > 0 && metrics_total == 0 {
+                format!("MISMATCH: Registry has {} peers but metrics show 0 - metrics may not be updating", registry_peer_count)
+            } else {
+                format!("DRIFT: Registry has {} peers, metrics show {} - minor sync delay", registry_peer_count, metrics_total)
+            };
+            
+            Ok(super::RpcP2PDebugState {
+                registry_peer_count,
+                registry_peers,
+                metrics_inbound_peers: metrics.inbound_peers,
+                metrics_outbound_peers: metrics.outbound_peers,
+                metrics_mesh_peers: metrics.mesh_peers,
+                metrics_gossip_peers: metrics.gossip_peers,
+                metrics_dial_attempts: metrics.dial_attempts,
+                metrics_dial_successes: metrics.dial_successes,
+                metrics_dial_failures: metrics.dial_failures,
+                metrics_network_state: metrics.network_state,
+                metrics_nat_status: metrics.nat_status,
+                effective_peer_count,
+                diagnosis,
+            })
+        } else {
+            Ok(super::RpcP2PDebugState {
+                registry_peer_count: 0,
+                registry_peers: vec![],
+                metrics_inbound_peers: 0,
+                metrics_outbound_peers: 0,
+                metrics_mesh_peers: 0,
+                metrics_gossip_peers: 0,
+                metrics_dial_attempts: 0,
+                metrics_dial_successes: 0,
+                metrics_dial_failures: 0,
+                metrics_network_state: "P2P Disabled".to_string(),
+                metrics_nat_status: "Unknown".to_string(),
+                effective_peer_count: 0,
+                diagnosis: "P2P is not enabled - no peer registry available".to_string(),
+            })
         }
     }
 }

@@ -211,3 +211,25 @@ pub struct RpcSubmitResult {
     pub hash: Option<String>,
     pub error: Option<String>,
 }
+
+/// Debug P2P state for troubleshooting peer count mismatches
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcP2PDebugState {
+    /// Peers from registry (what RPC normally returns)
+    pub registry_peer_count: usize,
+    pub registry_peers: Vec<String>,
+    /// Metrics from connection manager (updated separately)
+    pub metrics_inbound_peers: usize,
+    pub metrics_outbound_peers: usize,
+    pub metrics_mesh_peers: usize,
+    pub metrics_gossip_peers: usize,
+    pub metrics_dial_attempts: u64,
+    pub metrics_dial_successes: u64,
+    pub metrics_dial_failures: u64,
+    pub metrics_network_state: String,
+    pub metrics_nat_status: String,
+    /// Effective peer count (what should be displayed)
+    pub effective_peer_count: usize,
+    /// Diagnosis of any mismatch
+    pub diagnosis: String,
+}
