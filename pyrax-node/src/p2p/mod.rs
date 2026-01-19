@@ -841,6 +841,15 @@ impl Network {
         addr.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit))
     }
     
+    /// Check if address is a VALID single-hop relay (reject double-hop which causes MultipleCircuitRelayProtocolsUnsupported)
+    /// Double-hop: /ip4/.../p2p/.../p2p-circuit/p2p/.../p2p-circuit/p2p/... (two p2p-circuit segments)
+    fn is_valid_relay_address(addr: &Multiaddr) -> bool {
+        let circuit_count = addr.iter().filter(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit)).count();
+        // Valid: 0 (direct) or 1 (single-hop relay)
+        // Invalid: 2+ (double-hop relay - not supported)
+        circuit_count <= 1
+    }
+    
     /// WRONGPEERID FIX: Check if an address points to a known bootnode IP
     /// This prevents DHT pollution where peers advertise bootnode IPs with their own peer ID
     fn is_bootnode_ip(addr: &Multiaddr, bootnode_ips: &[std::net::IpAddr]) -> bool {
@@ -865,7 +874,13 @@ impl Network {
     /// WRONGPEERID FIX: Validate that an address is safe to add to the DHT
     /// Rejects addresses that point to bootnode IPs with non-bootnode peer IDs
     fn is_valid_dht_address(&self, addr: &Multiaddr, peer_id: &PeerId) -> bool {
-        // Circuit addresses are always valid - they go through relay
+        // DOUBLE-HOP FIX: Reject multi-hop relay addresses that cause MultipleCircuitRelayProtocolsUnsupported
+        if !Self::is_valid_relay_address(addr) {
+            debug!("Rejecting double-hop relay address for {}: {}", peer_id, addr);
+            return false;
+        }
+        
+        // Circuit addresses (single-hop) are valid - they go through relay
         if Self::is_relay_address(addr) {
             return true;
         }
@@ -904,6 +919,11 @@ impl Network {
         let mut relay_addrs: Vec<Multiaddr> = Vec::new();
         
         for addr in addrs {
+            // DOUBLE-HOP FIX: Skip invalid multi-hop relay addresses
+            if !Self::is_valid_relay_address(&addr) {
+                continue;
+            }
+            
             if Self::is_relay_address(&addr) {
                 relay_addrs.push(addr);
             } else if Self::is_routable_address(&addr) {
@@ -1339,10 +1359,14 @@ impl Network {
                     best_height: 0,
                 }).await;
                 
-                // Add to Kademlia for discovery (only routable or relay addresses)
+                // Add to Kademlia for discovery (only routable or valid single-hop relay addresses)
                 // This prevents localhost/private IP pollution that causes WrongPeerId errors
+                // Also prevents double-hop relay addresses that cause MultipleCircuitRelayProtocolsUnsupported
                 if let Ok(addr) = addr_str.parse::<Multiaddr>() {
-                    if Self::is_routable_address(&addr) || Self::is_relay_address(&addr) {
+                    // DOUBLE-HOP FIX: Reject multi-hop relay addresses
+                    if !Self::is_valid_relay_address(&addr) {
+                        debug!("Skipping double-hop relay address for peer {}: {}", peer_id, addr_str);
+                    } else if Self::is_routable_address(&addr) || Self::is_relay_address(&addr) {
                         self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
                     } else {
                         debug!("Skipping non-routable address for peer {}: {}", peer_id, addr_str);
@@ -1809,7 +1833,13 @@ impl Network {
                 let mut bad_addrs: Vec<Multiaddr> = Vec::new();
                 
                 for addr in info.listen_addrs.iter() {
-                    // Accept routable addresses OR relay circuit addresses (for NAT traversal)
+                    // DOUBLE-HOP FIX: Reject multi-hop relay addresses (causes MultipleCircuitRelayProtocolsUnsupported)
+                    if !Self::is_valid_relay_address(addr) {
+                        bad_addrs.push(addr.clone());
+                        continue;
+                    }
+                    
+                    // Accept routable addresses OR single-hop relay circuit addresses (for NAT traversal)
                     if Self::is_routable_address(addr) || Self::is_relay_address(addr) {
                         valid_addrs.push(addr.clone());
                     } else {
