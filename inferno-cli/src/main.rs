@@ -15,7 +15,7 @@ mod remote;
 
 use commands::{
     dashboard::DashboardArgs, docker::DockerCommand, init::InitArgs, logs::LogsArgs,
-    node::NodeCommand, remote::RemoteCommand, service::ServiceCommand, status::StatusArgs,
+    remote::RemoteCommand, service::ServiceCommand, status::StatusArgs,
 };
 
 const BANNER: &str = r#"

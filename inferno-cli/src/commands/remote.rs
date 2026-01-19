@@ -702,8 +702,9 @@ async fn connect_ssh(config: &RemoteConfig) -> Result<Session> {
 
     // Try identity file first
     if let Some(ref identity) = config.identity {
-        let expanded = shellexpand::tilde(&identity.to_string_lossy());
-        let path = PathBuf::from(expanded.to_string());
+        let identity_str = identity.to_string_lossy().to_string();
+        let expanded = shellexpand::tilde(&identity_str);
+        let path = PathBuf::from(expanded.as_ref());
         if path.exists() {
             session.userauth_pubkey_file(&config.user, None, &path, None)?;
             if session.authenticated() {

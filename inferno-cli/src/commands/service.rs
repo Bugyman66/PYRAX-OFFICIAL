@@ -572,7 +572,7 @@ async fn run_windows(command: ServiceCommand) -> Result<()> {
 
 #[cfg(target_os = "linux")]
 fn is_root() -> bool {
-    unsafe { libc::geteuid() == 0 }
+    unsafe { nix::libc::geteuid() == 0 }
 }
 
 #[cfg(not(target_os = "linux"))]

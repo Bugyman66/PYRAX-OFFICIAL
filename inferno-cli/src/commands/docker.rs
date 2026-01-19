@@ -246,18 +246,18 @@ async fn run_container(
 
     let config = Config {
         image: Some(image.clone()),
-        cmd: Some(cmd.iter().map(|s| s.as_str()).collect()),
+        cmd: Some(cmd.clone()),
         host_config: Some(host_config),
         exposed_ports: Some({
             let mut ports = HashMap::new();
-            ports.insert("30303/tcp", HashMap::new());
-            ports.insert("28545/tcp", HashMap::new());
+            ports.insert("30303/tcp".to_string(), HashMap::new());
+            ports.insert("28545/tcp".to_string(), HashMap::new());
             ports
         }),
         labels: Some({
             let mut labels = HashMap::new();
-            labels.insert("inferno.instance", instance.to_string());
-            labels.insert("inferno.network", network.to_string());
+            labels.insert("inferno.instance".to_string(), instance.to_string());
+            labels.insert("inferno.network".to_string(), network.to_string());
             labels
         }),
         ..Default::default()
@@ -414,7 +414,8 @@ async fn list_containers(all: bool) -> Result<()> {
         // Show ports
         if let Some(ports) = container.ports {
             for port in ports {
-                if let (Some(private), Some(public)) = (port.private_port, port.public_port) {
+                if let Some(public) = port.public_port {
+                    let private = port.private_port;
                     println!(
                         "      {} Port: {} → {}",
                         "→".dimmed(),
