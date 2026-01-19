@@ -102,13 +102,13 @@ jobs:
             artifact_name: inferno
             asset_name: inferno-cli-${{ needs.create-release.outputs.version }}-linux-aarch64.tar.gz
 
-          # macOS x86_64 (Intel) - use macos-13 which is Intel-native
-          - os: macos-13
+          # macOS x86_64 (Intel) - macos-15-intel is x86_64
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             artifact_name: inferno
             asset_name: inferno-cli-${{ needs.create-release.outputs.version }}-darwin-x86_64.tar.gz
 
-          # macOS ARM64 (Apple Silicon)
+          # macOS ARM64 (Apple Silicon) - macos-14 is ARM M1
           - os: macos-14
             target: aarch64-apple-darwin
             artifact_name: inferno
