@@ -1425,6 +1425,12 @@ impl Network {
             // Re-dial all bootnodes
             for bootnode_addr in &self.bootstrap_peers.clone() {
                 if let Some(peer_id) = Self::extract_peer_id_from_str(bootnode_addr) {
+                    // SELF-DIAL FIX: Skip if this is our own peer ID
+                    if peer_id == self.local_peer_id {
+                        debug!("Skipping self in bootnode reconnection");
+                        continue;
+                    }
+                    
                     // Skip if already dialing
                     if self.dialing.contains(&peer_id) {
                         continue;
@@ -1992,11 +1998,27 @@ impl Network {
             GossipMessage::GetBlocks { start_height, count } => {
                 info!("Received GetBlocks request from {}: start={}, count={}", source, start_height, count);
                 
+                let current_tip = self.db.get_tip().height;
+                
+                // STALE DATA FIX: Validate the request
+                // If peer is requesting blocks we don't have (stale chain), log warning
+                if start_height > current_tip + 1 {
+                    warn!("STALE DATA WARNING: Peer {} requesting blocks from height {} but our tip is {} - peer may have stale data",
+                        source, start_height, current_tip);
+                    // Don't serve - we don't have these blocks
+                    return;
+                }
+                
                 // Fetch blocks from our database and respond
                 let mut blocks = Vec::new();
                 let max_count = std::cmp::min(count, 100); // Limit to 100 blocks per request
                 
                 for height in start_height..(start_height + max_count) {
+                    // STALE DATA FIX: Don't serve blocks beyond our current tip
+                    if height > current_tip {
+                        break;
+                    }
+                    
                     match self.db.get_block_by_height(height) {
                         Ok(Some(block)) => blocks.push(block),
                         Ok(None) => break, // No more blocks
@@ -2008,8 +2030,8 @@ impl Network {
                 }
                 
                 if !blocks.is_empty() {
-                    info!("Sending {} blocks (heights {}-{}) to peer", 
-                        blocks.len(), start_height, start_height + blocks.len() as u64 - 1);
+                    info!("Sending {} blocks (heights {}-{}) to peer {} (our tip: {})", 
+                        blocks.len(), start_height, start_height + blocks.len() as u64 - 1, source, current_tip);
                     
                     // Broadcast the blocks response
                     let topic = gossipsub::IdentTopic::new(format!("pyrax/{}/blocks", self.network_id.name()));
@@ -2019,6 +2041,9 @@ impl Network {
                             warn!("Failed to send blocks response: {:?}", e);
                         }
                     }
+                } else {
+                    debug!("No blocks to send for request from {} (start={}, our tip={})", 
+                        source, start_height, current_tip);
                 }
             }
             GossipMessage::Blocks(mut blocks) => {
@@ -2029,26 +2054,71 @@ impl Network {
                 
                 let first_height = blocks.first().map(|b| b.height()).unwrap_or(0);
                 let last_height = blocks.last().map(|b| b.height()).unwrap_or(0);
+                let current_tip = self.db.get_tip().height;
                 
-                for block in &blocks {
-                    // Forward each block to processor
+                // STALE DATA FIX: Validate blocks before processing
+                let mut valid_blocks = Vec::new();
+                let mut rejected_count = 0;
+                
+                for block in blocks {
+                    let block_hash = block.hash();
+                    let block_height = block.height();
+                    
+                    // Skip duplicates
+                    if self.seen_blocks.contains(&block_hash) {
+                        continue;
+                    }
+                    
+                    // STALE DATA FIX: Reject blocks too far behind current tip
+                    // But allow blocks if we're syncing from scratch (current_tip near 0)
+                    if current_tip > 100 && block_height + 100 < current_tip {
+                        warn!("STALE SYNC BLOCK REJECTED: height {} is {} blocks behind tip {} from {}", 
+                            block_height, current_tip - block_height, current_tip, source);
+                        rejected_count += 1;
+                        continue;
+                    }
+                    
+                    // STALE DATA FIX: Reject blocks too far ahead
+                    if block_height > current_tip + 500 {
+                        warn!("FUTURE SYNC BLOCK REJECTED: height {} is {} blocks ahead of tip {} from {}",
+                            block_height, block_height - current_tip, current_tip, source);
+                        rejected_count += 1;
+                        continue;
+                    }
+                    
+                    // Add to seen cache
+                    if self.seen_blocks.len() >= 5000 {
+                        self.seen_blocks.pop_front();
+                    }
+                    self.seen_blocks.push_back(block_hash);
+                    
+                    valid_blocks.push(block);
+                }
+                
+                if rejected_count > 0 {
+                    warn!("STALE DATA FIX: Rejected {} stale/future blocks from {} (accepted {})", 
+                        rejected_count, source, valid_blocks.len());
+                }
+                
+                for block in &valid_blocks {
+                    // Forward each validated block to processor
                     if let Err(e) = self.block_tx.send(block.clone()).await {
                         error!("Failed to forward synced block: {}", e);
                     }
                 }
                 
-                // Always request next batch if we got a full batch (100 blocks)
-                if blocks.len() >= 100 {
+                // Always request next batch if we got valid blocks and last_height indicates more to come
+                if !valid_blocks.is_empty() && last_height > 0 {
                     // Wait for blocks to be processed
                     tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-                    let next_height = last_height + 1;
-                    info!("Requesting next sync batch from height {}", next_height);
-                    let _ = self.request_blocks(next_height, 100);
-                } else if !blocks.is_empty() {
-                    // Partial batch - check if we need more
-                    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
                     let our_height = self.db.get_tip().height;
-                    if our_height >= last_height {
+                    
+                    // Request more if we haven't caught up yet
+                    if our_height < last_height || valid_blocks.len() >= 100 {
+                        let next_height = last_height + 1;
+                        info!("Requesting next sync batch from height {}", next_height);
+                        let _ = self.request_blocks(next_height, 100);
+                    } else {
                         info!("Sync complete! Our height: {}", our_height);
                     }
                 }

@@ -557,6 +557,204 @@ pub struct FirewallResult {
     pub requires_restart: bool,
 }
 
+/// Wipe chain data to prevent stale data reintroduction
+/// This removes all blockchain data from the local storage
+/// User will need to resync from the network after this
+#[tauri::command]
+pub async fn wipe_chain_data(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<ChainWipeResult, String> {
+    let data_dir = {
+        let app_state = state.lock();
+        
+        // Check if node is running - cannot wipe while running
+        if app_state.node_running {
+            return Err("Cannot wipe chain data while node is running. Please stop the node first.".to_string());
+        }
+        
+        app_state.data_dir.clone()
+    };
+    
+    info!("Wiping chain data from {:?}", data_dir);
+    
+    // Define the directories/files to wipe
+    let chain_dir = data_dir.join("chain");
+    let blocks_dir = data_dir.join("blocks");
+    let state_dir = data_dir.join("state");
+    let db_dir = data_dir.join("db");
+    let rocksdb_dir = data_dir.join("rocksdb");
+    
+    let mut wiped_items = Vec::new();
+    let mut errors = Vec::new();
+    
+    // Wipe each directory if it exists
+    for dir in [&chain_dir, &blocks_dir, &state_dir, &db_dir, &rocksdb_dir] {
+        if dir.exists() {
+            match fs::remove_dir_all(dir) {
+                Ok(_) => {
+                    info!("Wiped directory: {:?}", dir);
+                    wiped_items.push(dir.to_string_lossy().to_string());
+                }
+                Err(e) => {
+                    warn!("Failed to wipe {:?}: {}", dir, e);
+                    errors.push(format!("{:?}: {}", dir, e));
+                }
+            }
+        }
+    }
+    
+    // Also wipe any .db files in the data directory
+    if let Ok(entries) = fs::read_dir(&data_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "db" || ext == "ldb" || ext == "sst" {
+                        match fs::remove_file(&path) {
+                            Ok(_) => {
+                                info!("Wiped file: {:?}", path);
+                                wiped_items.push(path.to_string_lossy().to_string());
+                            }
+                            Err(e) => {
+                                warn!("Failed to wipe {:?}: {}", path, e);
+                                errors.push(format!("{:?}: {}", path, e));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if wiped_items.is_empty() && errors.is_empty() {
+        Ok(ChainWipeResult {
+            success: true,
+            message: "No chain data found to wipe".to_string(),
+            wiped_items: vec![],
+            errors: vec![],
+        })
+    } else if errors.is_empty() {
+        Ok(ChainWipeResult {
+            success: true,
+            message: format!("Successfully wiped {} items. Node will resync from network on next start.", wiped_items.len()),
+            wiped_items,
+            errors: vec![],
+        })
+    } else {
+        Ok(ChainWipeResult {
+            success: false,
+            message: format!("Wiped {} items with {} errors", wiped_items.len(), errors.len()),
+            wiped_items,
+            errors,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChainWipeResult {
+    pub success: bool,
+    pub message: String,
+    pub wiped_items: Vec<String>,
+    pub errors: Vec<String>,
+}
+
+/// Get chain data size for display
+#[tauri::command]
+pub async fn get_chain_data_size(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<ChainDataInfo, String> {
+    let data_dir = {
+        let app_state = state.lock();
+        app_state.data_dir.clone()
+    };
+    
+    let mut total_size: u64 = 0;
+    let mut file_count: u64 = 0;
+    
+    // Calculate size of chain-related directories
+    let dirs_to_check = ["chain", "blocks", "state", "db", "rocksdb"];
+    
+    for dir_name in dirs_to_check {
+        let dir_path = data_dir.join(dir_name);
+        if dir_path.exists() {
+            if let Ok(size) = calculate_dir_size(&dir_path) {
+                total_size += size.0;
+                file_count += size.1;
+            }
+        }
+    }
+    
+    // Also count .db files in root data dir
+    if let Ok(entries) = fs::read_dir(&data_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "db" || ext == "ldb" || ext == "sst" {
+                        if let Ok(meta) = fs::metadata(&path) {
+                            total_size += meta.len();
+                            file_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(ChainDataInfo {
+        data_dir: data_dir.to_string_lossy().to_string(),
+        total_size_bytes: total_size,
+        total_size_human: format_size(total_size),
+        file_count,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChainDataInfo {
+    pub data_dir: String,
+    pub total_size_bytes: u64,
+    pub total_size_human: String,
+    pub file_count: u64,
+}
+
+fn calculate_dir_size(path: &PathBuf) -> Result<(u64, u64), std::io::Error> {
+    let mut total_size: u64 = 0;
+    let mut file_count: u64 = 0;
+    
+    if path.is_dir() {
+        for entry in fs::read_dir(path)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let (size, count) = calculate_dir_size(&path)?;
+                total_size += size;
+                file_count += count;
+            } else {
+                total_size += fs::metadata(&path)?.len();
+                file_count += 1;
+            }
+        }
+    }
+    
+    Ok((total_size, file_count))
+}
+
+fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = KB * 1024;
+    const GB: u64 = MB * 1024;
+    
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.2} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} bytes", bytes)
+    }
+}
+
 /// Remove Inferno Node firewall rules
 #[tauri::command]
 pub async fn remove_firewall_rules() -> Result<FirewallResult, String> {

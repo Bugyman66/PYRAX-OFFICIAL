@@ -140,6 +140,8 @@ fn main() {
             commands::settings::check_firewall_status,
             commands::settings::configure_firewall,
             commands::settings::remove_firewall_rules,
+            commands::settings::wipe_chain_data,
+            commands::settings::get_chain_data_size,
             
             // Remote logging commands
             commands::node::get_remote_server_logs,
