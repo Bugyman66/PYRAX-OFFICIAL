@@ -368,23 +368,20 @@ impl Network {
                 // Key insight: add_explicit_peer() puts peers OUTSIDE mesh by design!
                 // For true mesh, peers must flow through SUBSCRIBE → GRAFT path
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .heartbeat_interval(Duration::from_secs(1)) // Very fast heartbeat for rapid mesh formation
+                    .heartbeat_interval(Duration::from_secs(1)) // Fast heartbeat for rapid mesh formation
                     .validation_mode(gossipsub::ValidationMode::Permissive) // Accept all valid messages
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(1)      // Accept even 1 peer in mesh (critical for small networks)
-                    .mesh_n(2)          // Target 2 peers in mesh (small for devnet)
-                    .mesh_n_high(4)     // Maximum peers in mesh
-                    .mesh_outbound_min(1) // Ensure at least 1 outbound peer in mesh
+                    .mesh_n_low(1)      // Accept even 1 peer in mesh
+                    .mesh_n(2)          // Target 2 peers in mesh
+                    .mesh_n_high(6)     // Maximum peers in mesh
+                    .mesh_outbound_min(0) // CRITICAL: Allow mesh with only inbound peers (bootnodes have all inbound!)
                     .gossip_lazy(3)     // More peers for lazy gossip
                     .gossip_factor(0.25) // Gossip to 25% of non-mesh peers
-                    .heartbeat_initial_delay(Duration::from_millis(100)) // Start heartbeat IMMEDIATELY
+                    .heartbeat_initial_delay(Duration::from_millis(100)) // Start heartbeat quickly
                     .history_length(5)  // Keep 5 heartbeats of history
                     .history_gossip(3)  // Gossip about last 3 heartbeats
                     .flood_publish(true) // Flood publish as backup
-                    .do_px()            // CRITICAL: Enable peer exchange for mesh building
-                    .prune_backoff(Duration::from_secs(10)) // Shorter backoff for faster recovery
-                    .graft_flood_threshold(Duration::from_secs(5)) // Allow faster grafting
-                    .opportunistic_graft_ticks(2) // More aggressive opportunistic grafting
+                    .do_px()            // Enable peer exchange
                     .build()
                     .expect("Valid gossipsub config");
 
