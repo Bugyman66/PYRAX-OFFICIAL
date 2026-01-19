@@ -227,15 +227,18 @@ impl PeerData {
 
     /// Check if peer should be banned based on score
     /// Only ban if score is very low AND peer has been known for a while (grace period)
+    /// FIX: Extended grace period and stricter ban threshold to prevent "scoring out" new users
     pub fn should_ban(&self) -> bool {
-        // Grace period: don't ban peers discovered less than 5 minutes ago
-        // This prevents banning peers that had initial connection issues
-        let grace_period = Duration::from_secs(300);
+        // EXTENDED GRACE PERIOD: 15 minutes (was 5 minutes)
+        // NAT traversal and relay connections can take time to stabilize
+        // Many dial failures happen during initial connection attempts which is normal
+        let grace_period = Duration::from_secs(900);
         if self.discovered_at.elapsed() < grace_period {
             return false;
         }
-        // Require very low score to ban (was -50, now -100)
-        self.score <= -100
+        // Stricter ban threshold: -150 (was -100)
+        // Combined with reduced penalties, this makes banning much harder
+        self.score <= -150
     }
 }
 
@@ -536,12 +539,14 @@ impl PeerStore {
         let uptime_bonus = (peer.uptime_minutes() as f64 * 0.05).min(10.0);
         score += uptime_bonus;
         
-        // Disconnect penalty: - disconnects_last_hour * 1.5 (reduced from 2)
-        score -= peer.disconnects_last_hour as f64 * 1.5;
+        // Disconnect penalty: - disconnects_last_hour * 0.5 (reduced from 1.5)
+        // NAT traversal causes frequent reconnections which is normal behavior
+        score -= peer.disconnects_last_hour as f64 * 0.5;
         
-        // Failure penalty: - failures_last_hour * 0.5 (reduced from 1)
-        // Many failures are due to network issues, not misbehavior
-        score -= peer.failures_last_hour as f64 * 0.5;
+        // Failure penalty: - failures_last_hour * 0.2 (reduced from 0.5)
+        // Many failures are due to NAT/relay issues, not misbehavior
+        // New users behind NAT will have many dial failures during setup
+        score -= peer.failures_last_hour as f64 * 0.2;
         
         // Subnet diversity penalty
         if let Some(ip) = &peer.ip_addr {
@@ -560,8 +565,9 @@ impl PeerStore {
         let interaction_bonus = (peer.successful_interactions as f64 * 0.01).min(5.0);
         score += interaction_bonus;
         
-        // Clamp to [-100, +50] - wider range for negative to allow gradual recovery
-        score.clamp(-100.0, 50.0) as i32
+        // Clamp to [-150, +50] - wider range for negative to allow gradual recovery
+        // Score must go below -150 to trigger ban (with 15min grace period)
+        score.clamp(-150.0, 50.0) as i32
     }
 
     /// Update all peer scores
