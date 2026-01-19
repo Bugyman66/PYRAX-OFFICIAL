@@ -212,24 +212,71 @@ export default function Dashboard() {
         </h2>
         
         {status?.running ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <InfoItem label="Status" value={status.connected ? 'Connected' : 'Connecting...'} />
-            <InfoItem label="Network" value={status.network || 'Unknown'} />
-            <InfoItem label="Version" value={status.version || '0.1.0'} />
-            <InfoItem label="Peers" value={`${status.peerCount || 0}/50`} />
-            {chainInfo && (
-              <>
-                <InfoItem label="Chain ID" value={String(chainInfo.chainId)} />
-                <InfoItem label="Difficulty" value={chainInfo.difficulty || '0'} />
-                <InfoItem 
-                  label="Best Block" 
-                  value={chainInfo.bestBlockHash ? `${chainInfo.bestBlockHash.slice(0, 10)}...` : 'N/A'} 
-                />
-                <InfoItem 
-                  label="Genesis" 
-                  value={chainInfo.genesisHash ? `${chainInfo.genesisHash.slice(0, 10)}...` : 'N/A'} 
-                />
-              </>
+          <div className="space-y-4">
+            {/* Basic Node Info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <InfoItem label="Status" value={status.connected ? 'Connected' : 'Connecting...'} />
+              <InfoItem label="Network" value={status.network || 'Unknown'} />
+              <InfoItem label="Version" value={status.version || '0.1.0'} />
+              <InfoItem label="Peers" value={`${status.peerCount || 0}/${status.targetPeers || 50}`} />
+              {chainInfo && (
+                <>
+                  <InfoItem label="Chain ID" value={String(chainInfo.chainId)} />
+                  <InfoItem label="Difficulty" value={chainInfo.difficulty || '0'} />
+                  <InfoItem 
+                    label="Best Block" 
+                    value={chainInfo.bestBlockHash ? `${chainInfo.bestBlockHash.slice(0, 10)}...` : 'N/A'} 
+                  />
+                  <InfoItem 
+                    label="Genesis" 
+                    value={chainInfo.genesisHash ? `${chainInfo.genesisHash.slice(0, 10)}...` : 'N/A'} 
+                  />
+                </>
+              )}
+            </div>
+            
+            {/* Realtime P2P Connection Stats */}
+            {status.connected && (
+              <div className="mt-4 pt-4 border-t border-dark-600">
+                <h3 className="text-sm font-medium text-stone-400 mb-3 flex items-center gap-2">
+                  <Users size={14} />
+                  P2P Mesh Status
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  <InfoItem 
+                    label="Network State" 
+                    value={status.networkState || 'Unknown'} 
+                  />
+                  <InfoItem 
+                    label="NAT Status" 
+                    value={status.natStatus?.split(' ')[0] || 'Unknown'} 
+                  />
+                  <InfoItem 
+                    label="Inbound" 
+                    value={`${status.inboundPeers ?? 0}`} 
+                  />
+                  <InfoItem 
+                    label="Outbound" 
+                    value={`${status.outboundPeers ?? 0}`} 
+                  />
+                  <InfoItem 
+                    label="Mesh Peers" 
+                    value={`${status.meshPeers ?? 0}`} 
+                  />
+                  <InfoItem 
+                    label="Gossip Peers" 
+                    value={`${status.gossipPeers ?? 0}`} 
+                  />
+                  <InfoItem 
+                    label="Dial Success" 
+                    value={`${status.dialSuccesses ?? 0}/${(status.dialSuccesses ?? 0) + (status.dialFailures ?? 0)}`} 
+                  />
+                  <InfoItem 
+                    label="Avg RTT" 
+                    value={status.averageRttMs ? `${status.averageRttMs}ms` : 'N/A'} 
+                  />
+                </div>
+              </div>
             )}
           </div>
         ) : (

@@ -98,6 +98,18 @@ async function getGeoLocation(ip: string): Promise<GeoLocation> {
     return defaultGeo;
   }
 
+  // Handle relay-connected peers (behind NAT, no direct IP)
+  if (ip === 'relay-connected') {
+    const relayGeo: GeoLocation = {
+      country: 'Relay Network',
+      countryCode: 'RN',
+      city: 'NAT Traversal',
+      lat: 0,
+      lon: 0,
+    };
+    return relayGeo;
+  }
+
   try {
     // ip-api.com is free for non-commercial use, no API key needed
     const response = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,city,lat,lon`, {
@@ -135,7 +147,18 @@ async function getGeoLocation(ip: string): Promise<GeoLocation> {
 }
 
 // Extract IP from multiaddr or address string
+// For relay addresses, we need special handling since the first IP is the relay server, not the peer
 function extractIP(address: string): string {
+  // RELAY FIX: For relay addresses (/p2p-circuit/), the first IP is the relay server, not the peer
+  // These peers don't have a direct IP we can geolocate - return empty to avoid filtering issues
+  if (address.includes('/p2p-circuit/') || address.includes('/p2p-circuit')) {
+    // For relay connections, try to find an IP after the circuit marker
+    // Format: /ip4/RELAY_IP/tcp/PORT/p2p/RELAY_ID/p2p-circuit/p2p/PEER_ID
+    // The peer's actual IP is not in the address - they're behind NAT
+    // Return a marker so we don't filter them as bootnodes
+    return 'relay-connected';
+  }
+
   // Handle multiaddr format: /ip4/1.2.3.4/tcp/30303
   const ipv4Match = address.match(/\/ip4\/([^/]+)/);
   if (ipv4Match) return ipv4Match[1];
@@ -175,8 +198,22 @@ async function measureLatency(endpoint: string): Promise<number> {
   return -1; // -1 indicates failed measurement
 }
 
+// Mesh connection from RPC
+interface MeshConnection {
+  peer_a: string;
+  peer_b: string;
+  topic: string;
+  connection_type: string; // "mesh", "gossip", "direct"
+}
+
 // Fetch peers from a specific stream endpoint
-async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Promise<{ peers: any[]; localPeerId: string; listenAddresses: string[]; latency: number }> {
+async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Promise<{ 
+  peers: any[]; 
+  localPeerId: string; 
+  listenAddresses: string[]; 
+  latency: number;
+  meshConnections: MeshConnection[];
+}> {
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -191,17 +228,20 @@ async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Prom
     });
 
     if (!response.ok) {
-      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1 };
+      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
     }
 
     const data = await response.json();
     if (data.error) {
-      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1 };
+      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
     }
 
     const networkInfo = data.result;
     // Tag each peer with the stream it came from
     const peers = (networkInfo?.peers || []).map((p: any) => ({ ...p, _stream: stream }));
+    
+    // Get mesh connections for user-to-user visualization
+    const meshConnections: MeshConnection[] = networkInfo?.mesh_connections || [];
     
     // Measure latency to this endpoint
     const latency = await measureLatency(endpoint);
@@ -211,9 +251,10 @@ async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Prom
       localPeerId: networkInfo?.local_peer_id || '',
       listenAddresses: networkInfo?.listen_addresses || [],
       latency,
+      meshConnections,
     };
   } catch {
-    return { peers: [], localPeerId: '', listenAddresses: [], latency: -1 };
+    return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
   }
 }
 
@@ -418,6 +459,45 @@ export async function GET() {
           toCoords: [peer.lon, peer.lat],
           isRelay: isRelayConnection,
         });
+      }
+    }
+    
+    // USER-TO-USER CONNECTIONS from mesh topology
+    // These show peers that are connected via GossipSub mesh (sharing topics)
+    const allMeshConnections = [...streamA.meshConnections, ...streamC.meshConnections];
+    const peerIdToNode = new Map<string, ConnectedNode>();
+    
+    // Build lookup map of peer IDs to nodes (for coordinate lookup)
+    for (const node of [...bootnodeNodes, ...peerNodes]) {
+      peerIdToNode.set(node.peerId, node);
+    }
+    
+    // Track which user-to-user connections we've already added (avoid duplicates)
+    const seenUserConnections = new Set<string>();
+    
+    for (const meshConn of allMeshConnections) {
+      const peerA = peerIdToNode.get(meshConn.peer_a);
+      const peerB = peerIdToNode.get(meshConn.peer_b);
+      
+      // Only add if both peers are user nodes (not bootnodes) with valid coordinates
+      if (peerA && peerB && !peerA.isBootnode && !peerB.isBootnode) {
+        // Skip if no valid coordinates
+        if ((peerA.lat === 0 && peerA.lon === 0) || (peerB.lat === 0 && peerB.lon === 0)) continue;
+        
+        // Create unique key for this connection (order-independent)
+        const connKey = [meshConn.peer_a, meshConn.peer_b].sort().join('-');
+        if (seenUserConnections.has(connKey)) continue;
+        seenUserConnections.add(connKey);
+        
+        connections.push({
+          from: peerA.id,
+          to: peerB.id,
+          fromCoords: [peerA.lon, peerA.lat],
+          toCoords: [peerB.lon, peerB.lat],
+          isRelay: false, // Mesh connections are logical, not necessarily relay
+          isMesh: true,   // Mark as mesh connection for different styling
+          connectionType: meshConn.connection_type,
+        } as any);
       }
     }
 

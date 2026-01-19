@@ -135,6 +135,39 @@ pub struct RpcNetworkInfo {
     pub peers: Vec<RpcPeerInfo>,
     pub local_peer_id: String,
     pub listen_addresses: Vec<String>,
+    // Extended P2P stats for realtime connection monitoring
+    pub inbound_peers: usize,
+    pub outbound_peers: usize,
+    pub target_peers: usize,
+    pub max_peers: usize,
+    pub dial_attempts: u64,
+    pub dial_successes: u64,
+    pub dial_failures: u64,
+    pub average_rtt_ms: Option<u64>,
+    pub network_state: String,
+    pub nat_status: String,
+    pub mesh_peers: usize,
+    pub gossip_peers: usize,
+    // Mesh topology for visualizer - shows peer-to-peer connections
+    pub mesh_connections: Vec<RpcMeshConnection>,
+    pub relay_circuits: Vec<RpcRelayCircuit>,
+}
+
+/// Represents a mesh connection between two peers (for visualization)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcMeshConnection {
+    pub peer_a: String,
+    pub peer_b: String,
+    pub topic: String,
+    pub connection_type: String, // "mesh", "gossip", "direct"
+}
+
+/// Represents an active relay circuit through this node
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcRelayCircuit {
+    pub src_peer: String,
+    pub dst_peer: String,
+    pub established_at: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

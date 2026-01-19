@@ -215,9 +215,21 @@ jobs:
           mkdir -p pyrax-desktop/src-tauri/resources
           Copy-Item target/${{ matrix.rust_target }}/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
 
-      # Copy binary - macOS/Linux
-      - name: Copy pyrax-node to resources (Unix)
-        if: matrix.platform != 'windows-latest'
+      # Copy binary - macOS (with pre-signing)
+      - name: Copy and pre-sign pyrax-node (macOS)
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        run: |
+          mkdir -p pyrax-desktop/src-tauri/resources
+          cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
+          chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
+          # Pre-sign the binary before bundling to prevent "damaged" errors
+          echo "Pre-signing pyrax-node binary..."
+          codesign --force --options runtime --sign - pyrax-desktop/src-tauri/resources/pyrax-node
+          echo "✓ pyrax-node pre-signed"
+
+      # Copy binary - Linux
+      - name: Copy pyrax-node to resources (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           mkdir -p pyrax-desktop/src-tauri/resources
           cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
@@ -283,22 +295,64 @@ jobs:
           echo "Building Tauri app for ${{ matrix.tauri_target }}..."
           npm run tauri build -- --target ${{ matrix.rust_target }}
 
-      # Ad-hoc sign macOS app to reduce Gatekeeper warnings
-      # Note: This is NOT a full Apple Developer signature - users will still need to bypass Gatekeeper
-      - name: Ad-hoc sign macOS app
+      # Sign macOS binaries and app bundle to fix "damaged" errors
+      # This performs deep ad-hoc signing on all executables including embedded pyrax-node
+      - name: Sign macOS binaries and app bundle
         if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
         run: |
-          echo "Ad-hoc signing macOS app bundle..."
+          echo "Signing macOS app bundle and embedded binaries..."
+          
+          # Find the app bundle
           APP_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/macos -name "*.app" -type d | head -1)
+          
           if [ -n "$APP_PATH" ]; then
             echo "Found app at: $APP_PATH"
-            # Sign with ad-hoc identity (no Apple Developer account needed)
-            codesign --force --deep --sign - "$APP_PATH"
-            echo "✓ Ad-hoc signed: $APP_PATH"
-            # Verify signature
-            codesign --verify --verbose "$APP_PATH" || echo "Warning: Verification shows ad-hoc signature"
+            
+            # Remove any existing signatures first
+            echo "Removing existing signatures..."
+            codesign --remove-signature "$APP_PATH" 2>/dev/null || true
+            
+            # Find and sign the pyrax-node binary inside the app bundle
+            PYRAX_NODE=$(find "$APP_PATH" -name "pyrax-node" -type f | head -1)
+            if [ -n "$PYRAX_NODE" ]; then
+              echo "Signing embedded pyrax-node: $PYRAX_NODE"
+              codesign --force --options runtime --sign - "$PYRAX_NODE"
+            fi
+            
+            # Find and sign the main executable
+            MAIN_EXEC=$(find "$APP_PATH/Contents/MacOS" -type f -perm +111 | head -1)
+            if [ -n "$MAIN_EXEC" ]; then
+              echo "Signing main executable: $MAIN_EXEC"
+              codesign --force --options runtime --sign - "$MAIN_EXEC"
+            fi
+            
+            # Sign all frameworks and dylibs
+            find "$APP_PATH" -name "*.dylib" -o -name "*.framework" | while read -r lib; do
+              echo "Signing library: $lib"
+              codesign --force --options runtime --sign - "$lib" 2>/dev/null || true
+            done
+            
+            # Finally sign the entire app bundle with deep flag
+            echo "Signing entire app bundle..."
+            codesign --force --deep --options runtime --sign - "$APP_PATH"
+            
+            # Verify the signature
+            echo "Verifying signature..."
+            codesign --verify --deep --verbose=2 "$APP_PATH" && echo "✓ Signature verified" || echo "⚠ Signature verification had warnings (expected for ad-hoc)"
+            
+            # Remove quarantine attribute from the app
+            xattr -cr "$APP_PATH" 2>/dev/null || true
+            
+            echo "✓ Signing complete for: $APP_PATH"
           else
             echo "Warning: No .app bundle found to sign"
+          fi
+          
+          # Also sign the DMG if it exists
+          DMG_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/dmg -name "*.dmg" -type f 2>/dev/null | head -1)
+          if [ -n "$DMG_PATH" ]; then
+            echo "Signing DMG: $DMG_PATH"
+            codesign --force --sign - "$DMG_PATH" 2>/dev/null || echo "DMG signing skipped (optional)"
           fi
 
       # Find and upload bundles - Windows
@@ -358,6 +412,28 @@ jobs:
           echo "All bundle files:"
           find "$BUNDLE_DIR" -type f 2>/dev/null || true
 
+      # Verify and fix Linux AppImage permissions
+      - name: Verify Linux bundle permissions
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          echo "Verifying Linux bundle..."
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          
+          # Ensure AppImage is executable
+          APPIMAGE=$(find "$BUNDLE_DIR" -name "*.AppImage" 2>/dev/null | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            echo "Making AppImage executable: $APPIMAGE"
+            chmod +x "$APPIMAGE"
+            # Verify it's a valid ELF executable
+            file "$APPIMAGE" || echo "Warning: Could not verify file type"
+          fi
+          
+          # Verify pyrax-node in resources is executable
+          if [ -f "pyrax-desktop/src-tauri/resources/pyrax-node" ]; then
+            chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
+            echo "✓ pyrax-node is executable"
+          fi
+
       # Find and upload bundles - Linux
       - name: Find bundle files (Linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -372,6 +448,8 @@ jobs:
             echo "appimage_path=$APPIMAGE" >> $GITHUB_OUTPUT
             echo "appimage_name=$(basename $APPIMAGE)" >> $GITHUB_OUTPUT
             echo "Found AppImage: $APPIMAGE"
+            # Show file info for debugging
+            ls -la "$APPIMAGE"
           fi
           
           # Find .deb

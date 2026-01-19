@@ -12,6 +12,19 @@ export interface NodeStatus {
   blockHash: string;
   network: string;
   version: string;
+  // Extended P2P stats for realtime connection monitoring
+  inboundPeers?: number;
+  outboundPeers?: number;
+  targetPeers?: number;
+  maxPeers?: number;
+  dialAttempts?: number;
+  dialSuccesses?: number;
+  dialFailures?: number;
+  averageRttMs?: number;
+  networkState?: string;
+  natStatus?: string;
+  meshPeers?: number;
+  gossipPeers?: number;
 }
 
 export interface ChainInfo {

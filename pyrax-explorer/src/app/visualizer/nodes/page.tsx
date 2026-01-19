@@ -47,6 +47,9 @@ interface Connection {
   to: string
   fromCoords: [number, number]
   toCoords: [number, number]
+  isRelay?: boolean
+  isMesh?: boolean          // User-to-user mesh connection
+  connectionType?: string   // "mesh", "gossip", "direct"
 }
 
 function cn(...classes: (string | boolean | undefined)[]) {
@@ -211,23 +214,39 @@ export default function NodesVisualizerPage() {
                 </Geographies>
                 {/* Animated connection lines between nodes */}
                 {connections.map((conn, idx) => {
-                  // Check if this is a bootnode-to-bootnode connection (brighter cyan for contrast)
+                  // Determine connection type for styling
                   const isBootnodeLink = conn.from.includes('bootnode') && conn.to.includes('bootnode')
+                  const isMeshLink = (conn as any).isMesh === true
                   const pulseIntensity = 0.4 + (Math.sin((animationPhase + idx * 10) * 0.1) + 1) * 0.3
                   const opacity = Math.round(pulseIntensity * 255).toString(16).padStart(2, '0')
-                  // Use bright cyan for high contrast against dark map background
-                  const baseColor = isBootnodeLink ? '#f97316' : '#06b6d4'
+                  
+                  // Color coding:
+                  // - Orange: Bootnode-to-bootnode (infrastructure)
+                  // - Cyan: User-to-bootnode (relay connections)
+                  // - Purple: User-to-user mesh connections
+                  let baseColor = '#06b6d4' // Default cyan for user-bootnode
+                  if (isBootnodeLink) baseColor = '#f97316' // Orange for bootnode-bootnode
+                  else if (isMeshLink) baseColor = '#a855f7' // Purple for user-user mesh
+                  
                   const strokeColor = `${baseColor}${opacity}`
-                  // Proportional line thickness: bootnode links 0.8, peer links 0.4
-                  const strokeWidth = isBootnodeLink ? 0.8 : 0.4
+                  
+                  // Line thickness: bootnode 0.8, user-bootnode 0.4, mesh 0.3
+                  let strokeWidth = 0.4
+                  if (isBootnodeLink) strokeWidth = 0.8
+                  else if (isMeshLink) strokeWidth = 0.3
+                  
+                  // Dashed line for mesh connections
+                  const strokeDasharray = isMeshLink ? '2,2' : undefined
+                  
                   return (
                     <Line
-                      key={`${conn.from}-${conn.to}`}
+                      key={`${conn.from}-${conn.to}-${idx}`}
                       from={conn.fromCoords}
                       to={conn.toCoords}
                       stroke={strokeColor}
                       strokeWidth={strokeWidth}
                       strokeLinecap="round"
+                      strokeDasharray={strokeDasharray}
                     />
                   )
                 })}
@@ -251,8 +270,8 @@ export default function NodesVisualizerPage() {
             <div className="flex items-center justify-center h-full"><RefreshCw className="w-8 h-8 animate-spin text-stone-600" /></div>
           )}
           <div className="absolute bottom-4 left-4 bg-stone-900/95 rounded-lg p-3 border border-stone-700">
-            <div className="text-xs text-stone-400 mb-2">Node Types</div>
-            <div className="flex flex-wrap gap-4">
+            <div className="text-xs text-stone-400 mb-2">Legend</div>
+            <div className="flex flex-wrap gap-4 mb-2">
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
                 <span className="text-xs text-stone-300 font-medium">Bootnode</span>
@@ -263,6 +282,21 @@ export default function NodesVisualizerPage() {
                   <span className="text-xs text-stone-300">{STREAMS[s].algorithm}</span>
                 </div>
               ))}
+            </div>
+            <div className="text-xs text-stone-400 mb-1 mt-2 border-t border-stone-700 pt-2">Connections</div>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-orange-500" />
+                <span className="text-xs text-stone-300">Bootnode</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-cyan-500" />
+                <span className="text-xs text-stone-300">User→Boot</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-purple-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #a855f7 0, #a855f7 2px, transparent 2px, transparent 4px)' }} />
+                <span className="text-xs text-stone-300">User↔User</span>
+              </div>
             </div>
           </div>
           <div className="absolute top-4 right-4 bg-stone-900/95 rounded-lg p-3 border border-stone-700 min-w-[180px]">

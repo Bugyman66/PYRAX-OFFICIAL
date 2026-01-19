@@ -147,6 +147,31 @@ pub struct NodeStatus {
     pub block_hash: String,
     pub network: String,
     pub version: String,
+    // Extended P2P stats for realtime connection monitoring
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inbound_peers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outbound_peers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_peers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_peers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dial_attempts: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dial_successes: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dial_failures: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub average_rtt_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nat_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mesh_peers: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gossip_peers: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -764,6 +789,18 @@ pub async fn get_node_status(
             block_hash: String::new(),
             network: network.to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
+            inbound_peers: None,
+            outbound_peers: None,
+            target_peers: None,
+            max_peers: None,
+            dial_attempts: None,
+            dial_successes: None,
+            dial_failures: None,
+            average_rtt_ms: None,
+            network_state: None,
+            nat_status: None,
+            mesh_peers: None,
+            gossip_peers: None,
         });
     }
     
@@ -788,6 +825,18 @@ pub async fn get_node_status(
             block_hash: String::new(),
             network: network.to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
+            inbound_peers: None,
+            outbound_peers: None,
+            target_peers: None,
+            max_peers: None,
+            dial_attempts: None,
+            dial_successes: None,
+            dial_failures: None,
+            average_rtt_ms: None,
+            network_state: None,
+            nat_status: None,
+            mesh_peers: None,
+            gossip_peers: None,
         });
     };
     
@@ -797,16 +846,38 @@ pub async fn get_node_status(
             let syncing = info.syncing;
             let sync_progress = if syncing { 50.0 } else { 100.0 };
             
+            // Try to get extended P2P stats from network info
+            let (peer_count, p2p_stats) = match rpc.get_network_info().await {
+                Ok(net_info) => (
+                    net_info.peer_count as u32,
+                    Some(net_info)
+                ),
+                Err(_) => (if is_remote { 1 } else { 0 }, None)
+            };
+            
             Ok(NodeStatus {
                 running: true,
                 connected: true,
                 syncing,
                 sync_progress,
-                peer_count: if is_remote { 1 } else { 0 }, // 1 peer if connected to remote
+                peer_count,
                 block_height: info.best_block_height,
                 block_hash: info.best_block_hash,
                 network: info.network,
                 version: env!("CARGO_PKG_VERSION").to_string(),
+                // Extended P2P stats from network info
+                inbound_peers: p2p_stats.as_ref().map(|s| s.inbound_peers as u32),
+                outbound_peers: p2p_stats.as_ref().map(|s| s.outbound_peers as u32),
+                target_peers: p2p_stats.as_ref().map(|s| s.target_peers as u32),
+                max_peers: p2p_stats.as_ref().map(|s| s.max_peers as u32),
+                dial_attempts: p2p_stats.as_ref().map(|s| s.dial_attempts),
+                dial_successes: p2p_stats.as_ref().map(|s| s.dial_successes),
+                dial_failures: p2p_stats.as_ref().map(|s| s.dial_failures),
+                average_rtt_ms: p2p_stats.as_ref().and_then(|s| s.average_rtt_ms),
+                network_state: p2p_stats.as_ref().map(|s| s.network_state.clone()),
+                nat_status: p2p_stats.as_ref().map(|s| s.nat_status.clone()),
+                mesh_peers: p2p_stats.as_ref().map(|s| s.mesh_peers as u32),
+                gossip_peers: p2p_stats.as_ref().map(|s| s.gossip_peers as u32),
             })
         }
         Err(e) => {
@@ -821,6 +892,18 @@ pub async fn get_node_status(
                 block_hash: String::new(),
                 network: network.to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
+                inbound_peers: None,
+                outbound_peers: None,
+                target_peers: None,
+                max_peers: None,
+                dial_attempts: None,
+                dial_successes: None,
+                dial_failures: None,
+                average_rtt_ms: None,
+                network_state: None,
+                nat_status: None,
+                mesh_peers: None,
+                gossip_peers: None,
             })
         }
     }

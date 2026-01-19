@@ -168,6 +168,11 @@ impl RpcClient {
         self.request("pyrax_getMempoolInfo", ()).await
     }
 
+    /// Get network info with extended P2P stats
+    pub async fn get_network_info(&self) -> Result<NetworkInfoResponse, RpcError> {
+        self.request("pyrax_getNetworkInfo", ()).await
+    }
+
     /// Check if syncing
     pub async fn is_syncing(&self) -> Result<SyncingResponse, RpcError> {
         let info: ChainInfoResponse = self.request("pyrax_getChainInfo", ()).await?;
@@ -363,4 +368,26 @@ pub struct BlockTemplateResponse {
     pub timestamp: u64,
     pub target: String,
     pub coinbase_value: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkInfoResponse {
+    pub peer_count: usize,
+    pub peers: Vec<PeerResponse>,
+    pub local_peer_id: String,
+    pub listen_addresses: Vec<String>,
+    // Extended P2P stats for realtime connection monitoring
+    pub inbound_peers: usize,
+    pub outbound_peers: usize,
+    pub target_peers: usize,
+    pub max_peers: usize,
+    pub dial_attempts: u64,
+    pub dial_successes: u64,
+    pub dial_failures: u64,
+    pub average_rtt_ms: Option<u64>,
+    pub network_state: String,
+    pub nat_status: String,
+    pub mesh_peers: usize,
+    pub gossip_peers: usize,
 }

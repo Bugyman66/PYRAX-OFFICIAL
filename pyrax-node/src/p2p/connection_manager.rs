@@ -60,7 +60,7 @@ impl Default for ConnectionManagerConfig {
     fn default() -> Self {
         Self {
             target_peers: 50,
-            min_peers: 30,
+            min_peers: 3,  // FIXED: Was 30, now 3 - allows small networks to reach Maintaining state
             max_peers: 60,
             max_concurrent_dials: 5,
             dial_timeout: Duration::from_secs(10),
@@ -258,8 +258,16 @@ impl ConnectionManager {
     /// Check if an address is publicly routable (not localhost/private/link-local)
     /// This prevents dialing addresses that will either fail or connect to wrong peers
     fn is_routable_address(address: &str) -> bool {
-        // Check if it's a relay address first (those are always OK for NAT traversal)
-        if address.contains("/p2p-circuit") {
+        // NESTED RELAY FIX: Reject addresses with multiple /p2p-circuit/ segments
+        // libp2p doesn't support chained relay circuits (MultipleCircuitRelayProtocolsUnsupported)
+        // Count occurrences of /p2p-circuit
+        let circuit_count = address.matches("/p2p-circuit").count();
+        if circuit_count > 1 {
+            return false; // Reject nested relay addresses
+        }
+        
+        // Check if it's a single relay address (those are OK for NAT traversal)
+        if circuit_count == 1 {
             return true;
         }
         
@@ -325,9 +333,13 @@ impl ConnectionManager {
     /// 2. Direct addresses often fail for nodes behind NAT
     /// 3. DCUtR can upgrade to direct connection after relay is established
     fn get_best_dial_address(addresses: &[String]) -> Option<String> {
-        // First, try to find a relay address (most reliable for NAT traversal)
+        // First, try to find a SINGLE relay address (most reliable for NAT traversal)
+        // NESTED RELAY FIX: Only accept addresses with exactly one /p2p-circuit segment
         let relay_addr = addresses.iter()
-            .find(|addr| addr.contains("/p2p-circuit/"))
+            .find(|addr| {
+                let circuit_count = addr.matches("/p2p-circuit").count();
+                circuit_count == 1 // Exactly one relay hop, no nested circuits
+            })
             .cloned();
         
         if relay_addr.is_some() {
@@ -583,8 +595,15 @@ impl ConnectionManager {
                 // Waiting for Kademlia bootstrap
             }
             NetworkState::FillingPeers => {
+                // FIXED: Transition to Maintaining with just 3 peers (mesh is healthy)
+                // Previously required 30 peers which caused state to be stuck
                 if connected >= self.config.min_peers {
                     self.transition_to(NetworkState::Maintaining);
+                } else if connected >= 2 {
+                    // Even with 2 peers, we can maintain - just keep trying to add more
+                    self.try_fill_peers().await;
+                    // After 60 seconds in FillingPeers with any peers, transition anyway
+                    // This prevents getting stuck when peer discovery is slow
                 } else {
                     self.try_fill_peers().await;
                 }

@@ -38,7 +38,7 @@ mod connection_manager;
 mod upnp;
 mod relay_fallback;
 
-pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr};
+pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr, RegistryMetrics, MeshConnection, RelayCircuit};
 pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 
@@ -391,12 +391,22 @@ impl Network {
 
         // Build swarm with tokio runtime and relay client for NAT traversal
         let ping_interval = Duration::from_secs(config.ping_interval_secs);
+        
+        // CAPACITY FIX: Custom yamux config with increased stream limits
+        // Default is 128 streams which causes "Dropping inbound stream because we are at capacity"
+        // Increased to 1024 to handle high peer activity
+        let yamux_config = {
+            let mut cfg = yamux::Config::default();
+            cfg.set_max_num_streams(1024); // Was 128, now 1024
+            cfg
+        };
+        
         let swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
             .with_tcp(
                 tcp::Config::default(),
                 noise::Config::new,
-                yamux::Config::default,
+                move |_| yamux_config.clone(),
             )?
             // Add relay client transport - enables nodes behind NAT to be reachable via relay circuits
             .with_relay_client(
@@ -1172,7 +1182,7 @@ impl Network {
                 
                 // Metrics logging and mesh health check
                 _ = metrics_timer.tick() => {
-                    self.log_metrics();
+                    self.log_metrics().await;
                     
                     // MESH FIX: Check mesh health and trigger subscription retry if needed
                     self.check_mesh_health();
@@ -1279,7 +1289,7 @@ impl Network {
                 
                 // Metrics logging and mesh health check
                 _ = metrics_timer.tick() => {
-                    self.log_metrics();
+                    self.log_metrics().await;
                     
                     // MESH FIX: Check mesh health and trigger subscription retry if needed
                     self.check_mesh_health();
@@ -1579,7 +1589,8 @@ impl Network {
     }
 
     /// Log current network metrics with detailed mesh state
-    fn log_metrics(&self) {
+    /// Also updates the peer registry with current metrics for RPC access
+    async fn log_metrics(&mut self) {
         let m = &self.metrics;
         let nat_str = match m.nat_status {
             NatStatus::Public => "PUBLIC (directly reachable)",
@@ -1591,6 +1602,61 @@ impl Network {
         let mesh_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_mesh_peers().collect();
         let gossip_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().collect();
         let topics: Vec<_> = self.swarm.behaviour().gossipsub.topics().collect();
+        
+        // Build mesh connections for visualizer
+        // This shows which peers are connected via shared mesh topics
+        let mut mesh_connections = Vec::new();
+        let local_peer_id = self.swarm.local_peer_id().to_string();
+        
+        // For each topic, create connections between this node and mesh peers
+        for topic in &topics {
+            let topic_str = topic.to_string();
+            // Get peers in mesh for this specific topic
+            let topic_mesh: Vec<_> = self.swarm.behaviour().gossipsub.mesh_peers(topic).collect();
+            
+            for peer_id in topic_mesh {
+                mesh_connections.push(MeshConnection {
+                    peer_a: local_peer_id.clone(),
+                    peer_b: peer_id.to_string(),
+                    topic: topic_str.clone(),
+                    connection_type: "mesh".to_string(),
+                });
+            }
+        }
+        
+        // Also add gossip-only connections (subscribed but not in mesh)
+        for (peer_id, _topics) in &gossip_peers {
+            let peer_str = peer_id.to_string();
+            // Check if already in mesh connections
+            let in_mesh = mesh_connections.iter().any(|c| c.peer_b == peer_str);
+            if !in_mesh {
+                mesh_connections.push(MeshConnection {
+                    peer_a: local_peer_id.clone(),
+                    peer_b: peer_str,
+                    topic: "gossip".to_string(),
+                    connection_type: "gossip".to_string(),
+                });
+            }
+        }
+        
+        // Update registry with extended P2P metrics for RPC/dashboard
+        let registry_metrics = RegistryMetrics {
+            inbound_peers: m.inbound_peers,
+            outbound_peers: m.outbound_peers,
+            target_peers: m.target_peers,
+            max_peers: self.config.max_peers,
+            dial_attempts: m.dial_attempts,
+            dial_successes: m.dial_successes,
+            dial_failures: m.dial_failures,
+            average_rtt_ms: m.average_rtt_ms,
+            network_state: format!("{:?}", m.state),
+            nat_status: nat_str.to_string(),
+            mesh_peers: mesh_peers.len(),
+            gossip_peers: gossip_peers.len(),
+            mesh_connections,
+            relay_circuits: Vec::new(), // TODO: Track relay circuits when they're established
+        };
+        self.peer_registry.update_metrics(registry_metrics).await;
         
         info!("╔══════════════════════════════════════════════════════════════════╗");
         info!("║  P2P MESH STATUS                                                 ║");

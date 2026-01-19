@@ -442,11 +442,48 @@ impl PyraxRpcServer for RpcServerImpl {
                 }
             }).collect();
 
+            // Get extended P2P stats from registry
+            let metrics = registry.get_metrics().await;
+            
+            // Convert mesh connections to RPC format
+            let rpc_mesh_connections: Vec<super::RpcMeshConnection> = metrics.mesh_connections.iter().map(|c| {
+                super::RpcMeshConnection {
+                    peer_a: c.peer_a.clone(),
+                    peer_b: c.peer_b.clone(),
+                    topic: c.topic.clone(),
+                    connection_type: c.connection_type.clone(),
+                }
+            }).collect();
+            
+            let rpc_relay_circuits: Vec<super::RpcRelayCircuit> = metrics.relay_circuits.iter().map(|c| {
+                super::RpcRelayCircuit {
+                    src_peer: c.src_peer.clone(),
+                    dst_peer: c.dst_peer.clone(),
+                    established_at: c.established_at,
+                }
+            }).collect();
+            
             Ok(super::RpcNetworkInfo {
                 peer_count: rpc_peers.len(),
                 peers: rpc_peers,
                 local_peer_id,
                 listen_addresses,
+                // Extended P2P stats
+                inbound_peers: metrics.inbound_peers,
+                outbound_peers: metrics.outbound_peers,
+                target_peers: metrics.target_peers,
+                max_peers: metrics.max_peers,
+                dial_attempts: metrics.dial_attempts,
+                dial_successes: metrics.dial_successes,
+                dial_failures: metrics.dial_failures,
+                average_rtt_ms: metrics.average_rtt_ms,
+                network_state: metrics.network_state.clone(),
+                nat_status: metrics.nat_status.clone(),
+                mesh_peers: metrics.mesh_peers,
+                gossip_peers: metrics.gossip_peers,
+                // Mesh topology for visualizer
+                mesh_connections: rpc_mesh_connections,
+                relay_circuits: rpc_relay_circuits,
             })
         } else {
             Ok(super::RpcNetworkInfo {
@@ -454,6 +491,21 @@ impl PyraxRpcServer for RpcServerImpl {
                 peers: vec![],
                 local_peer_id: String::new(),
                 listen_addresses: vec![],
+                // Default extended stats
+                inbound_peers: 0,
+                outbound_peers: 0,
+                target_peers: 50,
+                max_peers: 60,
+                dial_attempts: 0,
+                dial_successes: 0,
+                dial_failures: 0,
+                average_rtt_ms: None,
+                network_state: "Disconnected".to_string(),
+                nat_status: "Unknown".to_string(),
+                mesh_peers: 0,
+                gossip_peers: 0,
+                mesh_connections: vec![],
+                relay_circuits: vec![],
             })
         }
     }
