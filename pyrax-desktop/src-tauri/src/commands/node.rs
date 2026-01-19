@@ -402,6 +402,18 @@ pub async fn start_node(
                     block_hash: info.best_block_hash,
                     network: info.network,
                     version: env!("CARGO_PKG_VERSION").to_string(),
+                    inbound_peers: None,
+                    outbound_peers: None,
+                    target_peers: None,
+                    max_peers: None,
+                    dial_attempts: None,
+                    dial_successes: None,
+                    dial_failures: None,
+                    average_rtt_ms: None,
+                    network_state: None,
+                    nat_status: None,
+                    mesh_peers: None,
+                    gossip_peers: None,
                 });
             }
             Err(e) => {
@@ -656,6 +668,18 @@ pub async fn start_node(
                     block_hash: info.best_block_hash,
                     network: format!("{} (light)", info.network),
                     version: env!("CARGO_PKG_VERSION").to_string(),
+                    inbound_peers: None,
+                    outbound_peers: None,
+                    target_peers: None,
+                    max_peers: None,
+                    dial_attempts: None,
+                    dial_successes: None,
+                    dial_failures: None,
+                    average_rtt_ms: None,
+                    network_state: None,
+                    nat_status: None,
+                    mesh_peers: None,
+                    gossip_peers: None,
                 });
             }
             Err(e) => {
@@ -670,6 +694,18 @@ pub async fn start_node(
                     block_hash: String::new(),
                     network: format!("{} (light)", network.to_string()),
                     version: env!("CARGO_PKG_VERSION").to_string(),
+                    inbound_peers: None,
+                    outbound_peers: None,
+                    target_peers: None,
+                    max_peers: None,
+                    dial_attempts: None,
+                    dial_successes: None,
+                    dial_failures: None,
+                    average_rtt_ms: None,
+                    network_state: None,
+                    nat_status: None,
+                    mesh_peers: None,
+                    gossip_peers: None,
                 });
             }
         }

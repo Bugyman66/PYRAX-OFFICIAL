@@ -236,8 +236,6 @@ export default function NodesVisualizerPage() {
                   else if (isMeshLink) strokeWidth = 0.3
                   
                   // Dashed line for mesh connections
-                  const strokeDasharray = isMeshLink ? '2,2' : undefined
-                  
                   return (
                     <Line
                       key={`${conn.from}-${conn.to}-${idx}`}
@@ -246,7 +244,6 @@ export default function NodesVisualizerPage() {
                       stroke={strokeColor}
                       strokeWidth={strokeWidth}
                       strokeLinecap="round"
-                      strokeDasharray={strokeDasharray}
                     />
                   )
                 })}
