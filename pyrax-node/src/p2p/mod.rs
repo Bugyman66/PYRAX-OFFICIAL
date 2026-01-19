@@ -406,7 +406,7 @@ impl Network {
             .with_tcp(
                 tcp::Config::default(),
                 noise::Config::new,
-                move |_| yamux_config.clone(),
+                move || yamux_config.clone(),
             )?
             // Add relay client transport - enables nodes behind NAT to be reachable via relay circuits
             .with_relay_client(
