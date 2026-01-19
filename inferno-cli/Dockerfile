@@ -17,13 +17,11 @@ RUN apt-get update && apt-get install -y \
 # Copy workspace files
 COPY . .
 
-# Build pyrax-node binary
-WORKDIR /build/pyrax-node
-RUN cargo build --release --bin pyrax-node
-
-# Build inferno-cli binary
-WORKDIR /build/inferno-cli
-RUN cargo build --release --bin inferno
+# Build both binaries from workspace root
+# Cargo workspace puts all binaries in workspace root target directory
+WORKDIR /build
+RUN cargo build --release -p pyrax-node --bin pyrax-node
+RUN cargo build --release -p inferno-cli --bin inferno
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -38,9 +36,9 @@ RUN apt-get update && apt-get install -y \
 # Create non-root user
 RUN useradd -r -s /bin/false -m -d /var/lib/inferno inferno
 
-# Copy binaries from builder
-COPY --from=builder /build/pyrax-node/target/release/pyrax-node /usr/local/bin/pyrax-node
-COPY --from=builder /build/inferno-cli/target/release/inferno /usr/local/bin/inferno
+# Copy binaries from builder (workspace root target directory)
+COPY --from=builder /build/target/release/pyrax-node /usr/local/bin/pyrax-node
+COPY --from=builder /build/target/release/inferno /usr/local/bin/inferno
 
 # Set permissions
 RUN chmod +x /usr/local/bin/pyrax-node /usr/local/bin/inferno
