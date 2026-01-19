@@ -166,13 +166,13 @@ impl OpenCLContext {
             // Compile KAWPOW kernel
             let kernel_source = CString::new(KAWPOW_OPENCL_KERNEL)?;
             let source_ptr = kernel_source.as_ptr();
-            let source_len = kernel_source.as_bytes().len();
+            let source_len: usize = kernel_source.as_bytes().len();
 
             self.program = create_program(
                 self.context,
                 1,
                 &source_ptr,
-                &source_len,
+                &source_len as *const usize,
                 &mut err,
             );
 
@@ -197,13 +197,13 @@ impl OpenCLContext {
 
             // Create kernels
             let search_name = CString::new("kawpow_search")?;
-            self.kernel_search = create_kernel(self.program, search_name.as_ptr(), &mut err);
+            self.kernel_search = create_kernel(self.program, search_name.as_ptr() as *const i8, &mut err);
             if err != CL_SUCCESS {
                 return Err(OpenCLError::KernelCreationFailed("kawpow_search".to_string(), err));
             }
 
             let dag_name = CString::new("generate_dag")?;
-            self.kernel_dag = create_kernel(self.program, dag_name.as_ptr(), &mut err);
+            self.kernel_dag = create_kernel(self.program, dag_name.as_ptr() as *const i8, &mut err);
             if err != CL_SUCCESS {
                 return Err(OpenCLError::KernelCreationFailed("generate_dag".to_string(), err));
             }

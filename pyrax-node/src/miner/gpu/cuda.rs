@@ -123,10 +123,10 @@ impl CudaContext {
                     // Get kernel functions
                     if let Ok(cu_get_func) = lib.get::<CuModuleGetFunction>(b"cuModuleGetFunction") {
                         let search_name = CString::new("kawpow_search")?;
-                        cu_get_func(&mut self.kernel_search, self.module, search_name.as_ptr());
+                        cu_get_func(&mut self.kernel_search, self.module, search_name.as_ptr() as *const i8);
 
                         let dag_name = CString::new("generate_dag")?;
-                        cu_get_func(&mut self.kernel_dag, self.module, dag_name.as_ptr());
+                        cu_get_func(&mut self.kernel_dag, self.module, dag_name.as_ptr() as *const i8);
                     }
                 }
             }
