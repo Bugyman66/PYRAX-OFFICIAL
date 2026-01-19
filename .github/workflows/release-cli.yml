@@ -131,14 +131,13 @@ jobs:
 
       - name: Build
         run: |
-          cd inferno-cli
-          cargo build --release --target ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }} -p inferno-cli
 
       - name: Package (Unix)
         run: |
-          cd inferno-cli/target/${{ matrix.target }}/release
+          cd target/${{ matrix.target }}/release
           tar -czvf ${{ matrix.asset_name }} ${{ matrix.artifact_name }}
-          mv ${{ matrix.asset_name }} ../../../../
+          mv ${{ matrix.asset_name }} ../../../
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
