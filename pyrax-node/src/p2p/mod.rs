@@ -292,6 +292,10 @@ pub struct Network {
     empty_mesh_count: u32,
     /// MESH FIX: Track if initial subscription announcement has been sent after first bootnode connection
     initial_subscription_sent: bool,
+    /// STALE DATA FIX: LRU cache of recently seen block hashes to prevent duplicate processing
+    seen_blocks: std::collections::VecDeque<H256>,
+    /// STALE DATA FIX: LRU cache of recently seen transaction hashes
+    seen_txs: std::collections::VecDeque<H256>,
 }
 
 /// NAT status for tracking reachability
@@ -557,6 +561,8 @@ impl Network {
             relay_manager,
             empty_mesh_count: 0,
             initial_subscription_sent: false,
+            seen_blocks: std::collections::VecDeque::with_capacity(5000),
+            seen_txs: std::collections::VecDeque::with_capacity(10000),
         })
     }
 
@@ -1241,12 +1247,12 @@ impl Network {
                 // Check if this is a bootnode
                 let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
                 
-                // MESH FIX: Only add BOOTNODES as explicit peers
-                // Regular peers should join mesh naturally via subscriptions
-                // Adding all peers as explicit bypasses the mesh protocol entirely!
+                // MESH FIX v2: Do NOT add ANY peers as explicit peers!
+                // Explicit peers are intentionally OUTSIDE the mesh - GossipSub ignores GRAFT from them.
+                // This was the ROOT CAUSE of mesh not forming: "GRAFT: ignoring request from direct peer"
+                // Let ALL peers (including bootnodes) join mesh naturally via SUBSCRIBE → GRAFT flow.
                 if is_bootnode {
-                    self.swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
-                    info!("✓ BOOTNODE {} connected - added as explicit GossipSub peer", peer_id);
+                    info!("✓ BOOTNODE {} connected - will join mesh via normal GRAFT protocol", peer_id);
                 }
                 
                 // STABILITY FIX: Initialize last ping success time
@@ -1665,9 +1671,14 @@ impl Network {
                 // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;
                 
-                // Add only prioritized addresses to Kademlia (direct preferred over relay)
-                for addr in &prioritized_addrs {
-                    self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                // SELF-DIAL FIX: Never add our own peer ID to Kademlia (causes WrongPeerId errors)
+                if peer_id == self.local_peer_id {
+                    debug!("Skipping self in Kademlia (peer_id == local_peer_id)");
+                } else {
+                    // Add only prioritized addresses to Kademlia (direct preferred over relay)
+                    for addr in &prioritized_addrs {
+                        self.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr.clone());
+                    }
                 }
                 
                 if prioritized_addrs.iter().any(|a| Self::is_relay_address(a)) {
@@ -1916,8 +1927,39 @@ impl Network {
 
         match msg {
             GossipMessage::NewBlock(block) => {
-                info!("Received block {} (height {}) from {}", 
-                    block.hash(), block.height(), source);
+                let block_hash = block.hash();
+                let block_height = block.height();
+                
+                // STALE DATA FIX: Check for duplicate blocks
+                if self.seen_blocks.contains(&block_hash) {
+                    debug!("DUPLICATE BLOCK: already seen {} (height {})", block_hash, block_height);
+                    return;
+                }
+                
+                // STALE DATA FIX: Block height validation
+                let current_tip = self.db.get_tip().height;
+                
+                // Reject blocks too far behind (stale data reintroduction)
+                if block_height + 100 < current_tip {
+                    warn!("STALE BLOCK REJECTED: height {} is {} blocks behind tip {} from {}", 
+                        block_height, current_tip - block_height, current_tip, source);
+                    return;
+                }
+                
+                // Reject blocks too far ahead (spam prevention)
+                if block_height > current_tip + 50 {
+                    warn!("FUTURE BLOCK REJECTED: height {} is {} blocks ahead of tip {} from {}",
+                        block_height, block_height - current_tip, current_tip, source);
+                    return;
+                }
+                
+                // Add to seen cache (LRU behavior - remove oldest if full)
+                if self.seen_blocks.len() >= 5000 {
+                    self.seen_blocks.pop_front();
+                }
+                self.seen_blocks.push_back(block_hash);
+                
+                info!("Received block {} (height {}) from {}", block_hash, block_height, source);
                 
                 // Forward to block processor
                 if let Err(e) = self.block_tx.send(block).await {
@@ -1925,7 +1967,20 @@ impl Network {
                 }
             }
             GossipMessage::NewTransaction(tx) => {
-                debug!("Received tx {} from {}", tx.txid(), source);
+                let tx_hash = tx.txid();
+                
+                // STALE DATA FIX: Check for duplicate transactions
+                if self.seen_txs.contains(&tx_hash) {
+                    return; // Silently ignore duplicates (very common)
+                }
+                
+                // Add to seen cache (LRU behavior)
+                if self.seen_txs.len() >= 10000 {
+                    self.seen_txs.pop_front();
+                }
+                self.seen_txs.push_back(tx_hash);
+                
+                debug!("Received tx {} from {}", tx_hash, source);
                 
                 if let Err(e) = self.tx_tx.send(tx).await {
                     error!("Failed to forward tx: {}", e);
