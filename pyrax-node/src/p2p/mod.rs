@@ -106,6 +106,30 @@ fn version_meets_minimum(version: (u32, u32, u32)) -> bool {
     patch >= min_patch
 }
 
+/// Connection mode for mass adoption - allows users behind strict NAT/firewalls to participate
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ConnectionMode {
+    /// Full P2P node - participates in mesh, can accept inbound connections
+    /// Requires port forwarding or open firewall
+    Full,
+    /// Relay-only mode - connects through bootnodes only, no inbound needed
+    /// Works behind any NAT/firewall, perfect for mass adoption
+    Relay,
+    /// Auto mode - tries full node first, falls back to relay if port is blocked
+    #[default]
+    Auto,
+}
+
+impl ConnectionMode {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "full" => ConnectionMode::Full,
+            "relay" => ConnectionMode::Relay,
+            _ => ConnectionMode::Auto,
+        }
+    }
+}
+
 /// P2P network configuration with mesh networking parameters
 #[derive(Debug, Clone)]
 pub struct P2PConfig {
@@ -131,6 +155,16 @@ pub struct P2PConfig {
     pub peer_reevaluate_interval_secs: u64,
     /// Path to persistent node key file (if None, generates ephemeral key)
     pub node_key_path: Option<PathBuf>,
+    
+    // === MASS ADOPTION NETWORK SETTINGS ===
+    /// Connection mode: Full (requires port forwarding), Relay (works anywhere), Auto
+    pub connection_mode: ConnectionMode,
+    /// Enable WebSocket transport (works through proxies and strict firewalls)
+    pub enable_websocket: bool,
+    /// Enable automatic port fallback (tries alternative ports if primary is blocked)
+    pub auto_port_fallback: bool,
+    /// Alternative ports to try if primary is blocked (in order of preference)
+    pub fallback_ports: Vec<u16>,
 }
 
 impl Default for P2PConfig {
@@ -147,6 +181,12 @@ impl Default for P2PConfig {
             peer_refresh_interval_secs: 30,
             peer_reevaluate_interval_secs: 60,
             node_key_path: None,
+            // Mass adoption defaults - Auto mode for best compatibility
+            connection_mode: ConnectionMode::Auto,
+            enable_websocket: true,
+            auto_port_fallback: true,
+            // Stealth ports that bypass ISP blocks (443=HTTPS, 8080=alt HTTP, 8443=alt HTTPS)
+            fallback_ports: vec![443, 8080, 8443, 9999],
         }
     }
 }
@@ -576,10 +616,65 @@ impl Network {
         &self.local_peer_id
     }
 
-    /// Start listening
+    /// Start listening based on connection mode
+    /// - Full: Listen on direct address + relay fallback
+    /// - Relay: Only use relay (no direct listening) - works behind any NAT/firewall
+    /// - Auto: Try direct, auto-detect if blocked, fallback to relay
     pub fn listen(&mut self, addr: &str) -> anyhow::Result<()> {
-        let multiaddr: Multiaddr = addr.parse()?;
-        self.swarm.listen_on(multiaddr)?;
+        match self.config.connection_mode {
+            ConnectionMode::Full => {
+                info!("MASS ADOPTION: Full node mode - listening on {}", addr);
+                let multiaddr: Multiaddr = addr.parse()?;
+                self.swarm.listen_on(multiaddr)?;
+            }
+            ConnectionMode::Relay => {
+                info!("MASS ADOPTION: Relay-only mode - no direct listening (works behind any NAT/firewall)");
+                // Don't listen directly - we'll only connect outbound and use relay
+                // This is perfect for users behind strict NAT/firewalls (Xfinity, Comcast, etc.)
+            }
+            ConnectionMode::Auto => {
+                info!("MASS ADOPTION: Auto mode - trying direct listen on {}", addr);
+                let multiaddr: Multiaddr = addr.parse()?;
+                match self.swarm.listen_on(multiaddr) {
+                    Ok(_) => {
+                        info!("Direct listen successful - will verify port reachability");
+                    }
+                    Err(e) => {
+                        warn!("Direct listen failed: {:?} - will use relay-only mode", e);
+                        // Will rely on relay connections
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    
+    /// Start listening with automatic port fallback
+    /// Tries primary port, then falls back to stealth ports if blocked
+    pub fn listen_with_fallback(&mut self, primary_addr: &str) -> anyhow::Result<()> {
+        if !self.config.auto_port_fallback {
+            return self.listen(primary_addr);
+        }
+        
+        // Try primary address first
+        let primary: Multiaddr = primary_addr.parse()?;
+        if self.swarm.listen_on(primary.clone()).is_ok() {
+            info!("Listening on primary address: {}", primary_addr);
+            return Ok(());
+        }
+        
+        // Try fallback ports
+        for port in &self.config.fallback_ports.clone() {
+            let fallback_addr = format!("/ip4/0.0.0.0/tcp/{}", port);
+            if let Ok(multiaddr) = fallback_addr.parse::<Multiaddr>() {
+                if self.swarm.listen_on(multiaddr.clone()).is_ok() {
+                    info!("MASS ADOPTION: Listening on fallback port {} (primary was blocked)", port);
+                    return Ok(());
+                }
+            }
+        }
+        
+        warn!("All ports blocked - using relay-only mode");
         Ok(())
     }
 

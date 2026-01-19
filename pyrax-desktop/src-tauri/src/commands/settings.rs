@@ -1,4 +1,4 @@
-use crate::state::{AppState, Settings, Network, Theme};
+use crate::state::{AppState, Settings, Network, Theme, ConnectionMode, PortPreset};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -25,6 +25,20 @@ pub struct AppSettings {
     pub data_dir: Option<String>,
     /// Log verbosity: 0=error, 1=warn, 2=info, 3=debug, 4=trace
     pub log_verbosity: Option<u8>,
+    
+    // === MASS ADOPTION NETWORK SETTINGS ===
+    /// Connection mode: "full", "relay", "auto"
+    #[serde(default)]
+    pub connection_mode: Option<String>,
+    /// Port preset: "standard", "https", "althttp", "althttps", "custom"
+    #[serde(default)]
+    pub port_preset: Option<String>,
+    /// Enable WebSocket transport
+    #[serde(default)]
+    pub enable_websocket: Option<bool>,
+    /// Enable automatic port fallback
+    #[serde(default)]
+    pub auto_port_fallback: Option<bool>,
 }
 
 impl From<&AppState> for AppSettings {
@@ -47,6 +61,11 @@ impl From<&AppState> for AppSettings {
             },
             data_dir: Some(state.data_dir.to_string_lossy().to_string()),
             log_verbosity: Some(state.settings.log_verbosity),
+            // Mass adoption network settings
+            connection_mode: Some(state.settings.connection_mode.to_string()),
+            port_preset: Some(state.settings.port_preset.to_string()),
+            enable_websocket: Some(state.settings.enable_websocket),
+            auto_port_fallback: Some(state.settings.auto_port_fallback),
         }
     }
 }
@@ -89,6 +108,23 @@ pub async fn save_settings(
             _ => Theme::System,
         },
         log_verbosity: settings.log_verbosity.unwrap_or(3),
+        // Mass adoption network settings
+        connection_mode: match settings.connection_mode.as_deref() {
+            Some("full") => ConnectionMode::FullNode,
+            Some("relay") => ConnectionMode::RelayOnly,
+            _ => ConnectionMode::Auto,
+        },
+        port_preset: match settings.port_preset.as_deref() {
+            Some("https") => PortPreset::Https,
+            Some("althttp") => PortPreset::AltHttp,
+            Some("althttps") => PortPreset::AltHttps,
+            Some("custom") => PortPreset::Custom,
+            _ => PortPreset::Standard,
+        },
+        enable_websocket: settings.enable_websocket.unwrap_or(true),
+        auto_port_fallback: settings.auto_port_fallback.unwrap_or(true),
+        detected_nat_type: None,
+        last_successful_transport: None,
     };
     
     if let Some(dir) = settings.data_dir {
@@ -871,4 +907,166 @@ pub async fn remove_firewall_rules() -> Result<FirewallResult, String> {
             requires_restart: false,
         })
     }
+}
+
+/// Test if a P2P port is reachable from the internet
+/// Uses external port checking service to verify connectivity
+#[tauri::command]
+pub async fn test_port_connectivity(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<PortTestResult, String> {
+    let p2p_port = {
+        let app_state = state.lock();
+        app_state.settings.p2p_port
+    };
+    
+    info!("Testing port {} connectivity...", p2p_port);
+    
+    // First, check if port is listening locally
+    let local_check = std::net::TcpListener::bind(format!("0.0.0.0:{}", p2p_port));
+    let port_in_use = local_check.is_err();
+    
+    // Try to get external IP
+    let external_ip = get_external_ip().await;
+    
+    // Use canyouseeme.org API or similar to check port from outside
+    let external_reachable = if let Some(ref ip) = external_ip {
+        check_port_external(ip, p2p_port).await
+    } else {
+        false
+    };
+    
+    let status = if external_reachable {
+        "open"
+    } else if port_in_use {
+        "in_use_but_blocked"
+    } else {
+        "blocked"
+    };
+    
+    let recommendation = match status {
+        "open" => "Your port is open and reachable! Full node mode will work.".to_string(),
+        "in_use_but_blocked" => format!(
+            "Port {} is in use locally but not reachable from internet. Try:\n\
+            1. Enable port forwarding on your router\n\
+            2. Switch to 'Relay Mode' in Network Settings\n\
+            3. Try a different port (443, 8080, 8443)", 
+            p2p_port
+        ),
+        _ => format!(
+            "Port {} appears blocked. Options:\n\
+            1. Switch to 'Relay Mode' (works behind any firewall)\n\
+            2. Try 'Auto' mode with a stealth port (443, 8080)\n\
+            3. Configure port forwarding on your router",
+            p2p_port
+        ),
+    };
+    
+    Ok(PortTestResult {
+        port: p2p_port,
+        status: status.to_string(),
+        external_ip,
+        is_reachable: external_reachable,
+        recommendation,
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PortTestResult {
+    pub port: u16,
+    pub status: String,
+    pub external_ip: Option<String>,
+    pub is_reachable: bool,
+    pub recommendation: String,
+}
+
+/// Get external IP address
+async fn get_external_ip() -> Option<String> {
+    // Try multiple services for redundancy
+    let services = [
+        "https://api.ipify.org",
+        "https://icanhazip.com",
+        "https://ifconfig.me/ip",
+    ];
+    
+    for service in services {
+        if let Ok(response) = reqwest::get(service).await {
+            if let Ok(ip) = response.text().await {
+                let ip = ip.trim().to_string();
+                if !ip.is_empty() && ip.len() < 50 {
+                    return Some(ip);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Check if port is reachable from external network
+async fn check_port_external(ip: &str, port: u16) -> bool {
+    // Use a port checking service
+    // This is a simple implementation - in production you might use a more reliable service
+    let url = format!("https://portchecker.co/check?ip={}&port={}", ip, port);
+    
+    match reqwest::get(&url).await {
+        Ok(response) => {
+            if let Ok(body) = response.text().await {
+                // Check if response indicates port is open
+                body.contains("open") || body.contains("reachable") || body.contains("success")
+            } else {
+                false
+            }
+        }
+        Err(_) => {
+            // If we can't check externally, try a simple TCP connect test
+            // This won't work for NAT but gives some indication
+            false
+        }
+    }
+}
+
+/// Get network diagnostics for troubleshooting
+#[tauri::command]
+pub async fn get_network_diagnostics(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<NetworkDiagnostics, String> {
+    let settings = {
+        let app_state = state.lock();
+        app_state.settings.clone()
+    };
+    
+    let external_ip = get_external_ip().await;
+    
+    Ok(NetworkDiagnostics {
+        connection_mode: match settings.connection_mode {
+            crate::state::ConnectionMode::FullNode => "Full Node".to_string(),
+            crate::state::ConnectionMode::RelayOnly => "Relay Only".to_string(),
+            crate::state::ConnectionMode::Auto => "Auto".to_string(),
+        },
+        p2p_port: settings.p2p_port,
+        port_preset: match settings.port_preset {
+            crate::state::PortPreset::Standard => "Standard (30303)".to_string(),
+            crate::state::PortPreset::Https => "HTTPS (443)".to_string(),
+            crate::state::PortPreset::AltHttp => "Alt HTTP (8080)".to_string(),
+            crate::state::PortPreset::AltHttps => "Alt HTTPS (8443)".to_string(),
+            crate::state::PortPreset::Custom => format!("Custom ({})", settings.p2p_port),
+        },
+        websocket_enabled: settings.enable_websocket,
+        auto_fallback_enabled: settings.auto_port_fallback,
+        external_ip,
+        nat_type: settings.detected_nat_type.clone(),
+        last_transport: settings.last_successful_transport.clone(),
+    })
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkDiagnostics {
+    pub connection_mode: String,
+    pub p2p_port: u16,
+    pub port_preset: String,
+    pub websocket_enabled: bool,
+    pub auto_fallback_enabled: bool,
+    pub external_ip: Option<String>,
+    pub nat_type: Option<String>,
+    pub last_transport: Option<String>,
 }

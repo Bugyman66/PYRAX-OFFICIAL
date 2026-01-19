@@ -88,26 +88,38 @@ detect_wsl() {
     fi
 }
 
-# Get latest release version
+# Get latest CLI release version (specifically cli-v* tags, not desktop-v*)
 get_latest_version() {
-    info "Fetching latest version..."
+    info "Fetching latest CLI version..."
     
+    # Fetch all releases and find the latest CLI release (tagged with cli-v*)
     if command -v curl &> /dev/null; then
-        VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        # Get all releases and filter for cli-v* tags
+        VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases" | \
+            grep '"tag_name":' | \
+            grep 'cli-v' | \
+            head -n 1 | \
+            sed -E 's/.*"cli-v([^"]+)".*/\1/')
     elif command -v wget &> /dev/null; then
-        VERSION=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        VERSION=$(wget -qO- "https://api.github.com/repos/${REPO}/releases" | \
+            grep '"tag_name":' | \
+            grep 'cli-v' | \
+            head -n 1 | \
+            sed -E 's/.*"cli-v([^"]+)".*/\1/')
     else
         error "Neither curl nor wget found. Please install one of them."
     fi
     
     if [ -z "$VERSION" ]; then
-        error "Could not determine latest version"
+        error "Could not determine latest CLI version. No cli-v* releases found."
     fi
     
-    # Remove 'v' prefix if present for CLI releases
-    VERSION_NUM="${VERSION#v}"
+    # VERSION is already just the number (e.g., "0.2.47")
+    VERSION_NUM="$VERSION"
+    # Full tag name for download URL
+    VERSION="cli-v${VERSION_NUM}"
     
-    success "Latest version: $VERSION"
+    success "Latest CLI version: $VERSION"
 }
 
 # Build download URL

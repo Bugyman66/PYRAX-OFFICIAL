@@ -45,13 +45,99 @@ pub struct Settings {
     pub theme: Theme,
     /// Log verbosity level: 0=error, 1=warn, 2=info, 3=debug, 4=trace
     pub log_verbosity: u8,
+    
+    // === MASS ADOPTION NETWORK SETTINGS ===
+    /// Connection mode: FullNode (requires port forwarding), RelayOnly (works anywhere), Auto
+    #[serde(default)]
+    pub connection_mode: ConnectionMode,
+    /// Port preset for stealth mode (Standard, Https, AltHttp, AltHttps, Custom)
+    #[serde(default)]
+    pub port_preset: PortPreset,
+    /// Enable WebSocket transport (works through proxies and strict firewalls)
+    #[serde(default)]
+    pub enable_websocket: bool,
+    /// Enable automatic port detection and fallback
+    #[serde(default = "default_true")]
+    pub auto_port_fallback: bool,
+    /// Detected NAT type from last connection attempt
+    #[serde(default)]
+    pub detected_nat_type: Option<String>,
+    /// Last successful transport method
+    #[serde(default)]
+    pub last_successful_transport: Option<String>,
 }
+
+fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Theme {
     Light,
     Dark,
     System,
+}
+
+/// Connection mode for P2P networking - allows users behind strict NAT/firewalls to participate
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ConnectionMode {
+    /// Full P2P node - participates in mesh, can accept inbound connections
+    /// Requires port forwarding or open firewall
+    #[default]
+    FullNode,
+    /// Relay-only mode - connects through bootnodes only, no inbound needed
+    /// Works behind any NAT/firewall, perfect for mass adoption
+    RelayOnly,
+    /// Auto mode - tries full node first, falls back to relay if port is blocked
+    Auto,
+}
+
+/// Port preset options for stealth mode
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PortPreset {
+    /// Standard P2P port (30303) - may be blocked by some ISPs
+    #[default]
+    Standard,
+    /// HTTPS port (443) - rarely blocked, looks like web traffic
+    Https,
+    /// Alternative HTTP port (8080) - rarely blocked
+    AltHttp,
+    /// Alternative HTTPS port (8443) - rarely blocked
+    AltHttps,
+    /// Custom port specified by user
+    Custom,
+}
+
+impl PortPreset {
+    pub fn default_port(&self) -> u16 {
+        match self {
+            PortPreset::Standard => 30303,
+            PortPreset::Https => 443,
+            PortPreset::AltHttp => 8080,
+            PortPreset::AltHttps => 8443,
+            PortPreset::Custom => 30303,
+        }
+    }
+}
+
+impl std::fmt::Display for ConnectionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnectionMode::FullNode => write!(f, "full"),
+            ConnectionMode::RelayOnly => write!(f, "relay"),
+            ConnectionMode::Auto => write!(f, "auto"),
+        }
+    }
+}
+
+impl std::fmt::Display for PortPreset {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PortPreset::Standard => write!(f, "standard"),
+            PortPreset::Https => write!(f, "https"),
+            PortPreset::AltHttp => write!(f, "althttp"),
+            PortPreset::AltHttps => write!(f, "althttps"),
+            PortPreset::Custom => write!(f, "custom"),
+        }
+    }
 }
 
 impl AppState {
@@ -97,6 +183,13 @@ impl Default for Settings {
             max_peers: 50,
             theme: Theme::System,
             log_verbosity: 3, // Default to debug level for detailed logs
+            // Mass adoption network defaults - Auto mode for best compatibility
+            connection_mode: ConnectionMode::Auto,
+            port_preset: PortPreset::Standard,
+            enable_websocket: true, // Enable by default for maximum compatibility
+            auto_port_fallback: true, // Enable automatic fallback
+            detected_nat_type: None,
+            last_successful_transport: None,
         }
     }
 }

@@ -142,6 +142,8 @@ fn main() {
             commands::settings::remove_firewall_rules,
             commands::settings::wipe_chain_data,
             commands::settings::get_chain_data_size,
+            commands::settings::test_port_connectivity,
+            commands::settings::get_network_diagnostics,
             
             // Remote logging commands
             commands::node::get_remote_server_logs,

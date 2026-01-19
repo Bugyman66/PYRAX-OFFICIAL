@@ -274,7 +274,8 @@ pub async fn start_node(
 ) -> Result<NodeStatus, String> {
     // RELIABILITY FIX: Clean up any stale state before checking
     // This handles cases where the app was force-closed while node was running
-    let (network, rpc_port, data_dir, log_verbosity, had_stale_process) = {
+    let (network, rpc_port, data_dir, log_verbosity, had_stale_process, 
+         connection_mode, p2p_port_setting, enable_websocket, auto_port_fallback) = {
         let mut app_state = state.lock();
         
         // Check if we have a stale process handle
@@ -311,12 +312,22 @@ pub async fn start_node(
             app_state.node_running = false;
         }
         
+        // Get mass adoption network settings
+        let conn_mode = app_state.settings.connection_mode;
+        let p2p_port = app_state.settings.p2p_port;
+        let ws_enabled = app_state.settings.enable_websocket;
+        let auto_fallback = app_state.settings.auto_port_fallback;
+        
         (
             app_state.network.clone(),
             get_rpc_port(&app_state.network),
             app_state.data_dir.clone(),
             app_state.settings.log_verbosity,
             had_stale,
+            conn_mode,
+            p2p_port,
+            ws_enabled,
+            auto_fallback,
         )
     };
     
@@ -386,12 +397,10 @@ pub async fn start_node(
         };
         
         let rpc_addr = format!("0.0.0.0:{}", rpc_port);
-        // Use standard P2P port based on network - MUST match bootnode port for peer discovery
-        let p2p_port = match network {
-            crate::state::Network::Mainnet => 30303,
-            crate::state::Network::Testnet => 30303,
-            crate::state::Network::Devnet => 30303, // Must match bootnode P2P port
-        };
+        
+        // MASS ADOPTION: Use user-configured P2P port from settings
+        // This allows users to bypass ISP blocks on port 30303
+        let p2p_port = p2p_port_setting;
         let p2p_addr = format!("/ip4/0.0.0.0/tcp/{}", p2p_port); // libp2p multiaddr format
         let staking_port = rpc_port + 2; // Staking RPC (e.g., 28545 -> 28547)
         let staking_addr = format!("0.0.0.0:{}", staking_port);
@@ -401,6 +410,16 @@ pub async fn start_node(
         
         // Get bootstrap peers for this network
         let bootstrap_peers = get_bootstrap_peers(&network);
+        
+        // Determine connection mode string for pyrax-node
+        let conn_mode_str = match connection_mode {
+            crate::state::ConnectionMode::FullNode => "full",
+            crate::state::ConnectionMode::RelayOnly => "relay",
+            crate::state::ConnectionMode::Auto => "auto",
+        };
+        
+        emit_log(&app, "info", "p2p", &format!("Connection mode: {} | P2P port: {} | WebSocket: {} | Auto-fallback: {}", 
+            conn_mode_str, p2p_port, enable_websocket, auto_port_fallback));
         
         // Build command with all TriStream services enabled
         let mut cmd = Command::new(&binary_path);
@@ -414,7 +433,19 @@ pub async fn start_node(
            .arg("--staking")
            .arg("--staking-addr").arg(&staking_addr)
            .arg("--datadir").arg(&data_dir)
-           .arg("--verbosity").arg(log_verbosity.to_string());
+           .arg("--verbosity").arg(log_verbosity.to_string())
+           // MASS ADOPTION: Pass connection mode to node
+           .arg("--connection-mode").arg(conn_mode_str);
+        
+        // MASS ADOPTION: Enable WebSocket transport if configured
+        if enable_websocket {
+            cmd.arg("--enable-websocket");
+        }
+        
+        // MASS ADOPTION: Enable automatic port fallback
+        if auto_port_fallback {
+            cmd.arg("--auto-port-fallback");
+        }
         
         // Add ALL bootstrap peers for relay redundancy (--peer can be specified multiple times)
         for peer in &bootstrap_peers {

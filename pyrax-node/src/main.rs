@@ -110,6 +110,19 @@ struct Args {
     /// If provided, the node will use a persistent peer ID that survives restarts
     #[arg(long)]
     node_key: Option<PathBuf>,
+
+    // === MASS ADOPTION NETWORK SETTINGS ===
+    /// Connection mode: full (requires port forwarding), relay (works behind any NAT), auto (tries both)
+    #[arg(long, default_value = "auto")]
+    connection_mode: String,
+
+    /// Enable WebSocket transport (works through proxies and strict firewalls)
+    #[arg(long)]
+    enable_websocket: bool,
+
+    /// Enable automatic port fallback (tries alternative ports if primary is blocked)
+    #[arg(long)]
+    auto_port_fallback: bool,
 }
 
 fn parse_network(s: &str) -> NetworkId {
@@ -298,6 +311,12 @@ async fn main() -> anyhow::Result<()> {
     if args.p2p {
         info!("P2P networking enabled");
         
+        // Parse connection mode from CLI args
+        let connection_mode = p2p::ConnectionMode::from_str(&args.connection_mode);
+        
+        info!("MASS ADOPTION MODE: {:?} | WebSocket: {} | Auto-fallback: {}", 
+            connection_mode, args.enable_websocket, args.auto_port_fallback);
+        
         let p2p_config = P2PConfig {
             listen_addr: args.p2p_addr.clone(),
             bootstrap_peers: args.peer.clone(),
@@ -310,6 +329,11 @@ async fn main() -> anyhow::Result<()> {
             peer_refresh_interval_secs: 30,
             peer_reevaluate_interval_secs: 60,
             node_key_path: args.node_key.clone(),
+            // Mass adoption network settings
+            connection_mode,
+            enable_websocket: args.enable_websocket,
+            auto_port_fallback: args.auto_port_fallback,
+            fallback_ports: vec![443, 8080, 8443, 9999],
         };
 
         let mut network = Network::new(p2p_config, db.clone(), network, peer_registry.clone()).await?;
