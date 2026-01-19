@@ -5,6 +5,8 @@
 //!
 //! Production-ready for solo mining and pool operation.
 
+#![allow(dead_code)]
+
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
@@ -325,12 +327,26 @@ impl MiningService {
         // Get current template to reconstruct block
         let template = self.get_block_template();
         
-        // Build block header with submitted nonce
+        // Create coinbase transaction
+        let coinbase_tx = Transaction::coinbase(
+            template.height, 
+            template.coinbase_value, 
+            &self.config.coinbase_address
+        );
+        
+        // Build full transaction list
+        let mut all_txs = vec![coinbase_tx];
+        all_txs.extend(template.transactions.clone());
+        
+        // Compute proper merkle root
+        let merkle_root = compute_merkle_root(&all_txs);
+        
+        // Build block header with submitted nonce and proper merkle root
         let header = BlockHeader {
             version: 1,
             stream: 0,
             parent_hash: template.parent_hash,
-            merkle_root: H256::zero(), // Would be computed from transactions
+            merkle_root,
             utxo_commitment: H256::zero(),
             timestamp: template.timestamp,
             difficulty: template.difficulty,
@@ -345,8 +361,8 @@ impl MiningService {
             return Err("Header hash mismatch".to_string());
         }
         
-        // Build and submit block
-        let block = Block::new(header, template.transactions);
+        // Build and submit block with proper merkle root
+        let block = Block::new(header, all_txs);
         self.chain_provider.submit_block(block)
     }
 

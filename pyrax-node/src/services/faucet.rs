@@ -2,6 +2,8 @@
 //!
 //! Production testnet faucet with rate limiting and anti-abuse
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::net::IpAddr;

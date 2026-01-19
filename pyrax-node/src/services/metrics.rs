@@ -2,6 +2,8 @@
 //!
 //! Production metrics collection and dashboard API
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;

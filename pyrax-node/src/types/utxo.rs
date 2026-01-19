@@ -136,7 +136,7 @@ impl TxOutput {
         {
             let mut addr_bytes = [0u8; 20];
             addr_bytes.copy_from_slice(&self.script_pubkey[3..23]);
-            Some(Address::from_bytes(addr_bytes))
+            Some(Address::from_slice(&addr_bytes))
         } else {
             None
         }

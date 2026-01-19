@@ -102,6 +102,9 @@ jobs:
           # Stream A: BLAKE3 PoW (internal via nginx)
           # Port 8545 is internal only
           
+          # Stream A: BLAKE3 ASIC Mining - Stratum
+          ufw allow 3334/tcp comment 'Stream A Stratum (BLAKE3 ASIC Mining)'
+          
           # Stream B: KAWPOW GPU Mining - Stratum
           ufw allow 3333/tcp comment 'Stream B Stratum (GPU Mining)'
           
@@ -228,6 +231,7 @@ jobs:
               --node-key /var/lib/pyrax/node.key \
               --rpc --rpc-addr 0.0.0.0:28545 \
               --p2p --p2p-addr /ip4/0.0.0.0/tcp/30303 \
+              --blake3-stratum --blake3-stratum-addr 0.0.0.0:3334 \
               --stratum --stratum-addr 0.0.0.0:3333 \
               --staking --staking-addr 0.0.0.0:28547 \
               --verbosity 2
@@ -503,7 +507,7 @@ jobs:
           curl -sf http://localhost:80 -o /dev/null && echo "Port 80: OK" || echo "Port 80: FAILED"
           
           echo "=== LISTENING PORTS ==="
-          ss -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003|:28545|:3333|:28547|:30303'
+          ss -tlnp | grep -E ':80|:443|:3000|:3001|:3002|:3003|:28545|:3333|:3334|:28547|:30303'
           
           echo "=== CLEANUP OLD IMAGES ==="
           docker image prune -f
@@ -552,8 +556,11 @@ jobs:
             echo "✗ Stream A RPC (28545): FAILED"
           fi
           
+          # Stream A - BLAKE3 Stratum (ASIC)
+          nc -zv ${{ env.BOOTNODE_1 }} 3334 -w 3 2>&1 && echo "✓ Stream A BLAKE3 Stratum (3334): OPEN" || echo "✗ Stream A BLAKE3 Stratum (3334): CLOSED"
+          
           # Stream B - Stratum (KAWPOW)
-          nc -zv ${{ env.BOOTNODE_1 }} 3333 -w 3 2>&1 && echo "✓ Stream B Stratum (3333): OPEN" || echo "✗ Stream B Stratum (3333): CLOSED"
+          nc -zv ${{ env.BOOTNODE_1 }} 3333 -w 3 2>&1 && echo "✓ Stream B KAWPOW Stratum (3333): OPEN" || echo "✗ Stream B KAWPOW Stratum (3333): CLOSED"
           
           # Stream C - Staking RPC (ZK)
           STREAM_C=$(curl -sf --max-time 10 -X POST http://${{ env.BOOTNODE_1 }}:28547 \
@@ -583,9 +590,10 @@ jobs:
           echo "========================================"
           echo ""
           echo "Bootnode 1 (Primary - ${{ env.BOOTNODE_1 }}):"
-          echo "  Stream A RPC:     http://${{ env.BOOTNODE_1 }}:28545"
-          echo "  Stream B Stratum: ${{ env.BOOTNODE_1 }}:3333"
-          echo "  Stream C Staking: http://${{ env.BOOTNODE_1 }}:28547"
+          echo "  Stream A RPC:          http://${{ env.BOOTNODE_1 }}:28545"
+          echo "  Stream A BLAKE3:       stratum+tcp://${{ env.BOOTNODE_1 }}:3334"
+          echo "  Stream B KAWPOW:       stratum+tcp://${{ env.BOOTNODE_1 }}:3333"
+          echo "  Stream C Staking:      http://${{ env.BOOTNODE_1 }}:28547"
           echo "  P2P:              /ip4/${{ env.BOOTNODE_1 }}/tcp/30303"
           echo ""
           echo "Bootnode 2 (Redundancy - ${{ env.BOOTNODE_2 }}):"

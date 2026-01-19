@@ -3,6 +3,11 @@
 //! Production-ready types for the PYRAX blockchain.
 //! No stubs, no mocks - devnet/testnet/mainnet ready.
 
+pub mod utxo;
+pub mod stream_a_block;
+
+pub use utxo::UtxoTransaction;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

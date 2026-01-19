@@ -344,6 +344,9 @@ pub struct Network {
     topic_peers: HashMap<String, HashSet<PeerId>>,
     /// STABILITY FIX: Track last successful ping time per peer for liveness detection
     last_ping_success: HashMap<PeerId, Instant>,
+    /// ASIC FIX: Track last ping SENT time to deduplicate ping requests
+    /// Prevents ping storms where same peer is pinged multiple times per second
+    last_ping_sent: HashMap<PeerId, Instant>,
     /// STABILITY FIX: Track bootnode peer IDs for priority reconnection
     bootnode_peer_ids: HashSet<PeerId>,
     /// UPnP manager for automatic NAT port mapping
@@ -447,19 +450,23 @@ impl Network {
                 // MESH FORMATION FIX: More aggressive settings for reliable mesh
                 // Previous issue: Only 1 mesh peer despite 8 gossip peers
                 // Root cause: heartbeat too slow, mesh_n_low too permissive
+                // ASIC MINING FIX: Ultra-aggressive mesh formation for reliable block propagation
+                // Block propagation MUST work reliably for mining operations
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .heartbeat_interval(Duration::from_secs(1)) // Faster heartbeat for quicker mesh formation
+                    .heartbeat_interval(Duration::from_millis(700)) // Even faster heartbeat (was 1s)
                     .validation_mode(gossipsub::ValidationMode::Permissive)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(2)      // Minimum 2 peers in mesh (was 1 - too permissive)
-                    .mesh_n(4)          // Target 4 peers (was 3)
+                    .mesh_n_low(4)      // ASIC FIX: Minimum 4 peers in mesh (was 2)
+                    .mesh_n(6)          // ASIC FIX: Target 6 peers (was 4)
                     .mesh_n_high(12)    // Allow up to 12 peers in mesh
                     .mesh_outbound_min(0) // CRITICAL: Allow inbound-only mesh (for relay connections)
-                    .gossip_lazy(3)     // Reduced lazy gossip for faster propagation
-                    .gossip_factor(0.5) // More aggressive gossip (was 0.25)
+                    .gossip_lazy(6)     // ASIC FIX: Increased lazy gossip for better propagation (was 3)
+                    .gossip_factor(0.5) // Aggressive gossip
                     .flood_publish(true) // Ensures delivery even with sparse mesh
-                    .history_length(5)  // Keep more message history
-                    .history_gossip(3)  // Gossip to more peers
+                    .history_length(6)  // ASIC FIX: Keep more message history (was 5)
+                    .history_gossip(4)  // ASIC FIX: Gossip to more peers (was 3)
+                    .opportunistic_graft_ticks(3) // ASIC FIX: Faster mesh recovery - graft after 3 heartbeats
+                    .graft_flood_threshold(Duration::from_secs(5)) // ASIC FIX: Reduce graft flood threshold
                     .build()
                     .expect("Valid gossipsub config");
 
@@ -487,10 +494,12 @@ impl Network {
                 );
 
                 // Ping for keep-alive and RTT measurement
+                // ASIC FIX: Increased timeout from 20s to 30s for relay peer tolerance
+                // Relay connections have higher latency - don't penalize them for slow pings
                 let ping = ping::Behaviour::new(
                     ping::Config::new()
                         .with_interval(ping_interval)
-                        .with_timeout(Duration::from_secs(20))
+                        .with_timeout(Duration::from_secs(30))
                 );
 
                 // Kademlia DHT for peer discovery - primary discovery mechanism
@@ -600,6 +609,26 @@ impl Network {
             state: NetworkState::Starting,
             ..Default::default()
         };
+        
+        // METRICS FIX: Initialize registry with startup state immediately
+        // This ensures RPC/desktop shows "Initializing" instead of "Unknown" on startup
+        let initial_metrics = RegistryMetrics {
+            inbound_peers: 0,
+            outbound_peers: 0,
+            target_peers: config.target_peers,
+            max_peers: config.max_peers,
+            dial_attempts: 0,
+            dial_successes: 0,
+            dial_failures: 0,
+            average_rtt_ms: None,
+            network_state: "Starting".to_string(),
+            nat_status: "Probing".to_string(),
+            mesh_peers: 0,
+            gossip_peers: 0,
+            mesh_connections: vec![],
+            relay_circuits: vec![],
+        };
+        peer_registry.update_metrics(initial_metrics).await;
 
         // Initialize UPnP manager for automatic NAT port mapping
         let upnp_manager = Some(upnp::UPnPManager::from_listen_addr(&config.listen_addr));
@@ -635,6 +664,7 @@ impl Network {
             metrics,
             topic_peers: HashMap::new(),
             last_ping_success: HashMap::new(),
+            last_ping_sent: HashMap::new(),
             bootnode_peer_ids,
             upnp_manager,
             relay_manager,
@@ -1275,17 +1305,19 @@ impl Network {
         let mut sync_timer = tokio::time::interval(Duration::from_secs(self.config.peer_refresh_interval_secs));
         sync_timer.tick().await;
         
-        // MESH FIX: Faster metrics/health check (every 10 seconds instead of 30)
-        // This allows quicker detection and recovery of empty mesh state
-        let mut metrics_timer = tokio::time::interval(Duration::from_secs(10));
+        // METRICS FIX: Fast metrics update (every 3 seconds) for responsive UI
+        // This ensures desktop/RPC sees near-realtime network state
+        // Combined with immediate updates on connection events for best responsiveness
+        let mut metrics_timer = tokio::time::interval(Duration::from_secs(3));
         metrics_timer.tick().await;
         
         // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
         let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
         bootnode_check_timer.tick().await;
         
-        // UPnP renewal timer (every 30 minutes - well before 2 hour lease expires)
-        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(1800));
+        // ASIC FIX: UPnP renewal timer (every 15 minutes for better NAT stability)
+        // Reduced from 30 minutes to prevent NAT mapping expiration issues
+        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(900));
         upnp_renewal_timer.tick().await;
         
         loop {
@@ -1393,17 +1425,18 @@ impl Network {
         let mut sync_timer = tokio::time::interval(Duration::from_secs(self.config.peer_refresh_interval_secs));
         sync_timer.tick().await;
         
-        // MESH FIX: Faster metrics/health check (every 10 seconds instead of 30)
-        // This allows quicker detection and recovery of empty mesh state
-        let mut metrics_timer = tokio::time::interval(Duration::from_secs(10));
+        // METRICS FIX: Fast metrics update (every 3 seconds) for responsive UI
+        // This ensures desktop/RPC sees near-realtime network state
+        // Combined with immediate updates on connection events for best responsiveness
+        let mut metrics_timer = tokio::time::interval(Duration::from_secs(3));
         metrics_timer.tick().await;
         
         // STABILITY FIX: Bootnode connectivity check timer (every 60 seconds)
         let mut bootnode_check_timer = tokio::time::interval(Duration::from_secs(60));
         bootnode_check_timer.tick().await;
         
-        // UPnP renewal timer (every 30 minutes)
-        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(1800));
+        // ASIC FIX: UPnP renewal timer (every 15 minutes for better NAT stability)
+        let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(900));
         upnp_renewal_timer.tick().await;
         
         loop {
@@ -1521,8 +1554,8 @@ impl Network {
                 // STABILITY FIX: Initialize last ping success time
                 self.last_ping_success.insert(peer_id, Instant::now());
                 
-                // Update metrics
-                self.update_metrics();
+                // Update metrics - now async for real-time UI updates
+                self.update_metrics().await;
                 
                 let peer_count = self.peer_count();
                 info!("✓ Peer {} connected ({}) [{}/{}]{}", 
@@ -1530,8 +1563,21 @@ impl Network {
                     if is_bootnode { " [BOOTNODE]" } else { "" });
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
-                // Update connection manager
+                // STABILITY FIX: Connection manager now handles deduplication internally
+                // This prevents cascade effects from multiple ConnectionClosed events for same peer
                 self.conn_manager.on_connection_closed(peer_id).await;
+                
+                // Only process if this is a real disconnect (not a duplicate event)
+                // Check if peer is still marked as connected in conn_manager
+                let is_still_connected = self.conn_manager.peer_store().get_peer(&peer_id)
+                    .map(|p| p.state == peer_store::PeerState::Connected)
+                    .unwrap_or(false);
+                
+                if is_still_connected {
+                    // This was a duplicate event, connection manager already handled it
+                    debug!("Skipping duplicate disconnect cleanup for {}", peer_id);
+                    return;
+                }
                 
                 // Update legacy registry
                 self.peer_registry.remove_peer(&peer_id.to_string()).await;
@@ -1544,8 +1590,8 @@ impl Network {
                 // STABILITY FIX: Clean up ping tracking
                 self.last_ping_success.remove(&peer_id);
                 
-                // Update metrics
-                self.update_metrics();
+                // Update metrics - now async for real-time UI updates
+                self.update_metrics().await;
                 
                 let peer_count = self.peer_count();
                 let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
@@ -1679,8 +1725,9 @@ impl Network {
         }
     }
 
-    /// Update metrics from connection manager
-    fn update_metrics(&mut self) {
+    /// Update metrics from connection manager and push to peer registry immediately
+    /// METRICS FIX: Now pushes to peer_registry on every connection event for real-time UI updates
+    async fn update_metrics(&mut self) {
         let conn_metrics = self.conn_manager.metrics();
         self.metrics.connected_peers = conn_metrics.connected_peers;
         self.metrics.inbound_peers = conn_metrics.inbound_peers;
@@ -1690,6 +1737,37 @@ impl Network {
         self.metrics.dial_failures = conn_metrics.dial_failures;
         self.metrics.average_rtt_ms = conn_metrics.average_rtt_ms;
         self.metrics.state = conn_metrics.state;
+        
+        // METRICS FIX: Push to peer registry immediately so RPC/desktop sees updates in real-time
+        // Previously this only happened every 10 seconds in log_metrics()
+        let nat_str = match self.metrics.nat_status {
+            NatStatus::Public => "PUBLIC",
+            NatStatus::Private => "PRIVATE",
+            NatStatus::Unknown => "UNKNOWN",
+        };
+        
+        // Get mesh/gossip peer counts from GossipSub
+        let mesh_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_mesh_peers().collect();
+        let gossip_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().collect();
+        
+        let registry_metrics = RegistryMetrics {
+            inbound_peers: self.metrics.inbound_peers,
+            outbound_peers: self.metrics.outbound_peers,
+            target_peers: self.metrics.target_peers,
+            max_peers: self.config.max_peers,
+            dial_attempts: self.metrics.dial_attempts,
+            dial_successes: self.metrics.dial_successes,
+            dial_failures: self.metrics.dial_failures,
+            average_rtt_ms: self.metrics.average_rtt_ms,
+            network_state: format!("{:?}", self.metrics.state),
+            nat_status: nat_str.to_string(),
+            mesh_peers: mesh_peers.len(),
+            gossip_peers: gossip_peers.len(),
+            // Mesh connections updated in full log_metrics() for performance
+            mesh_connections: vec![],
+            relay_circuits: vec![],
+        };
+        self.peer_registry.update_metrics(registry_metrics).await;
     }
 
     /// STABILITY FIX: Ensure we maintain connectivity to at least one bootnode
@@ -2056,12 +2134,31 @@ impl Network {
                 }
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
+                // ASIC FIX: Deduplicate ping event processing to prevent ping storms
+                // Skip if we processed a ping for this peer within 5 seconds
+                let now = Instant::now();
+                let should_process = match self.last_ping_sent.get(&peer) {
+                    Some(last_sent) => now.duration_since(*last_sent) >= Duration::from_secs(5),
+                    None => true,
+                };
+                
+                if !should_process {
+                    // Skip duplicate ping processing
+                    if result.is_ok() {
+                        // Still update ping success time silently
+                        self.last_ping_success.insert(peer, now);
+                    }
+                    return;
+                }
+                
+                self.last_ping_sent.insert(peer, now);
+                
                 match result {
                     Ok(rtt) => {
                         debug!("Ping to {} successful: {:?}", peer, rtt);
                         
                         // STABILITY FIX: Track last successful ping time
-                        self.last_ping_success.insert(peer, Instant::now());
+                        self.last_ping_success.insert(peer, now);
                         
                         // Update RTT in connection manager for scoring
                         self.conn_manager.on_ping_result(peer, Some(rtt));

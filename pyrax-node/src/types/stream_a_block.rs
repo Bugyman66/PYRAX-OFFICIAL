@@ -7,8 +7,52 @@
 //! - UTXO transaction model
 
 use serde::{Deserialize, Serialize};
-use crate::consensus::{Blake3Pow, Stream};
-use super::{H256, Address, UtxoTransaction, BlockNumber};
+use super::{H256, Address, BlockNumber};
+use super::utxo::UtxoTransaction;
+
+// Re-export Blake3Pow functions inline to avoid circular dependency
+pub struct Blake3Pow;
+
+impl Blake3Pow {
+    pub fn hash(header_bytes: &[u8], nonce: u64, extra_nonce: u64) -> H256 {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(header_bytes);
+        hasher.update(&nonce.to_le_bytes());
+        hasher.update(&extra_nonce.to_le_bytes());
+        let result = hasher.finalize();
+        H256::from_slice(result.as_bytes())
+    }
+    
+    pub fn meets_target(hash: &H256, target: &H256) -> bool {
+        hash.as_bytes() <= target.as_bytes()
+    }
+    
+    pub fn difficulty_to_target(difficulty: u64) -> H256 {
+        if difficulty == 0 { return H256([0xff; 32]); }
+        let max = ethereum_types::U256::MAX;
+        let target = max / ethereum_types::U256::from(difficulty);
+        let mut bytes = [0u8; 32];
+        target.to_big_endian(&mut bytes);
+        H256(bytes)
+    }
+    
+    /// Mine a block (CPU reference implementation for testing)
+    pub fn mine(header_bytes: &[u8], target: &H256, start_nonce: u64, max_iterations: u64) -> Option<(u64, u64, H256)> {
+        for nonce in start_nonce..start_nonce + max_iterations {
+            let hash = Self::hash(header_bytes, nonce, 0);
+            if Self::meets_target(&hash, target) {
+                return Some((nonce, 0, hash));
+            }
+        }
+        None
+    }
+}
+
+pub struct Stream;
+impl Stream {
+    pub const A: u8 = 0;
+    pub fn block_reward() -> u64 { 50_00000000 } // 50 PYRAX
+}
 
 /// Stream A block header
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,7 +175,7 @@ impl StreamAHeader {
     
     /// Block reward in base units
     pub fn block_reward(&self) -> u64 {
-        Stream::A.block_reward()
+        Stream::block_reward()
     }
 }
 

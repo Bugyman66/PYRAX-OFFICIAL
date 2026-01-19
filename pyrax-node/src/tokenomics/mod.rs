@@ -16,6 +16,8 @@
 //! - Treasury: 2% (2B) - 75% DAO approval required
 //! - Reserve: 1% (1B) - Protocol buffer
 
+#![allow(dead_code)]
+
 mod allocation;
 mod vesting;
 mod emission;

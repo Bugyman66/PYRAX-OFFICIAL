@@ -1,17 +1,19 @@
 //! PYRAX Mining Module
 //!
-//! Stream A: BLAKE3 PoW - Simple CPU miner for testing without ASICs
+//! Stream A: BLAKE3 PoW - ASIC mining with Stratum pool support
 //! Stream B: KAWPOW - GPU mining with Stratum pool support
 //!
 //! Includes:
+//! - BLAKE3 stratum server for Stream A ASIC mining
+//! - KAWPOW stratum server for Stream B GPU mining
 //! - Stratum client for connecting to external pools
-//! - Stratum server for solo mining and pool operation
 //! - GPU mining with CUDA/OpenCL support
 //!
 //! Production-ready for devnet, testnet, and mainnet.
 
 pub mod stratum;
 pub mod stratum_server;
+pub mod blake3_stratum;
 pub mod gpu;
 pub mod desktop_integration;
 
@@ -21,6 +23,11 @@ pub use stratum::{StratumClient, StratumConfig, StratumVersion, MiningJob, Share
 pub use stratum_server::{
     StratumServer, StratumServerConfig, BlockTemplate, ServerStats,
     Worker as StratumWorker, Share as StratumShare,
+};
+pub use blake3_stratum::{
+    Blake3StratumServer, Blake3StratumConfig, Blake3BlockTemplate, Blake3ServerStats,
+    Blake3Worker, Blake3Share, Blake3ShareResult, Blake3MiningJob,
+    Blake3BlockSubmitFn, Blake3TemplateProviderFn,
 };
 pub use gpu::{GpuMiner, GpuMinerConfig, GpuError, MiningResult, detect_devices};
 pub use desktop_integration::{

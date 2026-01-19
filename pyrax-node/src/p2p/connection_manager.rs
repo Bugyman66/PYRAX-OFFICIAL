@@ -23,7 +23,7 @@
 //! 4. Hysteresis: Don't prune/dial too frequently
 
 use libp2p::PeerId;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::Ipv4Addr;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -169,6 +169,9 @@ pub struct ConnectionManager {
     prune_events: u64,
     /// Event sender
     event_tx: mpsc::Sender<ConnectionEvent>,
+    /// STABILITY FIX: Track recently disconnected peers to prevent duplicate event handling
+    /// Maps peer_id -> disconnect timestamp. Cleared after 5 seconds.
+    recently_disconnected: HashMap<PeerId, Instant>,
 }
 
 impl ConnectionManager {
@@ -192,6 +195,7 @@ impl ConnectionManager {
             dial_failures: 0,
             prune_events: 0,
             event_tx,
+            recently_disconnected: HashMap::new(),
         }
     }
 
@@ -258,6 +262,13 @@ impl ConnectionManager {
     /// Check if an address is publicly routable (not localhost/private/link-local)
     /// This prevents dialing addresses that will either fail or connect to wrong peers
     fn is_routable_address(address: &str) -> bool {
+        // ASIC FIX: Reject bare /p2p/ addresses without IP/port - these cause MultiaddrNotSupported errors
+        // Example bad address: /p2p/12D3KooW... (no IP, no port - can't be dialed)
+        // Valid relay: /ip4/1.2.3.4/tcp/9000/p2p/RELAY_ID/p2p-circuit/p2p/TARGET_ID
+        if address.starts_with("/p2p/") && !address.contains("/ip4/") && !address.contains("/ip6/") {
+            return false; // Bare peer ID without IP - not dialable
+        }
+        
         // NESTED RELAY FIX: Reject addresses with multiple /p2p-circuit/ segments
         // libp2p doesn't support chained relay circuits (MultipleCircuitRelayProtocolsUnsupported)
         // Count occurrences of /p2p-circuit
@@ -393,6 +404,7 @@ impl ConnectionManager {
     }
 
     /// Process the dial queue, respecting concurrency limits
+    /// STABILITY FIX: Now respects reconnection grace period for recently disconnected peers
     async fn process_dial_queue(&mut self) {
         let available_slots = self.config.max_concurrent_dials.saturating_sub(self.dialing.len());
         if available_slots == 0 {
@@ -416,6 +428,13 @@ impl ConnectionManager {
                     
                     // Skip if entry is too old (dial timeout)
                     if entry.queued_at.elapsed() > self.config.dial_timeout {
+                        continue;
+                    }
+                    
+                    // STABILITY FIX: Skip if peer was recently disconnected (grace period)
+                    // This prevents WrongPeerId errors from immediate reconnection attempts
+                    if self.is_recently_disconnected(&entry.peer_id) && !self.bootnodes.contains(&entry.peer_id) {
+                        debug!("Skipping dial to {} - recently disconnected (grace period)", entry.peer_id);
                         continue;
                     }
                     
@@ -472,7 +491,27 @@ impl ConnectionManager {
     }
 
     /// Handle connection closed
+    /// STABILITY FIX: Deduplicates disconnect events to prevent cascade effects
     pub async fn on_connection_closed(&mut self, peer_id: PeerId) {
+        // STABILITY FIX: Clean up old entries from recently_disconnected (older than 5 seconds)
+        let now = Instant::now();
+        self.recently_disconnected.retain(|_, disconnect_time| {
+            now.duration_since(*disconnect_time) < Duration::from_secs(5)
+        });
+        
+        // STABILITY FIX: Check if we already processed a disconnect for this peer recently
+        // libp2p fires multiple ConnectionClosed events for different substreams
+        if let Some(last_disconnect) = self.recently_disconnected.get(&peer_id) {
+            if now.duration_since(*last_disconnect) < Duration::from_secs(2) {
+                // Already processed this disconnect within 2 seconds, skip duplicate
+                debug!("Skipping duplicate disconnect event for {} (already processed)", peer_id);
+                return;
+            }
+        }
+        
+        // Mark this peer as recently disconnected
+        self.recently_disconnected.insert(peer_id, now);
+        
         self.dialing.remove(&peer_id);
         self.peer_store.peer_disconnected(&peer_id);
         
@@ -486,6 +525,17 @@ impl ConnectionManager {
         // Try to fill if below minimum
         if connected < self.config.min_peers {
             self.trigger_discovery().await;
+        }
+    }
+    
+    /// STABILITY FIX: Check if a peer was recently disconnected (within grace period)
+    /// This prevents immediate reconnection attempts that cause WrongPeerId errors
+    pub fn is_recently_disconnected(&self, peer_id: &PeerId) -> bool {
+        if let Some(disconnect_time) = self.recently_disconnected.get(peer_id) {
+            // 10 second grace period before allowing reconnection
+            Instant::now().duration_since(*disconnect_time) < Duration::from_secs(10)
+        } else {
+            false
         }
     }
 

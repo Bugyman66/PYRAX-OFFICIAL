@@ -90,11 +90,19 @@ struct Args {
     #[arg(long, default_value = "0.0.0.0:8545")]
     rpc_addr: String,
 
-    /// Enable Stratum server for GPU mining (Stream B)
+    /// Enable BLAKE3 Stratum server for ASIC mining (Stream A)
+    #[arg(long)]
+    blake3_stratum: bool,
+
+    /// BLAKE3 Stratum server address (Stream A)
+    #[arg(long, default_value = "0.0.0.0:3334")]
+    blake3_stratum_addr: String,
+
+    /// Enable KAWPOW Stratum server for GPU mining (Stream B)
     #[arg(long)]
     stratum: bool,
 
-    /// Stratum server address
+    /// KAWPOW Stratum server address (Stream B)
     #[arg(long, default_value = "0.0.0.0:3333")]
     stratum_addr: String,
 
@@ -180,7 +188,8 @@ async fn main() -> anyhow::Result<()> {
     
     // Log enabled services
     if args.rpc { info!("Stream A RPC: {}", args.rpc_addr); }
-    if args.stratum { info!("Stream B Stratum: {}", args.stratum_addr); }
+    if args.blake3_stratum { info!("Stream A BLAKE3 Stratum (ASIC): {}", args.blake3_stratum_addr); }
+    if args.stratum { info!("Stream B KAWPOW Stratum (GPU): {}", args.stratum_addr); }
     if args.staking { info!("Stream C Staking: {}", args.staking_addr); }
 
     // Open database
@@ -215,9 +224,88 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
-    // Start Stratum server if enabled (Stream B - GPU Mining)
+    // Start BLAKE3 Stratum server if enabled (Stream A - ASIC Mining)
+    let _blake3_stratum_handle = if args.blake3_stratum {
+        info!("Starting Stream A BLAKE3 Stratum server on {}", args.blake3_stratum_addr);
+        
+        use miner::{Blake3StratumServer, Blake3StratumConfig, Blake3BlockTemplate};
+        use types::stream_a_block::StreamABlock;
+        
+        let bind_addr: std::net::SocketAddr = args.blake3_stratum_addr.parse()
+            .unwrap_or_else(|_| "0.0.0.0:3334".parse().unwrap());
+        
+        let blake3_config = Blake3StratumConfig {
+            bind_addr,
+            default_difficulty: 1.0,
+            coinbase_address: miner_address,
+            network_difficulty: 1,
+            block_reward: 50_00000000, // 50 PYRAX for Stream A
+            ..Default::default()
+        };
+        
+        let blake3_server = Blake3StratumServer::new(blake3_config);
+        
+        // Set up template provider
+        let db_for_template = db.clone();
+        blake3_server.set_template_provider(Box::new(move || {
+            let tip = db_for_template.get_tip();
+            Some(Blake3BlockTemplate {
+                height: tip.height + 1,
+                parent_hash: tip.hash,
+                utxo_root: types::H256::zero(), // Simplified for devnet
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                difficulty: 1, // Easy difficulty for devnet
+                transactions: vec![],
+                coinbase_value: 50_00000000, // 50 PYRAX
+            })
+        })).await;
+        
+        // Set up block submission
+        let db_for_submit = db.clone();
+        blake3_server.set_block_submit_fn(Box::new(move |block: StreamABlock| {
+            let hash = block.hash();
+            info!("Submitting BLAKE3 block at height {}: 0x{}", block.height(), hex::encode(hash.as_bytes()));
+            // Convert StreamABlock to Block for storage
+            let generic_block = types::Block {
+                header: types::BlockHeader {
+                    version: block.header.version,
+                    stream: 0, // Stream A
+                    parent_hash: block.header.parent_hash,
+                    merkle_root: block.header.merkle_root,
+                    utxo_commitment: block.header.utxo_root,
+                    timestamp: block.header.timestamp,
+                    difficulty: block.header.difficulty,
+                    nonce: block.header.nonce,
+                    extra_nonce: block.header.extra_nonce,
+                    height: block.header.height,
+                    beneficiary: block.header.beneficiary,
+                },
+                transactions: vec![], // UTXO transactions handled separately
+            };
+            db_for_submit.commit_block(&generic_block).map_err(|e| e.to_string())?;
+            Ok(hash)
+        })).await;
+        
+        // Spawn the server
+        let server_handle = blake3_server;
+        tokio::spawn(async move {
+            if let Err(e) = server_handle.run().await {
+                error!("BLAKE3 Stratum server error: {}", e);
+            }
+        });
+        
+        info!("✓ Stream A BLAKE3 Stratum running on {}", args.blake3_stratum_addr);
+        Some(())
+    } else {
+        None
+    };
+
+    // Start KAWPOW Stratum server if enabled (Stream B - GPU Mining)
     let _stratum_handle = if args.stratum {
-        info!("Starting Stream B Stratum server on {}", args.stratum_addr);
+        info!("Starting Stream B KAWPOW Stratum server on {}", args.stratum_addr);
         
         use services::mining::{MiningService, MiningServiceConfig};
         
