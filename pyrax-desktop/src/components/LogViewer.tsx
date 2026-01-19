@@ -57,7 +57,7 @@ export default function LogViewer() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolledAway, setUserScrolledAway] = useState(false);
   const isUserScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle scroll events to detect user scrolling away from bottom
   const handleScroll = useCallback(() => {
