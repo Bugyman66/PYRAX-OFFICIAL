@@ -130,7 +130,7 @@ jobs:
       - name: Install cross tool (for cross-compilation)
         if: matrix.use_cross == true
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+          cargo install cross --version 0.2.5
 
       - name: Install Linux dependencies (native builds only)
         if: runner.os == 'Linux' && matrix.use_cross == false
