@@ -20,6 +20,11 @@ COPY . .
 # Build both binaries from workspace root
 # Cargo workspace puts all binaries in workspace root target directory
 WORKDIR /build
+
+# Allow warnings during build - some unused code warnings are expected
+# The --cap-lints warn prevents warnings from being treated as errors
+ENV RUSTFLAGS="-A warnings"
+
 RUN cargo build --release -p pyrax-node --bin pyrax-node
 RUN cargo build --release -p inferno-cli --bin inferno
 

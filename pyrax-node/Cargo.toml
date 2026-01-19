@@ -52,8 +52,15 @@ ripemd = "0.1"
 # Storage
 rocksdb = "0.22"
 
-# P2P Networking
-libp2p = { version = "0.53", features = ["tcp", "noise", "yamux", "gossipsub", "mdns", "identify", "ping", "kad", "tokio", "macros", "relay", "autonat", "dcutr"] }
+# P2P Networking - with WebSocket and QUIC for ISP bypass
+libp2p = { version = "0.53", features = [
+    "tcp", "noise", "yamux", "gossipsub", "mdns", "identify", "ping", "kad", 
+    "tokio", "macros", "relay", "autonat", "dcutr",
+    "websocket",  # ISP BYPASS: WebSocket transport looks like HTTP traffic
+    "quic",       # ISP BYPASS: QUIC is UDP-based, hard to fingerprint
+    "tls",        # Required for secure WebSocket (wss://)
+    "dns"         # Required for DNS resolution in transports
+] }
 
 # UPnP for automatic NAT port mapping
 igd-next = "0.14"

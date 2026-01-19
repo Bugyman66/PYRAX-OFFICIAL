@@ -46,6 +46,7 @@ use libp2p::{
     autonat, dcutr, gossipsub, identify, kad, mdns, noise, ping, relay,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Multiaddr, PeerId, Swarm,
+    websocket, quic,  // ISP BYPASS: WebSocket and QUIC transports
 };
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -109,15 +110,17 @@ fn version_meets_minimum(version: (u32, u32, u32)) -> bool {
 /// Connection mode for mass adoption - allows users behind strict NAT/firewalls to participate
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConnectionMode {
-    /// Full P2P node - participates in mesh, can accept inbound connections
-    /// Requires port forwarding or open firewall
+    /// Full node - listens on all interfaces, accepts inbound
     Full,
-    /// Relay-only mode - connects through bootnodes only, no inbound needed
-    /// Works behind any NAT/firewall, perfect for mass adoption
+    /// Relay only - outbound only, uses relay for incoming (for strict NAT/firewalls)
     Relay,
-    /// Auto mode - tries full node first, falls back to relay if port is blocked
+    /// Auto-detect best mode (default)
     #[default]
     Auto,
+    /// RelayFirst - connect via relay FIRST, then try direct connection upgrade
+    /// This is ideal for users behind ISPs that block P2P or have strict NAT
+    /// Provides immediate connectivity while attempting to upgrade to direct
+    RelayFirst,
 }
 
 impl ConnectionMode {
@@ -125,7 +128,17 @@ impl ConnectionMode {
         match s.to_lowercase().as_str() {
             "full" => ConnectionMode::Full,
             "relay" => ConnectionMode::Relay,
+            "relayfirst" | "relay_first" | "relay-first" => ConnectionMode::RelayFirst,
             _ => ConnectionMode::Auto,
+        }
+    }
+    
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ConnectionMode::Full => "full",
+            ConnectionMode::Relay => "relay",
+            ConnectionMode::Auto => "auto",
+            ConnectionMode::RelayFirst => "relayfirst",
         }
     }
 }
@@ -157,10 +170,16 @@ pub struct P2PConfig {
     pub node_key_path: Option<PathBuf>,
     
     // === MASS ADOPTION NETWORK SETTINGS ===
-    /// Connection mode: Full (requires port forwarding), Relay (works anywhere), Auto
+    /// Connection mode: Full (requires port forwarding), Relay (works anywhere), Auto, RelayFirst
     pub connection_mode: ConnectionMode,
     /// Enable WebSocket transport (works through proxies and strict firewalls)
     pub enable_websocket: bool,
+    /// Enable QUIC transport (UDP-based, hard for ISPs to block)
+    pub enable_quic: bool,
+    /// WebSocket listen port (default: TCP port + 1)
+    pub websocket_port: Option<u16>,
+    /// QUIC listen port (default: same as TCP port)
+    pub quic_port: Option<u16>,
     /// Enable automatic port fallback (tries alternative ports if primary is blocked)
     pub auto_port_fallback: bool,
     /// Alternative ports to try if primary is blocked (in order of preference)
@@ -184,6 +203,9 @@ impl Default for P2PConfig {
             // Mass adoption defaults - Auto mode for best compatibility
             connection_mode: ConnectionMode::Auto,
             enable_websocket: true,
+            enable_quic: true,
+            websocket_port: None,  // Will use TCP port + 1 by default
+            quic_port: None,       // Will use same as TCP port by default
             auto_port_fallback: true,
             // Stealth ports that bypass ISP blocks (443=HTTPS, 8080=alt HTTP, 8443=alt HTTPS)
             fallback_ports: vec![443, 8080, 8443, 9999],
@@ -406,6 +428,7 @@ impl Network {
         
         let swarm = libp2p::SwarmBuilder::with_existing_identity(local_key)
             .with_tokio()
+            // Primary transport: TCP (works on most networks)
             .with_tcp(
                 tcp::Config::default(),
                 noise::Config::new,
@@ -488,15 +511,16 @@ impl Network {
                 kademlia.set_mode(Some(kad::Mode::Server));
 
                 // Relay SERVER behaviour - allows this node to act as a relay for others
-                // CRITICAL: Increased limits to support 500+ concurrent users
-                // Default limits (16 circuits, 128 reservations) caused ResourceLimitExceeded errors
+                // BOOTNODE RELAY HARDENING: Massively increased limits for mass adoption
+                // Bootnodes need to support thousands of concurrent users behind NAT/firewalls
+                // These settings are tuned for production with 5000+ concurrent users
                 let relay_config = relay::Config {
-                    max_reservations: 2048,           // Slots for peers to register (was 128)
-                    max_circuits: 1024,               // Active relay circuits (was 16)
-                    max_circuits_per_peer: 16,        // Circuits per peer (was 4)
-                    reservation_duration: Duration::from_secs(7200), // 2 hours (was 1 hour)
-                    max_circuit_duration: Duration::from_secs(7200), // 2 hours
-                    max_circuit_bytes: 1024 * 1024 * 10, // 10MB per circuit
+                    max_reservations: 4096,           // HARDENED: Slots for peers to register (was 2048)
+                    max_circuits: 2048,               // HARDENED: Active relay circuits (was 1024)
+                    max_circuits_per_peer: 32,        // HARDENED: Circuits per peer (was 16)
+                    reservation_duration: Duration::from_secs(14400), // HARDENED: 4 hours (was 2 hours)
+                    max_circuit_duration: Duration::from_secs(14400), // HARDENED: 4 hours
+                    max_circuit_bytes: 1024 * 1024 * 50, // HARDENED: 50MB per circuit (was 10MB)
                     ..Default::default()
                 };
                 let relay_server = relay::Behaviour::new(local_peer_id, relay_config);
@@ -551,8 +575,8 @@ impl Network {
             peer_refresh_interval: Duration::from_secs(config.peer_refresh_interval_secs),
             peer_reevaluate_interval: Duration::from_secs(config.peer_reevaluate_interval_secs),
             liveness_check_interval: Duration::from_secs(config.ping_interval_secs),
-            min_prune_interval: Duration::from_secs(30),
-            min_connection_age: Duration::from_secs(60),
+            min_prune_interval: Duration::from_secs(60),  // NETWORK STABILITY: Increased from 30s
+            min_connection_age: Duration::from_secs(180), // NETWORK STABILITY: Increased from 60s - don't prune new connections
         };
 
         let peer_store_config = PeerStoreConfig::default();
@@ -633,36 +657,140 @@ impl Network {
     }
 
     /// Start listening based on connection mode
-    /// - Full: Listen on direct address + relay fallback
+    /// - Full: Listen on direct address + WebSocket + QUIC + relay fallback
     /// - Relay: Only use relay (no direct listening) - works behind any NAT/firewall
-    /// - Auto: Try direct, auto-detect if blocked, fallback to relay
+    /// - Auto: Try direct + WebSocket + QUIC, auto-detect if blocked, fallback to relay
+    /// - RelayFirst: Connect via relay immediately, attempt direct upgrade in background
     pub fn listen(&mut self, addr: &str) -> anyhow::Result<()> {
+        // Extract port from address for WebSocket/QUIC listen addresses
+        let tcp_port = Self::extract_port_from_addr(addr).unwrap_or(30303);
+        let ws_port = self.config.websocket_port.unwrap_or(tcp_port + 1);
+        let quic_port = self.config.quic_port.unwrap_or(tcp_port);
+        
         match self.config.connection_mode {
             ConnectionMode::Full => {
-                info!("MASS ADOPTION: Full node mode - listening on {}", addr);
+                info!("MASS ADOPTION: Full node mode - listening on multiple transports");
+                
+                // Primary TCP transport
                 let multiaddr: Multiaddr = addr.parse()?;
                 self.swarm.listen_on(multiaddr)?;
+                info!("  ✓ TCP listening on {}", addr);
+                
+                // WebSocket transport (ISP bypass - looks like HTTP)
+                if self.config.enable_websocket {
+                    self.listen_websocket(ws_port);
+                }
+                
+                // QUIC transport (ISP bypass - UDP-based, hard to fingerprint)
+                if self.config.enable_quic {
+                    self.listen_quic(quic_port);
+                }
             }
             ConnectionMode::Relay => {
                 info!("MASS ADOPTION: Relay-only mode - no direct listening (works behind any NAT/firewall)");
                 // Don't listen directly - we'll only connect outbound and use relay
                 // This is perfect for users behind strict NAT/firewalls (Xfinity, Comcast, etc.)
             }
-            ConnectionMode::Auto => {
-                info!("MASS ADOPTION: Auto mode - trying direct listen on {}", addr);
+            ConnectionMode::RelayFirst => {
+                info!("MASS ADOPTION: RelayFirst mode - prioritizing relay for immediate connectivity");
+                info!("  → Will connect via relay first for instant network access");
+                info!("  → Direct connection upgrade will be attempted in background");
+                
+                // In RelayFirst mode, we still try to listen on alternative transports
+                // as they may work even when TCP is blocked
+                if self.config.enable_websocket {
+                    self.listen_websocket(ws_port);
+                }
+                if self.config.enable_quic {
+                    self.listen_quic(quic_port);
+                }
+                
+                // TCP listen is attempted but not required
                 let multiaddr: Multiaddr = addr.parse()?;
+                if let Err(e) = self.swarm.listen_on(multiaddr) {
+                    info!("  → TCP listen failed (expected for restricted networks): {:?}", e);
+                }
+            }
+            ConnectionMode::Auto => {
+                info!("MASS ADOPTION: Auto mode - trying all transports");
+                let multiaddr: Multiaddr = addr.parse()?;
+                
+                // Try TCP first
                 match self.swarm.listen_on(multiaddr) {
                     Ok(_) => {
-                        info!("Direct listen successful - will verify port reachability");
+                        info!("  ✓ TCP direct listen successful on {}", addr);
                     }
                     Err(e) => {
-                        warn!("Direct listen failed: {:?} - will use relay-only mode", e);
-                        // Will rely on relay connections
+                        warn!("  ✗ TCP direct listen failed: {:?}", e);
                     }
+                }
+                
+                // Always try WebSocket (works through many firewalls)
+                if self.config.enable_websocket {
+                    self.listen_websocket(ws_port);
+                }
+                
+                // Always try QUIC (UDP-based, different blocking profile)
+                if self.config.enable_quic {
+                    self.listen_quic(quic_port);
                 }
             }
         }
         Ok(())
+    }
+    
+    /// Extract port number from multiaddr string
+    fn extract_port_from_addr(addr: &str) -> Option<u16> {
+        // Parse /ip4/0.0.0.0/tcp/30303 format
+        let parts: Vec<&str> = addr.split('/').collect();
+        for (i, part) in parts.iter().enumerate() {
+            if *part == "tcp" || *part == "udp" {
+                if let Some(port_str) = parts.get(i + 1) {
+                    return port_str.parse().ok();
+                }
+            }
+        }
+        None
+    }
+    
+    /// Listen on WebSocket transport (ISP bypass - looks like HTTP traffic)
+    fn listen_websocket(&mut self, port: u16) {
+        let ws_addr = format!("/ip4/0.0.0.0/tcp/{}/ws", port);
+        match ws_addr.parse::<Multiaddr>() {
+            Ok(multiaddr) => {
+                match self.swarm.listen_on(multiaddr) {
+                    Ok(_) => {
+                        info!("  ✓ WebSocket listening on port {} (ISP bypass)", port);
+                    }
+                    Err(e) => {
+                        debug!("  ✗ WebSocket listen failed on port {}: {:?}", port, e);
+                    }
+                }
+            }
+            Err(e) => {
+                debug!("  ✗ Invalid WebSocket address: {:?}", e);
+            }
+        }
+    }
+    
+    /// Listen on QUIC transport (ISP bypass - UDP-based, hard to fingerprint)
+    fn listen_quic(&mut self, port: u16) {
+        let quic_addr = format!("/ip4/0.0.0.0/udp/{}/quic-v1", port);
+        match quic_addr.parse::<Multiaddr>() {
+            Ok(multiaddr) => {
+                match self.swarm.listen_on(multiaddr) {
+                    Ok(_) => {
+                        info!("  ✓ QUIC listening on UDP port {} (ISP bypass)", port);
+                    }
+                    Err(e) => {
+                        debug!("  ✗ QUIC listen failed on port {}: {:?}", port, e);
+                    }
+                }
+            }
+            Err(e) => {
+                debug!("  ✗ Invalid QUIC address: {:?}", e);
+            }
+        }
     }
     
     /// Start listening with automatic port fallback
@@ -1429,12 +1557,27 @@ impl Network {
                         peer_id, cause, peer_count, self.config.target_peers);
                 }
             }
-            SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
+            SwarmEvent::OutgoingConnectionError { peer_id, error, connection_id } => {
                 if let Some(peer_id) = peer_id {
                     self.conn_manager.on_dial_failure(peer_id).await;
                     self.dialing.remove(&peer_id);
                     self.metrics.dial_failures += 1;
-                    debug!("Dial to {} failed: {:?}", peer_id, error);
+                    
+                    // WRONGPEERID FIX: Detect WrongPeerId errors and clean up stale Kademlia entries
+                    // This happens when a peer moved to a different IP but Kademlia still has old mapping
+                    let error_str = format!("{:?}", error);
+                    if error_str.contains("WrongPeerId") {
+                        warn!("STALE ENTRY: WrongPeerId for {} - removing from Kademlia", peer_id);
+                        // Remove ALL addresses for this peer from Kademlia since the mapping is stale
+                        self.swarm.behaviour_mut().kademlia.remove_peer(&peer_id);
+                        // Also increase backoff significantly for this peer
+                        self.conn_manager.on_wrong_peer_id(peer_id).await;
+                    } else if error_str.contains("ResourceLimitExceeded") {
+                        // Relay circuit limit hit - don't penalize the peer, just back off
+                        debug!("Relay limit exceeded for {} - will retry later", peer_id);
+                    } else {
+                        debug!("Dial to {} failed: {:?}", peer_id, error);
+                    }
                 }
             }
             SwarmEvent::NewListenAddr { address, .. } => {
@@ -1603,8 +1746,9 @@ impl Network {
             debug!("Bootnode connectivity OK: {} bootnodes connected", connected_bootnodes.len());
         }
         
-        // Also check for stale connections (no successful ping in 5 minutes)
-        let stale_threshold = Duration::from_secs(300);
+        // NETWORK STABILITY: Check for stale connections (no successful ping in 15 minutes)
+        // Extended from 5 minutes to be more tolerant of slow/relay connections
+        let stale_threshold = Duration::from_secs(900);
         let now = Instant::now();
         let mut stale_peers = Vec::new();
         

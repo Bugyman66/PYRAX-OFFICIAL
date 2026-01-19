@@ -235,18 +235,19 @@ impl PeerData {
 
     /// Check if peer should be banned based on score
     /// Only ban if score is very low AND peer has been known for a while (grace period)
-    /// FIX: Extended grace period and stricter ban threshold to prevent "scoring out" new users
+    /// NETWORK STABILITY FIX: Much more lenient to prevent kicking users off network
     pub fn should_ban(&self) -> bool {
-        // EXTENDED GRACE PERIOD: 15 minutes (was 5 minutes)
-        // NAT traversal and relay connections can take time to stabilize
-        // Many dial failures happen during initial connection attempts which is normal
-        let grace_period = Duration::from_secs(900);
+        // EXTENDED GRACE PERIOD: 30 minutes (was 15 minutes)
+        // NAT traversal and relay connections can take significant time to stabilize
+        // Users behind restrictive ISPs may need multiple connection attempts
+        let grace_period = Duration::from_secs(1800);
         if self.discovered_at.elapsed() < grace_period {
             return false;
         }
-        // Stricter ban threshold: -150 (was -100)
-        // Combined with reduced penalties, this makes banning much harder
-        self.score <= -150
+        // VERY STRICT BAN THRESHOLD: -300 (was -150)
+        // Makes it extremely difficult to get banned - only truly malicious peers
+        // Normal connection issues (NAT, relay, ISP blocking) won't trigger bans
+        self.score <= -300
     }
 }
 
@@ -408,6 +409,15 @@ impl PeerStore {
         }
     }
 
+    /// WRONGPEERID FIX: Clear all addresses for a peer
+    /// Called when WrongPeerId error occurs - all cached addresses are stale
+    pub fn clear_addresses(&mut self, peer_id: &PeerId) {
+        if let Some(peer) = self.peers.get_mut(peer_id) {
+            peer.addresses.clear();
+            peer.ip_addr = None;
+        }
+    }
+
     /// Extract IP address from multiaddr string
     fn extract_ip(addr: &str) -> Option<IpAddr> {
         let parts: Vec<&str> = addr.split('/').collect();
@@ -550,14 +560,18 @@ impl PeerStore {
         let uptime_bonus = (peer.uptime_minutes() as f64 * 0.05).min(10.0);
         score += uptime_bonus;
         
-        // Disconnect penalty: - disconnects_last_hour * 0.5 (reduced from 1.5)
-        // NAT traversal causes frequent reconnections which is normal behavior
-        score -= peer.disconnects_last_hour as f64 * 0.5;
+        // NETWORK STABILITY: Disconnect penalty reduced to -0.1 per disconnect (was -0.5)
+        // NAT traversal, relay circuits, and ISP interference cause frequent reconnections
+        // This is NORMAL behavior for users behind restrictive networks
+        score -= peer.disconnects_last_hour as f64 * 0.1;
         
-        // Failure penalty: - failures_last_hour * 0.2 (reduced from 0.5)
-        // Many failures are due to NAT/relay issues, not misbehavior
-        // New users behind NAT will have many dial failures during setup
-        score -= peer.failures_last_hour as f64 * 0.2;
+        // NETWORK STABILITY: Failure penalty reduced to -0.05 per failure (was -0.2)
+        // Dial failures are extremely common for:
+        // - Users behind NAT (hole punching attempts)
+        // - Users on ISPs that block P2P (Comcast, Xfinity, etc.)
+        // - Users connecting via relay circuits
+        // - Users with intermittent connectivity
+        score -= peer.failures_last_hour as f64 * 0.05;
         
         // Subnet diversity penalty
         if let Some(ip) = &peer.ip_addr {
@@ -576,9 +590,10 @@ impl PeerStore {
         let interaction_bonus = (peer.successful_interactions as f64 * 0.01).min(5.0);
         score += interaction_bonus;
         
-        // Clamp to [-150, +50] - wider range for negative to allow gradual recovery
-        // Score must go below -150 to trigger ban (with 15min grace period)
-        score.clamp(-150.0, 50.0) as i32
+        // NETWORK STABILITY: Clamp to [-300, +50] - much wider range for negative
+        // Score must go below -300 to trigger ban (with 30min grace period)
+        // This makes banning virtually impossible for normal network issues
+        score.clamp(-300.0, 50.0) as i32
     }
 
     /// Update all peer scores
@@ -591,9 +606,11 @@ impl PeerStore {
                 
                 // Auto-ban if score too low (only if not already banned to avoid log spam)
                 if peer.should_ban() && !peer.is_bootnode && peer.state != PeerState::Banned {
-                    self.banned.insert(peer_id, Instant::now() + Duration::from_secs(3600));
+                    // NETWORK STABILITY: Reduced ban duration to 15 minutes (was 1 hour)
+                    // Allows peers to recover quickly from temporary issues
+                    self.banned.insert(peer_id, Instant::now() + Duration::from_secs(900));
                     peer.state = PeerState::Banned;
-                    warn!("Auto-banning peer {} due to low score: {} (banned for 1 hour)", peer_id, score);
+                    warn!("Auto-banning peer {} due to low score: {} (banned for 15 minutes)", peer_id, score);
                 }
             }
         }
@@ -791,8 +808,12 @@ mod tests {
         store.record_dial_failure(&peer_id);
         assert!(!store.can_dial(&peer_id));
         
+        // After first failure, backoff is initial * multiplier (30s * 2.0 = 60s)
         let backoff = store.backoffs.get(&peer_id).unwrap();
-        assert_eq!(backoff.current_backoff, config.initial_backoff);
+        let expected_backoff = Duration::from_secs_f64(
+            config.initial_backoff.as_secs_f64() * config.backoff_multiplier
+        );
+        assert_eq!(backoff.current_backoff, expected_backoff);
     }
     
     #[test]

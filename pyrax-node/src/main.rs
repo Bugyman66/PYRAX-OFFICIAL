@@ -332,6 +332,9 @@ async fn main() -> anyhow::Result<()> {
             // Mass adoption network settings
             connection_mode,
             enable_websocket: args.enable_websocket,
+            enable_quic: true,  // ISP bypass: QUIC transport enabled by default
+            websocket_port: None,  // Will use TCP port + 1 by default
+            quic_port: None,  // Will use same as TCP port by default
             auto_port_fallback: args.auto_port_fallback,
             fallback_ports: vec![443, 8080, 8443, 9999],
         };

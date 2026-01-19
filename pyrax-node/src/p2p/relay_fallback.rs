@@ -227,6 +227,47 @@ impl RelayFallbackManager {
         }
         info!("Reset all relay states");
     }
+    
+    /// BOOTNODE RELAY HARDENING: Get relays that need reconnection
+    /// Returns relays that have failed but their cooldown has expired
+    pub fn get_relays_needing_reconnect(&self) -> Vec<String> {
+        self.relays.values()
+            .filter(|r| {
+                // Relay needs reconnect if:
+                // 1. It has failed recently
+                // 2. Cooldown period has passed
+                // 3. It's not currently healthy (to avoid reconnecting working relays)
+                if let Some(fail_time) = r.last_failure {
+                    let cooldown_passed = fail_time.elapsed() > self.retry_cooldown;
+                    let not_healthy = !r.is_healthy();
+                    cooldown_passed && not_healthy
+                } else {
+                    false
+                }
+            })
+            .map(|r| r.address.clone())
+            .collect()
+    }
+    
+    /// BOOTNODE RELAY HARDENING: Check if we should attempt relay recovery
+    /// Returns true if we have no healthy relays and should try reconnecting
+    pub fn needs_recovery(&self) -> bool {
+        !self.has_healthy_relay() && !self.relays.is_empty()
+    }
+    
+    /// BOOTNODE RELAY HARDENING: Get all relay peer IDs for priority reconnection
+    pub fn get_all_relay_peer_ids(&self) -> Vec<String> {
+        self.relays.keys().cloned().collect()
+    }
+    
+    /// BOOTNODE RELAY HARDENING: Mark a relay as needing immediate reconnect
+    pub fn mark_for_reconnect(&mut self, peer_id: &str) {
+        if let Some(relay) = self.relays.get_mut(peer_id) {
+            // Reset the failure time to trigger reconnect on next check
+            relay.last_failure = Some(Instant::now() - self.retry_cooldown - Duration::from_secs(1));
+            debug!("Marked relay {} for immediate reconnect", peer_id);
+        }
+    }
 }
 
 impl Default for RelayFallbackManager {

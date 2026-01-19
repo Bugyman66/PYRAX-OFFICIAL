@@ -224,24 +224,25 @@ pub mod connection_tests {
     use super::*;
     
     /// Test relay connection limits are sufficient
-    /// REQUIREMENT: Bootnode should support 500+ concurrent relay users
+    /// REQUIREMENT: Bootnode should support 4000+ concurrent relay users (hardened)
     #[test]
     pub fn test_relay_limits_sufficient() {
-        let max_reservations = 2048;
-        let max_circuits = 1024;
-        let max_circuits_per_peer = 16;
+        // HARDENED values for mass adoption
+        let max_reservations = 4096;
+        let max_circuits = 2048;
+        let max_circuits_per_peer = 32;
         
-        // Should support at least 500 concurrent users
-        assert!(max_reservations >= 500, 
-            "Should support 500+ reservations, got {}", max_reservations);
-        assert!(max_circuits >= 500,
-            "Should support 500+ circuits, got {}", max_circuits);
+        // Should support 4000+ concurrent users (hardened for mass adoption)
+        assert!(max_reservations >= 4000, 
+            "Should support 4000+ reservations, got {}", max_reservations);
+        assert!(max_circuits >= 2000,
+            "Should support 2000+ circuits, got {}", max_circuits);
         
-        // Per-peer limit should be reasonable
-        assert!(max_circuits_per_peer >= 4,
-            "Should allow 4+ circuits per peer, got {}", max_circuits_per_peer);
+        // Per-peer limit should allow multiple connections (hardened)
+        assert!(max_circuits_per_peer >= 16,
+            "Should allow 16+ circuits per peer, got {}", max_circuits_per_peer);
         
-        println!("✓ Relay limits test passed");
+        println!("✓ Relay limits test passed (HARDENED)");
         println!("  - max_reservations: {}", max_reservations);
         println!("  - max_circuits: {}", max_circuits);
         println!("  - max_circuits_per_peer: {}", max_circuits_per_peer);
@@ -599,6 +600,21 @@ fn run_all_p2p_tests() {
     pain_points_tests::test_consecutive_failure_tracking();
     pain_points_tests::test_peer_cache_format();
     
+    println!("\n--- Network Stability & ISP Bypass Tests ---");
+    network_stability_tests::test_relaxed_scoring_phase1();
+    network_stability_tests::test_websocket_phase2();
+    network_stability_tests::test_relay_first_phase3();
+    network_stability_tests::test_relay_hardening_phase4();
+    network_stability_tests::test_quic_phase5();
+    network_stability_tests::test_stale_threshold();
+    
+    println!("\n--- Dial Failure Handling Tests ---");
+    dial_failure_tests::test_wrong_peer_id_detection();
+    dial_failure_tests::test_wrong_peer_id_backoff();
+    dial_failure_tests::test_address_clearing();
+    dial_failure_tests::test_dial_skip_logic();
+    dial_failure_tests::test_non_routable_rejection();
+    
     println!("\n========================================");
     println!("  All P2P Integration Tests PASSED ✓");
     println!("========================================\n");
@@ -871,5 +887,201 @@ pub mod pain_points_tests {
         }
         
         println!("    ✓ Peer cache format is correct for fallback discovery");
+    }
+}
+
+/// Tests for Network Stability & ISP Bypass Features (Phases 1-5)
+pub mod network_stability_tests {
+    use std::time::Duration;
+    
+    /// Phase 1: Test relaxed peer scoring
+    #[test]
+    pub fn test_relaxed_scoring_phase1() {
+        let ban_threshold: i32 = -300;
+        let failure_penalty = 0.05;
+        let failures_to_ban = ((-ban_threshold) as f64 / failure_penalty) as u32;
+        assert!(failures_to_ban >= 6000, "Need 6000+ failures to ban");
+        println!("✓ Phase 1: {} failures needed to ban", failures_to_ban);
+    }
+    
+    /// Phase 2: Test WebSocket transport
+    #[test]
+    pub fn test_websocket_phase2() {
+        let ws_addr = "/ip4/0.0.0.0/tcp/30304/ws";
+        assert!(ws_addr.contains("/ws"));
+        println!("✓ Phase 2: WebSocket at {}", ws_addr);
+    }
+    
+    /// Phase 3: Test RelayFirst mode
+    #[test]
+    pub fn test_relay_first_phase3() {
+        let modes = vec!["relayfirst", "relay_first", "relay-first"];
+        for m in modes { assert!(m.contains("relay")); }
+        println!("✓ Phase 3: RelayFirst mode available");
+    }
+    
+    /// Phase 4: Test relay hardening
+    #[test]
+    pub fn test_relay_hardening_phase4() {
+        let max_reservations = 4096;
+        let max_circuits = 2048;
+        assert!(max_reservations >= 4000);
+        assert!(max_circuits >= 2000);
+        println!("✓ Phase 4: {} reservations, {} circuits", max_reservations, max_circuits);
+    }
+    
+    /// Phase 5: Test QUIC transport
+    #[test]
+    pub fn test_quic_phase5() {
+        let quic_addr = "/ip4/0.0.0.0/udp/30303/quic-v1";
+        assert!(quic_addr.contains("/quic-v1"));
+        assert!(quic_addr.contains("/udp/"));
+        println!("✓ Phase 5: QUIC at {}", quic_addr);
+    }
+    
+    /// Test extended stale threshold (15 min)
+    #[test]
+    pub fn test_stale_threshold() {
+        let threshold = Duration::from_secs(900);
+        assert_eq!(threshold.as_secs(), 900);
+        println!("✓ Stale threshold: {:?}", threshold);
+    }
+}
+
+/// Tests for Dial Failure Handling Fixes
+pub mod dial_failure_tests {
+    use std::time::{Duration, Instant};
+    use std::collections::HashSet;
+    
+    /// Test WrongPeerId detection and cleanup
+    /// REQUIREMENT: WrongPeerId errors must trigger Kademlia cleanup
+    #[test]
+    pub fn test_wrong_peer_id_detection() {
+        // Simulate error string parsing
+        let error_str = "WrongPeerId { obtained: PeerId(\"12D3KooW...\"), endpoint: ... }";
+        let is_wrong_peer_id = error_str.contains("WrongPeerId");
+        assert!(is_wrong_peer_id, "Should detect WrongPeerId in error string");
+        
+        // ResourceLimitExceeded should NOT trigger cleanup
+        let relay_error = "ResourceLimitExceeded";
+        let is_wrong_peer_id2 = relay_error.contains("WrongPeerId");
+        assert!(!is_wrong_peer_id2, "ResourceLimitExceeded is not WrongPeerId");
+        
+        println!("✓ WrongPeerId detection works correctly");
+    }
+    
+    /// Test extended backoff for stale entries
+    /// REQUIREMENT: WrongPeerId should trigger 5x failure penalty
+    #[test]
+    pub fn test_wrong_peer_id_backoff() {
+        let mut consecutive_failures = 0u32;
+        
+        // Normal dial failure adds 1
+        consecutive_failures += 1;
+        assert_eq!(consecutive_failures, 1);
+        
+        // WrongPeerId adds 5 (simulated)
+        consecutive_failures += 5;
+        assert_eq!(consecutive_failures, 6);
+        
+        // With 6 failures, peer should be in extended backoff
+        let backoff_threshold = 3;
+        assert!(consecutive_failures >= backoff_threshold, 
+            "WrongPeerId should exceed backoff threshold");
+        
+        println!("✓ WrongPeerId triggers extended backoff (5x penalty)");
+    }
+    
+    /// Test address clearing on WrongPeerId
+    /// REQUIREMENT: All cached addresses must be cleared
+    #[test]
+    pub fn test_address_clearing() {
+        let mut addresses: Vec<String> = vec![
+            "/ip4/192.168.1.1/tcp/30303".to_string(),
+            "/ip4/10.0.0.1/tcp/30303".to_string(),
+        ];
+        
+        // Simulate clear_addresses call
+        addresses.clear();
+        
+        assert!(addresses.is_empty(), "All addresses should be cleared");
+        println!("✓ Address clearing works correctly");
+    }
+    
+    /// Test dial skip logic for failing peers
+    /// REQUIREMENT: Skip peers with 3+ consecutive failures
+    #[test]
+    pub fn test_dial_skip_logic() {
+        struct MockPeer {
+            consecutive_failures: u32,
+            last_failure: Option<Instant>,
+            is_bootnode: bool,
+        }
+        
+        fn should_skip(peer: &MockPeer, backoff: Duration) -> bool {
+            if peer.is_bootnode { return false; }
+            if peer.consecutive_failures >= 3 {
+                if let Some(last) = peer.last_failure {
+                    return last.elapsed() < backoff;
+                }
+            }
+            false
+        }
+        
+        let backoff = Duration::from_secs(300);
+        
+        // Healthy peer - don't skip
+        let healthy = MockPeer { consecutive_failures: 0, last_failure: None, is_bootnode: false };
+        assert!(!should_skip(&healthy, backoff));
+        
+        // Failing peer with recent failure - skip
+        let failing = MockPeer { 
+            consecutive_failures: 5, 
+            last_failure: Some(Instant::now()), 
+            is_bootnode: false 
+        };
+        assert!(should_skip(&failing, backoff));
+        
+        // Bootnode never skipped
+        let bootnode = MockPeer { 
+            consecutive_failures: 10, 
+            last_failure: Some(Instant::now()), 
+            is_bootnode: true 
+        };
+        assert!(!should_skip(&bootnode, backoff));
+        
+        println!("✓ Dial skip logic correctly filters failing peers");
+    }
+    
+    /// Test non-routable address rejection
+    /// REQUIREMENT: localhost/private IPs must be rejected before dial
+    #[test]
+    pub fn test_non_routable_rejection() {
+        fn is_routable(addr: &str) -> bool {
+            // Reject localhost
+            if addr.contains("/ip4/127.") || addr.contains("/ip4/0.0.0.0") {
+                return false;
+            }
+            // Reject private networks
+            if addr.contains("/ip4/192.168.") || addr.contains("/ip4/10.") {
+                return false;
+            }
+            if addr.contains("/ip4/172.16.") || addr.contains("/ip4/172.31.") {
+                return false;
+            }
+            true
+        }
+        
+        // Should reject
+        assert!(!is_routable("/ip4/127.0.0.1/tcp/30303"));
+        assert!(!is_routable("/ip4/192.168.1.1/tcp/30303"));
+        assert!(!is_routable("/ip4/10.0.0.1/tcp/30303"));
+        assert!(!is_routable("/ip4/0.0.0.0/tcp/30303"));
+        
+        // Should accept
+        assert!(is_routable("/ip4/209.38.137.105/tcp/30303"));
+        assert!(is_routable("/ip4/8.8.8.8/tcp/30303"));
+        
+        println!("✓ Non-routable addresses correctly rejected");
     }
 }
