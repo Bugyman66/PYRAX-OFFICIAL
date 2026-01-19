@@ -838,39 +838,16 @@ impl Network {
         Ok(())
     }
 
-    /// TRUE MESH FIX: Trigger mesh formation by re-announcing subscriptions
-    /// This sends SUBSCRIBE messages to all connected peers, which triggers:
-    /// 1. Remote peer adds us to their peer_topics
-    /// 2. On their next heartbeat, they may GRAFT us into their mesh
-    /// 3. We receive their GRAFT and add them to our mesh
-    /// 
-    /// NOTE: We do NOT add explicit peers - that bypasses mesh formation!
-    fn force_mesh_with_connected_peers(&mut self) {
-        let blocks_topic = gossipsub::IdentTopic::new(format!("pyrax/{}/blocks", self.network_id.name()));
-        let txs_topic = gossipsub::IdentTopic::new(format!("pyrax/{}/txs", self.network_id.name()));
-        
-        info!("TRUE MESH FIX: Re-announcing subscriptions to trigger GRAFT...");
-        
-        // Unsubscribe first to force re-announcement
-        let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&blocks_topic);
-        let _ = self.swarm.behaviour_mut().gossipsub.unsubscribe(&txs_topic);
-        
-        // Re-subscribe - sends SUBSCRIBE to all connected peers
-        if let Err(e) = self.swarm.behaviour_mut().gossipsub.subscribe(&blocks_topic) {
-            warn!("Failed to resubscribe to blocks topic: {:?}", e);
-        }
-        if let Err(e) = self.swarm.behaviour_mut().gossipsub.subscribe(&txs_topic) {
-            warn!("Failed to resubscribe to txs topic: {:?}", e);
-        }
-        
-        info!("✓ Re-subscribed to topics - waiting for GRAFT from peers");
-        
-        // Log current state
+    /// Log mesh state for debugging - DO NOT modify subscriptions!
+    /// CRITICAL: Calling unsubscribe() CLEARS the mesh for that topic!
+    /// GossipSub mesh formation happens automatically via heartbeat GRAFT.
+    /// We just need to wait for the 1s heartbeat to form the mesh.
+    fn log_mesh_state(&self) {
         let connected_count = self.conn_manager.peer_store().connected_peers().len();
         let all_mesh_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_mesh_peers().collect();
         let all_peers: Vec<_> = self.swarm.behaviour().gossipsub.all_peers().collect();
         
-        info!("  Connected: {}, GossipSub peers: {}, Mesh peers: {}", 
+        info!("MESH STATE: Connected={}, GossipSub peers={}, Mesh peers={}", 
             connected_count, all_peers.len(), all_mesh_peers.len());
     }
 
@@ -915,16 +892,13 @@ impl Network {
             warn!("⚠ MESH EMPTY despite {} TCP connections, {} GossipSub peers (attempt #{})", 
                 connected_count, gossip_peer_count, self.empty_mesh_count);
             
-            // After 2 consecutive empty mesh checks (10 seconds with 5s heartbeat), force mesh formation
-            // More aggressive than before to fix the issue faster
-            if self.empty_mesh_count >= 2 {
-                warn!("⚠ Forcing mesh formation after {} empty checks", self.empty_mesh_count);
-                self.force_mesh_with_connected_peers();
-                
-                // Reset counter after forcing to avoid spam
-                if self.empty_mesh_count >= 6 {
-                    self.empty_mesh_count = 0;
-                }
+            // DO NOT call force_mesh - unsubscribe() clears the mesh!
+            // GossipSub heartbeat (1s) will automatically GRAFT peers into mesh
+            // Just log the state and wait for natural mesh formation
+            if self.empty_mesh_count >= 5 {
+                self.log_mesh_state();
+                // Reset counter to avoid log spam
+                self.empty_mesh_count = 0;
             }
             false
         } else {
@@ -1705,17 +1679,13 @@ impl Network {
                     debug!("Peer {} only has relay addresses (no direct connectivity)", peer_id);
                 }
                 
-                // TRUE MESH FIX: When a BOOTNODE is identified, trigger subscription re-announcement
-                // This ensures SUBSCRIBE messages are sent which triggers GRAFT from the bootnode
-                // NOTE: We do NOT add explicit peers - that bypasses mesh formation!
+                // TRUE MESH FIX: When a BOOTNODE is identified, just log it
+                // DO NOT call unsubscribe/resubscribe - that CLEARS the mesh!
+                // GossipSub automatically sends SUBSCRIBE on new connections
+                // Mesh formation happens via heartbeat GRAFT (1s interval)
                 if self.bootnode_peer_ids.contains(&peer_id) {
-                    info!("✓ Bootnode {} identified - triggering mesh formation", peer_id);
-                    
-                    if !self.initial_subscription_sent {
-                        self.force_mesh_with_connected_peers();
-                        self.initial_subscription_sent = true;
-                    }
-                    // Bootnode will GRAFT us on their next heartbeat after receiving our SUBSCRIBE
+                    info!("✓ Bootnode {} identified - mesh will form via heartbeat GRAFT", peer_id);
+                    self.log_mesh_state();
                 }
             }
             PyraxBehaviourEvent::Ping(ping::Event { peer, result, .. }) => {
