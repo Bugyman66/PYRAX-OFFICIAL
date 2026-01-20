@@ -1613,6 +1613,12 @@ impl Network {
                 // Check if this is a bootnode
                 let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
                 
+                // HEALTH MONITORING: Track if this is a relay connection
+                let is_relay = Self::is_relay_address(&addr_str.parse::<Multiaddr>().unwrap_or_else(|_| "/ip4/0.0.0.0/tcp/0".parse().unwrap()));
+                if let Some(peer) = self.conn_manager.peer_store_mut().get_peer_mut(&peer_id) {
+                    peer.is_relay_connection = is_relay;
+                }
+                
                 // MESH FIX v2: Do NOT add ANY peers as explicit peers!
                 // Explicit peers are intentionally OUTSIDE the mesh - GossipSub ignores GRAFT from them.
                 // This was the ROOT CAUSE of mesh not forming: "GRAFT: ignoring request from direct peer"
@@ -2041,9 +2047,10 @@ impl Network {
                 self.metrics.messages_received += 1;
                 self.handle_gossip_message(propagation_source, &message.data).await;
                 
-                // Record successful interaction for scoring
+                // HEALTH MONITORING: Record successful data exchange for connection health tracking
                 if let Some(peer) = self.conn_manager.peer_store_mut().get_peer_mut(&propagation_source) {
                     peer.record_success();
+                    peer.record_data_exchange(); // Track actual data exchange, not just ping
                 }
             }
             PyraxBehaviourEvent::Gossipsub(gossipsub::Event::Subscribed { peer_id, topic }) => {

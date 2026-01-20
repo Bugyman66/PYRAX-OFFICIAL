@@ -132,6 +132,12 @@ pub struct PeerData {
     pub consecutive_failures: u32,
     /// FIX: Track last failure time for backoff calculation
     pub last_failure_time: Option<Instant>,
+    /// HEALTH MONITORING: Track last successful data exchange (not just ping)
+    pub last_data_exchange: Option<Instant>,
+    /// HEALTH MONITORING: Track if this is a relay connection
+    pub is_relay_connection: bool,
+    /// HEALTH MONITORING: Connection quality score (0-100)
+    pub connection_quality: u8,
 }
 
 impl PeerData {
@@ -160,6 +166,61 @@ impl PeerData {
             failure_times: Vec::new(),
             consecutive_failures: 0,
             last_failure_time: None,
+            last_data_exchange: None,
+            is_relay_connection: false,
+            connection_quality: 50, // Start at neutral quality
+        }
+    }
+    
+    /// HEALTH MONITORING: Record a successful data exchange
+    pub fn record_data_exchange(&mut self) {
+        self.last_data_exchange = Some(Instant::now());
+        self.last_seen = Instant::now();
+        // Boost connection quality on successful data exchange
+        self.connection_quality = (self.connection_quality + 5).min(100);
+    }
+    
+    /// HEALTH MONITORING: Check if connection is healthy (recent data exchange)
+    pub fn is_connection_healthy(&self) -> bool {
+        if self.state != PeerState::Connected {
+            return false;
+        }
+        // Connection is healthy if we've had data exchange in the last 2 minutes
+        // or ping in the last minute
+        let now = Instant::now();
+        let recent_data = self.last_data_exchange
+            .map(|t| now.duration_since(t) < Duration::from_secs(120))
+            .unwrap_or(false);
+        let recent_ping = self.last_ping
+            .map(|t| now.duration_since(t) < Duration::from_secs(60))
+            .unwrap_or(false);
+        recent_data || recent_ping
+    }
+    
+    /// HEALTH MONITORING: Update connection quality based on recent performance
+    pub fn update_connection_quality(&mut self) {
+        // Decay quality if no recent activity
+        if let Some(last_data) = self.last_data_exchange {
+            let secs_since_data = Instant::now().duration_since(last_data).as_secs();
+            if secs_since_data > 120 {
+                // Decay 1 point per 30 seconds of inactivity after 2 minutes
+                let decay = ((secs_since_data - 120) / 30) as u8;
+                self.connection_quality = self.connection_quality.saturating_sub(decay);
+            }
+        }
+        
+        // Boost for low RTT, penalize for high RTT
+        if let Some(rtt) = self.rtt_ms {
+            if rtt < 50 {
+                self.connection_quality = (self.connection_quality + 2).min(100);
+            } else if rtt > 500 {
+                self.connection_quality = self.connection_quality.saturating_sub(2);
+            }
+        }
+        
+        // Penalty for relay connections (inherently less stable)
+        if self.is_relay_connection {
+            self.connection_quality = self.connection_quality.saturating_sub(1);
         }
     }
 
