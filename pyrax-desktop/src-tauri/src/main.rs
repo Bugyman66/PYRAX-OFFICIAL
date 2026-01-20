@@ -104,6 +104,7 @@ fn main() {
             commands::node::get_node_status,
             commands::node::get_chain_info,
             commands::node::get_peers,
+            commands::node::get_network_mesh,
             
             // Wallet commands
             commands::wallet::create_wallet,

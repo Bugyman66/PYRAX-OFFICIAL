@@ -40,10 +40,26 @@ export interface ChainInfo {
 export interface PeerInfo {
   id: string;
   address: string;
-  clientVersion: string;
-  bestHeight: number;
-  latencyMs: number;
+  ip: string;
+  port: number;
+  protocol: string;
   direction: string;
+  connectedSecs: number;
+  version: string;
+  blockHeight: number;
+}
+
+export interface MeshConnection {
+  peerA: string;
+  peerB: string;
+  topic: string;
+  connectionType: string;
+}
+
+export interface RelayCircuit {
+  srcPeer: string;
+  dstPeer: string;
+  establishedAt: number;
 }
 
 export interface BootnodeInfo {

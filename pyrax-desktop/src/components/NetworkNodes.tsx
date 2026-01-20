@@ -135,7 +135,7 @@ export default function NetworkNodes() {
                   <th className="pb-3 font-medium">Address</th>
                   <th className="pb-3 font-medium">Direction</th>
                   <th className="pb-3 font-medium">Block Height</th>
-                  <th className="pb-3 font-medium text-right">Latency</th>
+                  <th className="pb-3 font-medium text-right">Connected</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
@@ -162,11 +162,11 @@ export default function NetworkNodes() {
                       </span>
                     </td>
                     <td className="py-3">
-                      <span className="text-sm">{peer.bestHeight.toLocaleString()}</span>
+                      <span className="text-sm">{peer.blockHeight.toLocaleString()}</span>
                     </td>
                     <td className="py-3 text-right">
-                      <span className={`font-mono ${getLatencyColor(peer.latencyMs)}`}>
-                        {peer.latencyMs}ms
+                      <span className="font-mono text-stone-400">
+                        {Math.floor(peer.connectedSecs / 60)}m
                       </span>
                     </td>
                   </tr>

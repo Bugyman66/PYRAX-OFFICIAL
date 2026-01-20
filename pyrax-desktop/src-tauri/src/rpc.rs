@@ -342,12 +342,16 @@ pub struct UtxoResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PeerResponse {
-    pub id: String,
+    pub peer_id: String,
     pub address: String,
-    pub client_version: String,
-    pub best_height: u64,
-    pub latency_ms: u32,
+    pub ip: String,
+    pub port: u16,
+    pub protocol: String,
     pub direction: String,
+    pub connected_secs: u64,
+    pub last_seen: u64,
+    pub version: String,
+    pub block_height: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -402,6 +406,28 @@ pub struct NetworkInfoResponse {
     pub nat_status: String,
     pub mesh_peers: usize,
     pub gossip_peers: usize,
+    // Mesh topology for visualizer
+    pub mesh_connections: Vec<MeshConnection>,
+    pub relay_circuits: Vec<RelayCircuit>,
+}
+
+/// Mesh connection between two peers (for visualization)
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MeshConnection {
+    pub peer_a: String,
+    pub peer_b: String,
+    pub topic: String,
+    pub connection_type: String,
+}
+
+/// Active relay circuit through a node
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayCircuit {
+    pub src_peer: String,
+    pub dst_peer: String,
+    pub established_at: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

@@ -216,10 +216,13 @@ pub struct ChainInfo {
 pub struct PeerInfo {
     pub id: String,
     pub address: String,
-    pub client_version: String,
-    pub best_height: u64,
-    pub latency_ms: u32,
+    pub ip: String,
+    pub port: u16,
+    pub protocol: String,
     pub direction: String,
+    pub connected_secs: u64,
+    pub version: String,
+    pub block_height: u64,
 }
 
 fn get_rpc_port(network: &crate::state::Network) -> u16 {
@@ -1297,14 +1300,20 @@ pub async fn get_peers(
     
     match rpc.get_peers().await {
         Ok(peers) => Ok(peers.into_iter().map(|p| PeerInfo {
-            id: p.id,
+            id: p.peer_id,
             address: p.address,
-            client_version: p.client_version,
-            best_height: p.best_height,
-            latency_ms: p.latency_ms,
+            ip: p.ip,
+            port: p.port,
+            protocol: p.protocol,
             direction: p.direction,
+            connected_secs: p.connected_secs,
+            version: p.version,
+            block_height: p.block_height,
         }).collect()),
-        Err(e) => Err(format!("Failed to get peers: {}", e)),
+        Err(e) => {
+            warn!("Failed to get peers: {}", e);
+            Err(format!("Failed to get peers: {}", e))
+        }
     }
 }
 
@@ -1706,4 +1715,53 @@ pub async fn get_local_data_size(
     };
     
     Ok(formatted)
+}
+
+/// Network mesh data for visualization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkMeshData {
+    pub mesh_connections: Vec<MeshConnectionInfo>,
+    pub local_peer_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeshConnectionInfo {
+    pub peer_a: String,
+    pub peer_b: String,
+    pub topic: String,
+    pub connection_type: String,
+}
+
+#[tauri::command]
+pub async fn get_network_mesh(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<NetworkMeshData, String> {
+    let (running, rpc_port) = {
+        let app_state = state.lock();
+        (app_state.node_running, app_state.rpc_port)
+    };
+    
+    if !running {
+        return Err("Node is not running".to_string());
+    }
+    
+    let rpc = RpcClient::localhost(rpc_port);
+    
+    match rpc.get_network_info().await {
+        Ok(info) => Ok(NetworkMeshData {
+            mesh_connections: info.mesh_connections.into_iter().map(|c| MeshConnectionInfo {
+                peer_a: c.peer_a,
+                peer_b: c.peer_b,
+                topic: c.topic,
+                connection_type: c.connection_type,
+            }).collect(),
+            local_peer_id: info.local_peer_id,
+        }),
+        Err(e) => {
+            warn!("Failed to get network mesh: {}", e);
+            Err(format!("Failed to get network mesh: {}", e))
+        }
+    }
 }

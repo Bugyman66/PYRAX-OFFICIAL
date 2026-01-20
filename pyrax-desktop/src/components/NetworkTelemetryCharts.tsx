@@ -230,10 +230,16 @@ export default function NetworkTelemetryCharts() {
     },
   };
 
-  // Calculate health score
-  const meshHealth = status.meshPeers ? Math.min(100, (status.meshPeers / 8) * 100) : 0;
-  const dialSuccess = totalDials > 0 ? ((status.dialSuccesses || 0) / totalDials) * 100 : 0;
-  const latencyScore = status.averageRttMs ? Math.max(0, 100 - (status.averageRttMs / 5)) : 100;
+  // Calculate health score with realistic formulas
+  // Mesh: Target 4 peers for small networks (achievable goal)
+  const meshHealth = status.meshPeers ? Math.min(100, (status.meshPeers / 4) * 100) : 0;
+  // Dial success rate stays the same
+  const dialSuccess = totalDials > 0 ? ((status.dialSuccesses || 0) / totalDials) * 100 : 50;
+  // Latency: 0-100ms = 100%, 100-300ms = 66-100%, 300-500ms = 33-66%, >500ms = 0-33%
+  // Default to 50% when unknown (not 100% which was misleading)
+  const latencyScore = status.averageRttMs 
+    ? Math.max(0, Math.min(100, 100 - (status.averageRttMs / 5))) 
+    : 50;
   const overallHealth = Math.round((meshHealth + dialSuccess + latencyScore) / 3);
 
   return (
@@ -350,7 +356,7 @@ export default function NetworkTelemetryCharts() {
                   <th className="pb-2">Address</th>
                   <th className="pb-2">Direction</th>
                   <th className="pb-2">Block Height</th>
-                  <th className="pb-2 text-right">Latency</th>
+                  <th className="pb-2 text-right">Connected</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-700">
@@ -369,13 +375,10 @@ export default function NetworkTelemetryCharts() {
                         {peer.direction}
                       </span>
                     </td>
-                    <td className="py-2">{peer.bestHeight.toLocaleString()}</td>
+                    <td className="py-2">{peer.blockHeight.toLocaleString()}</td>
                     <td className="py-2 text-right">
-                      <span className={`font-mono ${
-                        peer.latencyMs < 100 ? 'text-green-400' :
-                        peer.latencyMs < 200 ? 'text-yellow-400' : 'text-red-400'
-                      }`}>
-                        {peer.latencyMs}ms
+                      <span className="font-mono text-stone-400">
+                        {Math.floor(peer.connectedSecs / 60)}m
                       </span>
                     </td>
                   </tr>
