@@ -16,6 +16,7 @@ mod remote;
 use commands::{
     dashboard::DashboardArgs, docker::DockerCommand, init::InitArgs, logs::LogsArgs,
     remote::RemoteCommand, service::ServiceCommand, status::StatusArgs,
+    cloud::CloudCommand, mesh::MeshCommand, snapshot::SnapshotCommand,
 };
 
 const BANNER: &str = r#"
@@ -176,6 +177,24 @@ enum Commands {
         /// Shell to generate completions for
         #[arg(value_enum)]
         shell: Shell,
+    },
+
+    /// Cloud deployment commands
+    Cloud {
+        #[command(subcommand)]
+        command: CloudCommand,
+    },
+
+    /// VPN mesh network commands
+    Mesh {
+        #[command(subcommand)]
+        command: MeshCommand,
+    },
+
+    /// Snapshot and backup commands
+    Snapshot {
+        #[command(subcommand)]
+        command: SnapshotCommand,
     },
 }
 
@@ -348,6 +367,18 @@ async fn main() -> Result<()> {
         Commands::Completions { shell } => {
             let mut cmd = Cli::command();
             generate(shell, &mut cmd, "inferno", &mut io::stdout());
+        }
+
+        Commands::Cloud { command } => {
+            commands::cloud::run(command).await?;
+        }
+
+        Commands::Mesh { command } => {
+            commands::mesh::run(command).await?;
+        }
+
+        Commands::Snapshot { command } => {
+            commands::snapshot::run(command).await?;
         }
     }
 

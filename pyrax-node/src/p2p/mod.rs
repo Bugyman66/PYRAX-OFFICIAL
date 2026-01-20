@@ -38,11 +38,15 @@ mod connection_manager;
 mod upnp;
 mod relay_fallback;
 mod peer_cache;
+mod reputation;
+mod nat_traversal;
 
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr, RegistryMetrics, MeshConnection, RelayCircuit};
 pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 pub use peer_cache::{PeerCache, CachedPeer};
+pub use reputation::{ReputationManager, PeerReputation, GeoRegion, ReputationMetrics, ViolationType, ViolationSeverity};
+pub use nat_traversal::{NatTraversalManager, NatType, IceCandidate, stun_discover, StunResult};
 
 use libp2p::{
     autonat, dcutr, gossipsub, identify, kad, mdns, noise, ping, relay,

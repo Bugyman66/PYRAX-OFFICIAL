@@ -5,3 +5,5 @@
 pub mod types;
 pub mod ai;
 pub mod evm;
+pub mod observability;
+pub mod light_client;
