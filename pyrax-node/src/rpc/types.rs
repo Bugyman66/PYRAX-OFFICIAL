@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::types::{Block, Transaction, H256, BlockNumber};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcBlock {
     pub hash: String,
     pub height: u64,
@@ -55,6 +56,7 @@ impl RpcBlock {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcTransaction {
     pub txid: String,
     pub version: u32,
@@ -68,6 +70,7 @@ pub struct RpcTransaction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcTxInput {
     pub txid: String,
     pub vout: u32,
@@ -75,6 +78,7 @@ pub struct RpcTxInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcTxOutput {
     pub value: u64,
     pub script_pubkey: String,
@@ -104,6 +108,7 @@ impl RpcTransaction {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcChainInfo {
     pub chain_id: u32,
     pub network: String,
@@ -118,6 +123,7 @@ pub struct RpcChainInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcPeerInfo {
     pub peer_id: String,
     pub address: String,
@@ -132,6 +138,7 @@ pub struct RpcPeerInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcNetworkInfo {
     pub peer_count: usize,
     pub peers: Vec<RpcPeerInfo>,
@@ -157,6 +164,7 @@ pub struct RpcNetworkInfo {
 
 /// Represents a mesh connection between two peers (for visualization)
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcMeshConnection {
     pub peer_a: String,
     pub peer_b: String,
@@ -166,6 +174,7 @@ pub struct RpcMeshConnection {
 
 /// Represents an active relay circuit through this node
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcRelayCircuit {
     pub src_peer: String,
     pub dst_peer: String,
@@ -173,12 +182,14 @@ pub struct RpcRelayCircuit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcMempoolInfo {
     pub size: usize,
     pub bytes: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcUtxo {
     pub txid: String,
     pub vout: u32,
@@ -189,6 +200,7 @@ pub struct RpcUtxo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcBalance {
     pub address: String,
     pub balance: u64,
@@ -197,6 +209,7 @@ pub struct RpcBalance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcBlockTemplate {
     pub height: u64,
     pub parent_hash: String,
@@ -208,6 +221,7 @@ pub struct RpcBlockTemplate {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcSubmitResult {
     pub accepted: bool,
     pub hash: Option<String>,
@@ -216,6 +230,7 @@ pub struct RpcSubmitResult {
 
 /// Address transaction history response
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcAddressTransactions {
     pub address: String,
     pub transactions: Vec<RpcAddressTx>,
@@ -226,6 +241,7 @@ pub struct RpcAddressTransactions {
 
 /// Transaction in address history
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcAddressTx {
     pub txid: String,
     pub block_hash: String,
@@ -240,6 +256,7 @@ pub struct RpcAddressTx {
 
 /// Debug P2P state for troubleshooting peer count mismatches
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RpcP2PDebugState {
     /// Peers from registry (what RPC normally returns)
     pub registry_peer_count: usize,
