@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+rule_files: []
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # PYRAX Chain Observer metrics
+  - job_name: 'pyrax-metrics'
+    static_configs:
+      - targets: ['pyrax-metrics:9092']
+    metrics_path: /metrics
+    scrape_interval: 5s
+
+  # PYRAX Node metrics (if nodes expose Prometheus)
+  - job_name: 'pyrax-nodes'
+    static_configs:
+      - targets: []
+        # Add your node addresses here:
+        # - 'pyrax-node-1:9090'
+        # - 'pyrax-node-2:9090'
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

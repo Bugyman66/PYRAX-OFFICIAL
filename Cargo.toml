@@ -4,7 +4,11 @@ members = [
     "pyrax-node",
     "pyrax-wallet",
     "pyrax-desktop/src-tauri",
+<<<<<<< Updated upstream
     "inferno-cli",
+=======
+    "pyrax-metrics",
+>>>>>>> Stashed changes
 ]
 
 [workspace.package]

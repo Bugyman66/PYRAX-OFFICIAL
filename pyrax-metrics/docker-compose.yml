@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # PYRAX Chain Observer
+  pyrax-metrics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pyrax-metrics
+    ports:
+      - "9092:9092"  # Prometheus metrics
+      - "8080:8080"  # Health/Status API
+    volumes:
+      - ./config:/config:ro
+    environment:
+      - RUST_LOG=info
+    restart: unless-stopped
+    networks:
+      - pyrax-monitoring
+    # If monitoring external nodes, add:
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - pyrax-monitoring
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana/provisioning/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=pyrax123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    networks:
+      - pyrax-monitoring
+    depends_on:
+      - prometheus
+
+networks:
+  pyrax-monitoring:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
