@@ -62,7 +62,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Chain Head Block",
+            "title": "Current Block Height",
             "type": "stat"
         },
         {
@@ -126,7 +126,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Height Delta",
+            "title": "Node Sync Gap",
             "type": "stat"
         },
         {
@@ -203,7 +203,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Chain Status",
+            "title": "Block Production Status",
             "type": "stat"
         },
         {
@@ -280,7 +280,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Fork Detection",
+            "title": "Chain Fork Alert",
             "type": "stat"
         },
         {
@@ -364,7 +364,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Block Height Over Time",
+            "title": "Block Height History",
             "type": "timeseries"
         },
         {
@@ -448,7 +448,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Block Rate",
+            "title": "Blocks Per Minute",
             "type": "timeseries"
         },
         {
@@ -504,7 +504,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Nodes Reachable",
+            "title": "Online Nodes",
             "type": "stat"
         },
         {
@@ -560,7 +560,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Nodes Synced",
+            "title": "Fully Synced Nodes",
             "type": "stat"
         },
         {
@@ -616,7 +616,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Avg RPC Latency",
+            "title": "Average Response Time",
             "type": "stat"
         },
         {
@@ -700,7 +700,7 @@
                     "refId": "A"
                 }
             ],
-            "title": "Per-Node Block Height",
+            "title": "Individual Node Heights",
             "type": "timeseries"
         }
     ],
