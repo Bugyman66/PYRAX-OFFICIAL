@@ -117,6 +117,15 @@ async fn metrics_handler(State(state): State<AppState>) -> String {
             status.endpoint, if status.reachable { 1 } else { 0 }
         ));
     }
+
+    output.push_str("# HELP pyrax_node_peer_count Number of peers connected to this node\n");
+    output.push_str("# TYPE pyrax_node_peer_count gauge\n");
+    for status in &node_statuses {
+        output.push_str(&format!(
+            "pyrax_node_peer_count{{endpoint=\"{}\"}} {}\n",
+            status.endpoint, status.peer_count
+        ));
+    }
     
     output
 }
