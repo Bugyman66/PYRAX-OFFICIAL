@@ -538,6 +538,11 @@ jobs:
           # Build only web services (node is managed by systemd)
           docker compose -f $COMPOSE_FILE build website faucet docs explorer marketing nginx postgres redis
           
+          echo "=== STOPPING EXISTING CONTAINERS ==="
+          # Stop and remove existing containers to avoid conflicts
+          docker compose -f $COMPOSE_FILE down --remove-orphans 2>/dev/null || true
+          docker rm -f pyrax-website pyrax-faucet pyrax-docs pyrax-explorer pyrax-marketing pyrax-nginx pyrax-postgres pyrax-redis 2>/dev/null || true
+          
           echo "=== STARTING WEB SERVICES ==="
           # Start only web services - NOT the node (we use systemd for that)
           docker compose -f $COMPOSE_FILE up -d postgres redis website faucet docs explorer marketing nginx
