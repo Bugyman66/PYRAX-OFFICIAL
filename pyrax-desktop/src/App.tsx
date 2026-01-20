@@ -10,6 +10,7 @@ import { useNodeStore } from './stores/nodeStore';
 // Lazy load non-critical pages for faster initial load
 const Wallet = lazy(() => import('./pages/Wallet'));
 const Mining = lazy(() => import('./pages/Mining'));
+const MiningDashboard = lazy(() => import('./pages/MiningDashboard'));
 const Explorer = lazy(() => import('./pages/Explorer'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Network = lazy(() => import('./pages/Network'));
@@ -47,6 +48,7 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="wallet" element={<Suspense fallback={<PageLoader />}><Wallet /></Suspense>} />
             <Route path="mining" element={<Suspense fallback={<PageLoader />}><Mining /></Suspense>} />
+            <Route path="mining-dashboard" element={<Suspense fallback={<PageLoader />}><MiningDashboard /></Suspense>} />
             <Route path="explorer" element={<Suspense fallback={<PageLoader />}><Explorer /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="network" element={<Suspense fallback={<PageLoader />}><Network /></Suspense>} />

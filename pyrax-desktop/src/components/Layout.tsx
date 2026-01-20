@@ -7,7 +7,8 @@ import {
   Settings,
   Network,
   Circle,
-  Loader2
+  Loader2,
+  Gauge
 } from 'lucide-react';
 import { useNodeStore } from '../stores/nodeStore';
 import { cn } from '../lib/utils';
@@ -16,6 +17,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/wallet', icon: Wallet, label: 'Wallet' },
   { to: '/mining', icon: Hammer, label: 'Mining' },
+  { to: '/mining-dashboard', icon: Gauge, label: 'Mining Pro' },
   { to: '/explorer', icon: Search, label: 'Explorer' },
   { to: '/network', icon: Network, label: 'Network' },
   { to: '/settings', icon: Settings, label: 'Settings' },

@@ -1170,32 +1170,31 @@ pub async fn get_node_status(
             let syncing = info.syncing;
             let sync_progress = if syncing { 50.0 } else { 100.0 };
             
-            // P2P STATS FIX: Only fetch P2P stats from LOCAL node
-            // Remote bootnode's P2P state is irrelevant to the user's local connections
-            let (peer_count, p2p_stats) = if is_remote {
-                // Remote node - don't show its P2P stats as ours, just indicate connected
-                (1u32, None)
-            } else {
-                // Local node - get real P2P stats
-                match rpc.get_network_info().await {
-                    Ok(net_info) => {
-                        // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
-                        // This ensures accurate display even during race conditions or registry sync delays
-                        let effective_count = if net_info.peer_count > 0 {
-                            net_info.peer_count as u32
-                        } else if net_info.mesh_peers > 0 {
-                            net_info.mesh_peers as u32
-                        } else if net_info.gossip_peers > 0 {
-                            net_info.gossip_peers as u32
-                        } else if (net_info.inbound_peers + net_info.outbound_peers) > 0 {
-                            (net_info.inbound_peers + net_info.outbound_peers) as u32
-                        } else {
-                            0
-                        };
-                        (effective_count, Some(net_info))
-                    },
-                    Err(_) => (0, None)
-                }
+            // P2P STATS FIX: Fetch P2P stats from both local and remote nodes
+            // Remote stats show bootnode's view of the network, useful for users without local node
+            let (peer_count, p2p_stats, network_state_override) = match rpc.get_network_info().await {
+                Ok(net_info) => {
+                    // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
+                    let effective_count = if net_info.peer_count > 0 {
+                        net_info.peer_count as u32
+                    } else if net_info.mesh_peers > 0 {
+                        net_info.mesh_peers as u32
+                    } else if net_info.gossip_peers > 0 {
+                        net_info.gossip_peers as u32
+                    } else if (net_info.inbound_peers + net_info.outbound_peers) > 0 {
+                        (net_info.inbound_peers + net_info.outbound_peers) as u32
+                    } else {
+                        if is_remote { 1 } else { 0 }
+                    };
+                    // When remote, indicate it's bootnode stats
+                    let state_override = if is_remote { 
+                        Some("Connected (via Bootnode)".to_string()) 
+                    } else { 
+                        None 
+                    };
+                    (effective_count, Some(net_info), state_override)
+                },
+                Err(_) => (if is_remote { 1 } else { 0 }, None, None)
             };
             
             Ok(NodeStatus {
@@ -1217,7 +1216,7 @@ pub async fn get_node_status(
                 dial_successes: p2p_stats.as_ref().map(|s| s.dial_successes),
                 dial_failures: p2p_stats.as_ref().map(|s| s.dial_failures),
                 average_rtt_ms: p2p_stats.as_ref().and_then(|s| s.average_rtt_ms),
-                network_state: p2p_stats.as_ref().map(|s| s.network_state.clone()),
+                network_state: network_state_override.or_else(|| p2p_stats.as_ref().map(|s| s.network_state.clone())),
                 nat_status: p2p_stats.as_ref().map(|s| s.nat_status.clone()),
                 mesh_peers: p2p_stats.as_ref().map(|s| s.mesh_peers as u32),
                 gossip_peers: p2p_stats.as_ref().map(|s| s.gossip_peers as u32),

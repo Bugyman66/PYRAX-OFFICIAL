@@ -18,6 +18,7 @@ import { useMinerStore } from '../stores/minerStore';
 import { useLogStore } from '../stores/logStore';
 import { formatBalance, formatHashrate } from '../lib/utils';
 import LogViewer from '../components/LogViewer';
+import NetworkTelemetryCharts from '../components/NetworkTelemetryCharts';
 
 export default function Dashboard() {
   const { status, chainInfo, error: nodeError, startNode, stopNode, fetchChainInfo, loading: nodeLoading } = useNodeStore();
@@ -297,6 +298,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Network Telemetry Charts */}
+      {status?.connected && <NetworkTelemetryCharts />}
 
       {/* Real-time Log Viewer */}
       <LogViewer />
