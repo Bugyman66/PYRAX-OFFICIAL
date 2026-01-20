@@ -480,24 +480,25 @@ impl Network {
                 // Previous values (2,4,8) were too restrictive for small networks
                 // MESH FORMATION FIX: More aggressive settings for reliable mesh
                 // Previous issue: Only 1 mesh peer despite 8 gossip peers
-                // Root cause: heartbeat too slow, mesh_n_low too permissive
-                // ASIC MINING FIX: Ultra-aggressive mesh formation for reliable block propagation
-                // Block propagation MUST work reliably for mining operations
+                // CONNECTIVITY FIX v0.3.6: Lower mesh thresholds for small networks
+                // Previous issue: mesh_n_low=4 caused "Mesh low" when only 3 peers available
+                // This reset mesh to {} even though peers were connected
+                // FIX: Allow mesh to form with as few as 2 peers
                 let gossipsub_config = gossipsub::ConfigBuilder::default()
-                    .heartbeat_interval(Duration::from_millis(700)) // Even faster heartbeat (was 1s)
+                    .heartbeat_interval(Duration::from_millis(700)) // Fast heartbeat for quick mesh formation
                     .validation_mode(gossipsub::ValidationMode::Permissive)
                     .max_transmit_size(2 * 1024 * 1024) // 2MB for blocks
-                    .mesh_n_low(4)      // ASIC FIX: Minimum 4 peers in mesh (was 2)
-                    .mesh_n(6)          // ASIC FIX: Target 6 peers (was 4)
-                    .mesh_n_high(12)    // Allow up to 12 peers in mesh
+                    .mesh_n_low(2)      // CONNECTIVITY FIX: Allow mesh with 2+ peers (was 4)
+                    .mesh_n(4)          // CONNECTIVITY FIX: Target 4 peers (was 6)
+                    .mesh_n_high(8)     // CONNECTIVITY FIX: Cap at 8 to reduce churn (was 12)
                     .mesh_outbound_min(0) // CRITICAL: Allow inbound-only mesh (for relay connections)
-                    .gossip_lazy(6)     // ASIC FIX: Increased lazy gossip for better propagation (was 3)
-                    .gossip_factor(0.5) // Aggressive gossip
+                    .gossip_lazy(4)     // Lazy gossip for propagation
+                    .gossip_factor(0.25) // Moderate gossip factor
                     .flood_publish(true) // Ensures delivery even with sparse mesh
-                    .history_length(6)  // ASIC FIX: Keep more message history (was 5)
-                    .history_gossip(4)  // ASIC FIX: Gossip to more peers (was 3)
-                    .opportunistic_graft_ticks(3) // ASIC FIX: Faster mesh recovery - graft after 3 heartbeats
-                    .graft_flood_threshold(Duration::from_secs(5)) // ASIC FIX: Reduce graft flood threshold
+                    .history_length(6)  // Keep message history
+                    .history_gossip(3)  // Gossip to peers
+                    .opportunistic_graft_ticks(2) // Fast mesh recovery - graft after 2 heartbeats
+                    .graft_flood_threshold(Duration::from_secs(10)) // Prevent graft flooding
                     .build()
                     .expect("Valid gossipsub config");
 
