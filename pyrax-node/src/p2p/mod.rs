@@ -37,10 +37,12 @@ mod peer_store;
 mod connection_manager;
 mod upnp;
 mod relay_fallback;
+mod peer_cache;
 
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr, RegistryMetrics, MeshConnection, RelayCircuit};
 pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
+pub use peer_cache::{PeerCache, CachedPeer};
 
 use libp2p::{
     autonat, dcutr, gossipsub, identify, kad, mdns, noise, ping, relay,
@@ -365,6 +367,8 @@ pub struct Network {
     /// VISUALIZER FIX: Track active relay circuits for visualization
     /// Key: (src_peer, dst_peer), Value: established_at timestamp
     active_relay_circuits: HashMap<(PeerId, PeerId), u64>,
+    /// PERSISTENT PEER CACHE: Save/load known peers for faster reconnection
+    peer_cache: Option<peer_cache::PeerCache>,
 }
 
 /// NAT status for tracking reachability
@@ -497,14 +501,14 @@ impl Network {
                 );
 
                 // Ping for keep-alive and RTT measurement
-                // NETWORK STABILITY FIX: Balanced interval for NAT keepalive AND stability
-                // - Interval: 25s - keeps NAT mappings alive (most NAT tables timeout at 30-60s)
-                // - Timeout: 90s - tolerant of slow/relay connections but not excessively long
-                // This prevents NAT-induced disconnections while avoiding false-positive failures
+                // NETWORK STABILITY FIX: Aggressive interval for NAT keepalive
+                // - Interval: 20s - keeps NAT mappings alive (most NAT tables timeout at 30-60s)
+                // - Timeout: 60s - reasonable timeout for failure detection
+                // This prevents NAT-induced disconnections while detecting dead connections promptly
                 let ping = ping::Behaviour::new(
                     ping::Config::new()
-                        .with_interval(Duration::from_secs(25))  // STABILITY: Fixed 25s for NAT keepalive
-                        .with_timeout(Duration::from_secs(90))   // STABILITY: 90s timeout for slow links
+                        .with_interval(Duration::from_secs(20))  // STABILITY: 20s for aggressive NAT keepalive
+                        .with_timeout(Duration::from_secs(60))   // STABILITY: 60s timeout for failure detection
                 );
 
                 // Kademlia DHT for peer discovery - primary discovery mechanism
@@ -661,6 +665,21 @@ impl Network {
             }
         }
         
+        // PERSISTENT PEER CACHE: Initialize with data directory
+        let peer_cache = if let Some(ref key_path) = config.node_key_path {
+            if let Some(data_dir) = key_path.parent() {
+                let mut cache = peer_cache::PeerCache::new(&data_dir.to_path_buf());
+                if let Err(e) = cache.load() {
+                    warn!("Failed to load peer cache: {}", e);
+                }
+                Some(cache)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
         Ok(Self {
             local_peer_id,
             swarm,
@@ -689,6 +708,7 @@ impl Network {
             seen_blocks: std::collections::VecDeque::with_capacity(5000),
             seen_txs: std::collections::VecDeque::with_capacity(10000),
             active_relay_circuits: HashMap::new(),
+            peer_cache,
         })
     }
 
@@ -1308,6 +1328,27 @@ impl Network {
             }
         }
         
+        // PERSISTENT PEER CACHE: Dial cached peers before bootnodes for faster reconnection
+        if let Some(ref cache) = self.peer_cache {
+            let startup_peers = cache.get_startup_peers(20); // Dial up to 20 cached peers
+            if !startup_peers.is_empty() {
+                info!("Dialing {} cached peers for faster reconnection", startup_peers.len());
+                for (peer_id_str, addresses) in startup_peers {
+                    if let Ok(peer_id) = peer_id_str.parse::<PeerId>() {
+                        if peer_id != self.local_peer_id {
+                            for addr in addresses {
+                                if let Ok(ma) = addr.parse::<Multiaddr>() {
+                                    if Self::is_routable_address(&ma) {
+                                        let _ = self.swarm.dial(ma);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         // Start connection manager - this will dial bootnodes
         self.conn_manager.start().await;
         
@@ -1335,6 +1376,10 @@ impl Network {
         // Reduced from 30 minutes to prevent NAT mapping expiration issues
         let mut upnp_renewal_timer = tokio::time::interval(Duration::from_secs(900));
         upnp_renewal_timer.tick().await;
+        
+        // PERSISTENT PEER CACHE: Save cache every 5 minutes
+        let mut peer_cache_timer = tokio::time::interval(Duration::from_secs(300));
+        peer_cache_timer.tick().await;
         
         loop {
             tokio::select! {
@@ -1399,6 +1444,15 @@ impl Network {
                 _ = upnp_renewal_timer.tick() => {
                     if let Some(ref mut upnp) = self.upnp_manager {
                         upnp.renew_mappings().await;
+                    }
+                }
+                
+                // PERSISTENT PEER CACHE: Save cache periodically
+                _ = peer_cache_timer.tick() => {
+                    if let Some(ref mut cache) = self.peer_cache {
+                        if let Err(e) = cache.save() {
+                            warn!("Failed to save peer cache: {}", e);
+                        }
                     }
                 }
             }
@@ -1569,6 +1623,14 @@ impl Network {
                 
                 // STABILITY FIX: Initialize last ping success time
                 self.last_ping_success.insert(peer_id, Instant::now());
+                
+                // PERSISTENT PEER CACHE: Update cache with successful connection
+                // We'll update with addresses from the Identify protocol later when we receive them
+                if let Some(ref mut cache) = self.peer_cache {
+                    // For now, just record the peer with empty addresses
+                    // Addresses will be added when Identify protocol completes
+                    cache.upsert_peer(peer_id.to_string(), vec![], None, is_bootnode);
+                }
                 
                 // Update metrics - now async for real-time UI updates
                 self.update_metrics().await;
@@ -2122,6 +2184,12 @@ impl Network {
                 // Update connection manager with peer info (only prioritized addresses)
                 let listen_addrs: Vec<String> = prioritized_addrs.iter().map(|a| a.to_string()).collect();
                 self.conn_manager.on_peer_identified(peer_id, info.agent_version.clone(), listen_addrs.clone());
+                
+                // PERSISTENT PEER CACHE: Update cache with actual addresses from Identify
+                if let Some(ref mut cache) = self.peer_cache {
+                    let is_bootnode = self.bootnode_peer_ids.contains(&peer_id);
+                    cache.upsert_peer(peer_id.to_string(), listen_addrs.clone(), None, is_bootnode);
+                }
                 
                 // Update legacy registry
                 self.peer_registry.update_peer_version(&peer_id.to_string(), &info.agent_version).await;

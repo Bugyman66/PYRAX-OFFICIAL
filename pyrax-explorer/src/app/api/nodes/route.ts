@@ -240,16 +240,17 @@ async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Prom
     // Tag each peer with the stream it came from
     const peers = (networkInfo?.peers || []).map((p: any) => ({ ...p, _stream: stream }));
     
-    // Get mesh connections for user-to-user visualization
-    const meshConnections: MeshConnection[] = networkInfo?.mesh_connections || [];
+    // CAMELCASE FIX: Support both camelCase (new) and snake_case (legacy) field names
+    // This ensures compatibility during the transition period
+    const meshConnections: MeshConnection[] = networkInfo?.meshConnections || networkInfo?.mesh_connections || [];
     
     // Measure latency to this endpoint
     const latency = await measureLatency(endpoint);
     
     return {
       peers,
-      localPeerId: networkInfo?.local_peer_id || '',
-      listenAddresses: networkInfo?.listen_addresses || [],
+      localPeerId: networkInfo?.localPeerId || networkInfo?.local_peer_id || '',
+      listenAddresses: networkInfo?.listenAddresses || networkInfo?.listen_addresses || [],
       latency,
       meshConnections,
     };
@@ -277,16 +278,15 @@ async function checkBootnodeStatus(rpcUrl: string): Promise<{ online: boolean; l
     if (response.ok) {
       const data = await response.json();
       const latency = Math.round(performance.now() - start);
-      // VERSION FIX: Use node_version field from ChainInfo response
-      // Format is "pyrax-node/X.Y.Z" - extract just the version number
-      const fullVersion = data.result?.node_version || '';
+      // CAMELCASE FIX: Support both camelCase (new) and snake_case (legacy) field names
+      const fullVersion = data.result?.nodeVersion || data.result?.node_version || '';
       const version = fullVersion.includes('/') 
         ? fullVersion.split('/')[1] 
         : (fullVersion || '0.1.0');
       return {
         online: true,
         latency,
-        blockHeight: data.result?.best_block_height || data.result?.block_height || 0,
+        blockHeight: data.result?.bestBlockHeight || data.result?.best_block_height || data.result?.block_height || 0,
         version,
       };
     }
@@ -360,10 +360,11 @@ export async function GET() {
           lat: geo.lat,
           lon: geo.lon,
           stream,
-          connectedAt: Date.now() - (peer.connected_secs || 0) * 1000,
-          lastSeen: peer.last_seen || Date.now(),
+          // CAMELCASE FIX: Support both camelCase (new) and snake_case (legacy) field names
+          connectedAt: Date.now() - (peer.connectedSecs || peer.connected_secs || 0) * 1000,
+          lastSeen: peer.lastSeen || peer.last_seen || Date.now(),
           version,
-          blockHeight: peer.block_height || 0,
+          blockHeight: peer.blockHeight || peer.block_height || 0,
           latency: variance,
           isBootnode: false,
           online: true,
