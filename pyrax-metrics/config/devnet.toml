@@ -11,7 +11,7 @@ max_retries = 3
 [nodes]
 # List of RPC endpoints to monitor
 endpoints = [
-    "http://rpc.pyrax-devnet.org:8545",
+    "http://rpc.pyrax-devnet.org",
 ]
 
 [chain]

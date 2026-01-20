@@ -30,12 +30,31 @@ pub struct NodeStatus {
     pub error: Option<String>,
 }
 
-/// Chain info from RPC
+/// Chain info from RPC (matches pyrax-node RpcChainInfo)
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChainInfo {
-    pub height: u64,
-    pub best_hash: String,
-    pub total_difficulty: u64,
+    pub chain_id: u32,
+    pub network: String,
+    pub best_block_hash: String,
+    pub best_block_height: u64,
+    pub genesis_hash: String,
+    pub difficulty: u64,
+    pub utxo_count: u64,
+    pub syncing: bool,
+    pub node_version: String,
+}
+
+impl ChainInfo {
+    /// Get height (alias for best_block_height)
+    pub fn height(&self) -> u64 {
+        self.best_block_height
+    }
+    
+    /// Get best hash (alias for best_block_hash)
+    pub fn best_hash(&self) -> &str {
+        &self.best_block_hash
+    }
 }
 
 /// Mining info from RPC
@@ -79,34 +98,39 @@ impl RpcClient {
         let start = Instant::now();
         let timestamp = chrono::Utc::now().timestamp() as u64;
         
-        // Try to get block number first (basic connectivity test)
-        let block_height = match self.get_block_number().await {
-            Ok(h) => h,
+        // Try to get chain info first (PYRAX native method)
+        let (block_height, block_hash) = match self.get_chain_info().await {
+            Ok(info) => (info.best_block_height, Some(info.best_block_hash.clone())),
             Err(e) => {
-                return Ok(NodeStatus {
-                    endpoint: self.endpoint.clone(),
-                    reachable: false,
-                    block_height: 0,
-                    block_hash: None,
-                    syncing: false,
-                    peer_count: 0,
-                    latency_ms: start.elapsed().as_millis() as u64,
-                    timestamp,
-                    error: Some(e.to_string()),
-                });
+                // Fallback to eth_blockNumber if pyrax_getChainInfo fails
+                match self.get_block_number().await {
+                    Ok(h) => (h, None),
+                    Err(_) => {
+                        return Ok(NodeStatus {
+                            endpoint: self.endpoint.clone(),
+                            reachable: false,
+                            block_height: 0,
+                            block_hash: None,
+                            syncing: false,
+                            peer_count: 0,
+                            latency_ms: start.elapsed().as_millis() as u64,
+                            timestamp,
+                            error: Some(e.to_string()),
+                        });
+                    }
+                }
             }
         };
         
-        // Get additional info
+        // Get additional info (syncing and peer_count may use eth_ methods as fallback)
         let syncing = self.is_syncing().await.unwrap_or(false);
         let peer_count = self.get_peer_count().await.unwrap_or(0);
-        let block_hash = self.get_block_hash(block_height).await.ok();
         
         Ok(NodeStatus {
             endpoint: self.endpoint.clone(),
             reachable: true,
             block_height,
-            block_hash,
+            block_hash, // Already obtained from get_chain_info
             syncing,
             peer_count,
             latency_ms: start.elapsed().as_millis() as u64,
