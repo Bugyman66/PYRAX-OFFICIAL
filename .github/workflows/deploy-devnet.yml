@@ -486,6 +486,9 @@ jobs:
           echo "=== PRUNING UNUSED DOCKER RESOURCES ==="
           docker container prune -f 2>/dev/null || true
           
+          echo "=== PRUNING BUILDKIT CACHE ==="
+          docker builder prune -f 2>/dev/null || true
+          
           echo "=== BUILDING IMAGES (with cache) ==="
           # Build only web services (node is managed by systemd)
           docker compose -f $COMPOSE_FILE build website faucet docs explorer marketing nginx postgres redis
