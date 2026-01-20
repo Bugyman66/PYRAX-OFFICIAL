@@ -1,0 +1,11 @@
+// Add this to your /etc/alloy/config.alloy file
+
+prometheus.scrape "pyrax_metrics" {
+  targets = [
+    {"__address__" = "localhost:9092"},
+  ]
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Ensure your remote_write block is named "grafana_cloud"
+// or update the forward_to line above to match yours.
