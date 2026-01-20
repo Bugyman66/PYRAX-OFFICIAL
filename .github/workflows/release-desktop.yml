@@ -185,7 +185,7 @@ jobs:
           cache-dependency-path: pyrax-desktop/package-lock.json
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.85
         with:
           targets: ${{ matrix.rust_target }}
 

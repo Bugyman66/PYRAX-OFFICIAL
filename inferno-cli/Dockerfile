@@ -3,7 +3,7 @@
 # DOCKER BUILD FIX: Optimized for faster builds with better layer caching
 
 # Build stage
-FROM rust:1.78-bookworm AS builder
+FROM rust:1.85-bookworm AS builder
 
 WORKDIR /build
 

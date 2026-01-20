@@ -6873,7 +6873,7 @@ dependencies = [
 
 [[package]]
 name = "pyrax-node"
-version = "0.2.54"
+version = "0.3.0"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
@@ -6929,7 +6929,7 @@ dependencies = [
 
 [[package]]
 name = "pyrax-wallet"
-version = "0.2.54"
+version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "argon2",
