@@ -175,14 +175,24 @@ jobs:
           echo "=== BUILDING PYRAX-NODE ==="
           cd /opt/pyrax
           
+          # Add swap space to prevent OOM during compilation
+          echo "=== ADDING SWAP SPACE ==="
+          if [ ! -f /swapfile ]; then
+            fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096
+            chmod 600 /swapfile
+            mkswap /swapfile
+          fi
+          swapon /swapfile 2>/dev/null || true
+          free -h
+          
           # Clean old build artifacts to force fresh compilation
           echo "Cleaning old build artifacts..."
           cargo clean -p pyrax-node 2>/dev/null || true
           rm -f /opt/pyrax/target/release/pyrax-node
           
           # Build using locked dependencies from Cargo.lock (DO NOT update - API breaking changes)
-          # Use -j 2 to limit parallel jobs and prevent OOM on 8GB servers
-          cargo build --release --locked -p pyrax-node -j 2
+          # Use -j 1 to limit parallel jobs and prevent OOM on 8GB servers
+          cargo build --release --locked -p pyrax-node -j 1
           
           # Stop running service and kill any orphan processes before replacing binary
           echo "=== STOPPING PYRAX-NODE SERVICE ==="
@@ -328,8 +338,8 @@ jobs:
           # Build pyrax-node
           echo "=== BUILDING PYRAX-NODE ==="
           cargo clean -p pyrax-node 2>/dev/null || true
-          # Use -j 2 to limit parallel jobs and prevent OOM on 8GB servers
-          cargo build --release -p pyrax-node -j 2
+          # Use -j 1 to limit parallel jobs and prevent OOM on 8GB servers
+          cargo build --release -p pyrax-node -j 1
           
           # Stop and replace binary
           systemctl stop pyrax-node 2>/dev/null || true
