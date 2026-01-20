@@ -20,12 +20,14 @@ COPY Cargo.toml Cargo.lock ./
 COPY pyrax-node/Cargo.toml ./pyrax-node/
 COPY pyrax-wallet/Cargo.toml ./pyrax-wallet/
 COPY inferno-cli/Cargo.toml ./inferno-cli/
+COPY pyrax-desktop/src-tauri/Cargo.toml ./pyrax-desktop/src-tauri/
 
 # Create dummy source files to build dependencies
-RUN mkdir -p pyrax-node/src pyrax-wallet/src inferno-cli/src && \
+RUN mkdir -p pyrax-node/src pyrax-wallet/src inferno-cli/src pyrax-desktop/src-tauri/src && \
     echo "fn main() {}" > pyrax-node/src/main.rs && \
     echo "pub fn dummy() {}" > pyrax-wallet/src/lib.rs && \
-    echo "fn main() {}" > inferno-cli/src/main.rs
+    echo "fn main() {}" > inferno-cli/src/main.rs && \
+    echo "fn main() {}" > pyrax-desktop/src-tauri/src/main.rs
 
 # Build dependencies only (this layer will be cached)
 ENV RUSTFLAGS="-A warnings"
