@@ -6900,6 +6900,7 @@ dependencies = [
  "libp2p",
  "num-bigint",
  "num-traits",
+ "num_cpus",
  "parking_lot",
  "primitive-types",
  "proptest",

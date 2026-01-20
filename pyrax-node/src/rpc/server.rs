@@ -9,7 +9,7 @@ use jsonrpsee::core::{async_trait, RpcResult};
 use jsonrpsee::proc_macros::rpc;
 use tracing::info;
 
-use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo, RpcAddressTransactions, RpcAddressTx};
+use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo, RpcAddressTransactions, RpcAddressTx, RpcMiningInfo};
 use crate::storage::ChainDB;
 use crate::types::{H256, Address, Transaction, TxInput, TxOutput, Block, NetworkId, OutPoint};
 use crate::mempool::Mempool;
@@ -60,6 +60,10 @@ pub trait PyraxRpc {
     /// Submit mined block
     #[method(name = "pyrax_submitBlock")]
     async fn submit_block(&self, block_hex: String) -> RpcResult<RpcSubmitResult>;
+
+    /// Get mining info (for desktop app compatibility)
+    #[method(name = "pyrax_getMiningInfo")]
+    async fn get_mining_info(&self) -> RpcResult<RpcMiningInfo>;
     
     /// Create a test transaction (devnet only) - spends from one address to another
     #[method(name = "pyrax_createTestTransaction")]
@@ -362,6 +366,18 @@ impl PyraxRpcServer for RpcServerImpl {
                 error: Some(e.to_string()),
             }),
         }
+    }
+
+    async fn get_mining_info(&self) -> RpcResult<RpcMiningInfo> {
+        let tip = self.db.get_tip();
+        Ok(RpcMiningInfo {
+            mining: false, // Node doesn't mine directly, desktop app handles mining
+            hashrate: 0.0,
+            difficulty: 1.0, // Devnet difficulty
+            blocks_found: 0,
+            network_hashrate: 0.0,
+            current_height: tip.height,
+        })
     }
     
     async fn create_test_transaction(&self, from_address: String, to_address: String, amount: u64) -> RpcResult<RpcSubmitResult> {

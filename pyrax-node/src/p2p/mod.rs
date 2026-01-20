@@ -41,12 +41,34 @@ mod peer_cache;
 mod reputation;
 mod nat_traversal;
 
+// Next-Level Node Features (v0.3.5+)
+mod smart_connectivity;
+mod self_healing;
+mod adaptive_performance;
+mod diagnostics;
+mod privacy;
+mod observability;
+mod incentivized_relay;
+mod intelligent_peers;
+mod edge_computing;
+
 pub use registry::{PeerRegistry, ConnectedPeer, PeerDirection, parse_multiaddr, RegistryMetrics, MeshConnection, RelayCircuit};
 pub use peer_store::{PeerStore, PeerStoreConfig, PeerData, PeerStoreMetrics};
 pub use connection_manager::{ConnectionManager, ConnectionManagerConfig, ConnectionMetrics, NetworkState, ConnectionEvent};
 pub use peer_cache::{PeerCache, CachedPeer};
 pub use reputation::{ReputationManager, PeerReputation, GeoRegion, ReputationMetrics, ViolationType, ViolationSeverity};
 pub use nat_traversal::{NatTraversalManager, NatType, IceCandidate, stun_discover, StunResult};
+
+// Next-Level Feature Exports
+pub use smart_connectivity::{SmartConnectivity, IspType, IspInfo, Protocol, ConnectionQuality, PeerQuality, CaptivePortalStatus};
+pub use self_healing::{SelfHealingNetwork, ReconnectionState, RelayCascade, RelayInfo, PartitionDetector, NetworkHealth, KnownGoodPeer};
+pub use adaptive_performance::{AdaptivePerformance, SystemCapabilities, PerformanceTier, PowerMode, BandwidthManager, AdaptiveConfig};
+pub use diagnostics::{DiagnosticsEngine, DiagnosticReport, DiagnosticIssue, SyncProgress, SyncState, NetworkHealthMetrics, DiagnosticContext, Severity};
+pub use privacy::{PrivacyManager, PrivacyLevel, DandelionManager, DandelionConfig, DandelionPhase};
+pub use observability::{Observability, MetricsRegistry, HealthChecker, HealthStatus};
+pub use incentivized_relay::{IncentivizedRelay, BandwidthAccount, RelayProof, RelaySession, RelayStats};
+pub use intelligent_peers::{IntelligentPeerSelector, PeerHistory, PeerFeatures};
+pub use edge_computing::{EdgeNode, EdgeConfig, NodeMode, Architecture};
 
 use libp2p::{
     autonat, dcutr, gossipsub, identify, kad, mdns, noise, ping, relay,
