@@ -3,7 +3,7 @@
 //! UTXO-based blockchain types for RPC responses
 
 use serde::{Deserialize, Serialize};
-use crate::types::{Block, Transaction, H256, Address, BlockNumber};
+use crate::types::{Block, Transaction, H256, BlockNumber};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcBlock {
@@ -113,6 +113,8 @@ pub struct RpcChainInfo {
     pub difficulty: u64,
     pub utxo_count: u64,
     pub syncing: bool,
+    /// Node software version (e.g., "pyrax-node/0.2.54")
+    pub node_version: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -210,6 +212,30 @@ pub struct RpcSubmitResult {
     pub accepted: bool,
     pub hash: Option<String>,
     pub error: Option<String>,
+}
+
+/// Address transaction history response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcAddressTransactions {
+    pub address: String,
+    pub transactions: Vec<RpcAddressTx>,
+    pub total_received: u64,
+    pub total_sent: u64,
+    pub tx_count: usize,
+}
+
+/// Transaction in address history
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RpcAddressTx {
+    pub txid: String,
+    pub block_hash: String,
+    pub block_height: u64,
+    pub tx_index: u32,
+    pub direction: String,
+    pub value: u64,
+    pub timestamp: u64,
+    pub is_coinbase: bool,
+    pub confirmations: u64,
 }
 
 /// Debug P2P state for troubleshooting peer count mismatches

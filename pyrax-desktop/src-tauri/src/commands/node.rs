@@ -525,8 +525,14 @@ fn get_node_binary_path() -> Option<std::path::PathBuf> {
         return Some(src_tauri_path);
     }
     
-    // Try to find in PATH
-    if let Ok(output) = std::process::Command::new("where").arg(binary_name).output() {
+    // Try to find in PATH using platform-specific command
+    // MAC/LINUX FIX: Use 'which' on Unix, 'where' on Windows
+    #[cfg(target_os = "windows")]
+    let path_cmd = "where";
+    #[cfg(not(target_os = "windows"))]
+    let path_cmd = "which";
+    
+    if let Ok(output) = std::process::Command::new(path_cmd).arg(binary_name).output() {
         if output.status.success() {
             let path_str = String::from_utf8_lossy(&output.stdout);
             if let Some(first_line) = path_str.lines().next() {
@@ -535,6 +541,34 @@ fn get_node_binary_path() -> Option<std::path::PathBuf> {
                     info!("Found pyrax-node in PATH: {:?}", path);
                     return Some(path);
                 }
+            }
+        }
+    }
+    
+    // MAC/LINUX FIX: Also check common Unix installation paths
+    #[cfg(not(target_os = "windows"))]
+    {
+        let unix_paths = [
+            "/usr/local/bin/pyrax-node",
+            "/usr/bin/pyrax-node",
+            "/opt/pyrax/bin/pyrax-node",
+            "~/.local/bin/pyrax-node",
+        ];
+        
+        for path_str in unix_paths {
+            let path = if path_str.starts_with("~") {
+                if let Some(home) = std::env::var_os("HOME") {
+                    std::path::PathBuf::from(home).join(&path_str[2..])
+                } else {
+                    continue;
+                }
+            } else {
+                std::path::PathBuf::from(path_str)
+            };
+            
+            if path.exists() {
+                info!("Found pyrax-node at Unix path: {:?}", path);
+                return Some(path);
             }
         }
     }
@@ -1093,16 +1127,17 @@ pub async fn get_node_status(
         });
     }
     
-    // Try remote RPC first, then local
+    // P2P STATS FIX: Always prefer LOCAL node for accurate P2P statistics
+    // Remote bootnode's P2P state is irrelevant to the user's local connections
     let remote_url = get_remote_rpc_url(&network);
     let remote_rpc = RpcClient::new(remote_url);
     let local_rpc = RpcClient::localhost(rpc_port);
     
-    // Check which RPC is connected
-    let (rpc, is_remote) = if remote_rpc.is_connected().await {
-        (remote_rpc, true)
-    } else if local_rpc.is_connected().await {
-        (local_rpc, false)
+    // Check which RPC is connected - LOCAL FIRST for accurate P2P stats
+    let (rpc, is_remote) = if local_rpc.is_connected().await {
+        (local_rpc, false)  // Local node preferred - has our actual P2P state
+    } else if remote_rpc.is_connected().await {
+        (remote_rpc, true)  // Remote only as fallback when no local node
     } else {
         return Ok(NodeStatus {
             running: true,
@@ -1135,25 +1170,32 @@ pub async fn get_node_status(
             let syncing = info.syncing;
             let sync_progress = if syncing { 50.0 } else { 100.0 };
             
-            // Try to get extended P2P stats from network info
-            let (peer_count, p2p_stats) = match rpc.get_network_info().await {
-                Ok(net_info) => {
-                    // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
-                    // This ensures accurate display even during race conditions or registry sync delays
-                    let effective_count = if net_info.peer_count > 0 {
-                        net_info.peer_count as u32
-                    } else if net_info.mesh_peers > 0 {
-                        net_info.mesh_peers as u32
-                    } else if net_info.gossip_peers > 0 {
-                        net_info.gossip_peers as u32
-                    } else if (net_info.inbound_peers + net_info.outbound_peers) > 0 {
-                        (net_info.inbound_peers + net_info.outbound_peers) as u32
-                    } else {
-                        0
-                    };
-                    (effective_count, Some(net_info))
-                },
-                Err(_) => (if is_remote { 1 } else { 0 }, None)
+            // P2P STATS FIX: Only fetch P2P stats from LOCAL node
+            // Remote bootnode's P2P state is irrelevant to the user's local connections
+            let (peer_count, p2p_stats) = if is_remote {
+                // Remote node - don't show its P2P stats as ours, just indicate connected
+                (1u32, None)
+            } else {
+                // Local node - get real P2P stats
+                match rpc.get_network_info().await {
+                    Ok(net_info) => {
+                        // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
+                        // This ensures accurate display even during race conditions or registry sync delays
+                        let effective_count = if net_info.peer_count > 0 {
+                            net_info.peer_count as u32
+                        } else if net_info.mesh_peers > 0 {
+                            net_info.mesh_peers as u32
+                        } else if net_info.gossip_peers > 0 {
+                            net_info.gossip_peers as u32
+                        } else if (net_info.inbound_peers + net_info.outbound_peers) > 0 {
+                            (net_info.inbound_peers + net_info.outbound_peers) as u32
+                        } else {
+                            0
+                        };
+                        (effective_count, Some(net_info))
+                    },
+                    Err(_) => (0, None)
+                }
             };
             
             Ok(NodeStatus {

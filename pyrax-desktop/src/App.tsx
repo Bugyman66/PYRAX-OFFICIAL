@@ -25,7 +25,8 @@ export default function App() {
   const { fetchStatus } = useNodeStore();
 
   useEffect(() => {
-    // Poll node status every 3 seconds
+    // PERFORMANCE FIX: Increased polling interval from 3s to 5s to reduce CPU/memory overhead
+    // This reduces IPC calls and state updates that can cause UI freezing
     const safeF = async () => {
       try {
         await fetchStatus();
@@ -34,7 +35,7 @@ export default function App() {
       }
     };
     safeF();
-    const interval = setInterval(safeF, 3000);
+    const interval = setInterval(safeF, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 

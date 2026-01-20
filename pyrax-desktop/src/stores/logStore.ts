@@ -22,7 +22,8 @@ interface LogStore {
 
 export const useLogStore = create<LogStore>((set) => ({
   logs: [],
-  maxLogs: 500,
+  // PERFORMANCE FIX: Reduced from 500 to 100 to prevent memory bloat and UI freezing
+  maxLogs: 100,
   filters: {
     level: ['info', 'warn', 'error', 'debug'],
     category: ['node', 'block', 'p2p', 'rpc', 'mining', 'staking', 'system'],

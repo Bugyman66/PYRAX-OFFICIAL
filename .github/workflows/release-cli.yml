@@ -172,9 +172,14 @@ jobs:
           tags: |
             ghcr.io/pyrax-chain/inferno-node:latest
             ghcr.io/pyrax-chain/inferno-node:${{ needs.create-release.outputs.version }}
-          platforms: linux/amd64,linux/arm64
+          # DOCKER BUILD FIX: Removed arm64 to prevent 1.5+ hour QEMU builds
+          # ARM64 builds can be added back once we have native ARM runners
+          platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Build args to speed up compilation
+          build-args: |
+            CARGO_INCREMENTAL=1
 
   update-homebrew:
     needs: [create-release, build]

@@ -277,17 +277,23 @@ async function checkBootnodeStatus(rpcUrl: string): Promise<{ online: boolean; l
     if (response.ok) {
       const data = await response.json();
       const latency = Math.round(performance.now() - start);
+      // VERSION FIX: Use node_version field from ChainInfo response
+      // Format is "pyrax-node/X.Y.Z" - extract just the version number
+      const fullVersion = data.result?.node_version || '';
+      const version = fullVersion.includes('/') 
+        ? fullVersion.split('/')[1] 
+        : (fullVersion || '0.1.0');
       return {
         online: true,
         latency,
-        blockHeight: data.result?.block_height || data.result?.blockNumber || 0,
-        version: data.result?.version || '0.1.0',
+        blockHeight: data.result?.best_block_height || data.result?.block_height || 0,
+        version,
       };
     }
   } catch {
     // Bootnode offline
   }
-  return { online: false, latency: -1, blockHeight: 0, version: '0.1.0' };
+  return { online: false, latency: -1, blockHeight: 0, version: 'offline' };
 }
 
 export async function GET() {
@@ -337,6 +343,12 @@ export async function GET() {
         // Simulate per-peer latency variance (±20% of base latency)
         const variance = peerLatency > 0 ? Math.round(peerLatency * (0.8 + Math.random() * 0.4)) : -1;
         
+        // VERSION FIX: Extract version number from agent string (e.g., "pyrax-node/0.2.54" -> "0.2.54")
+        const rawVersion = peer.version || '';
+        const version = rawVersion.includes('/') 
+          ? rawVersion.split('/')[1] 
+          : (rawVersion || 'unknown');
+        
         return {
           id: peer.peer_id || `peer-${idx}`,
           peerId: peer.peer_id || '',
@@ -350,7 +362,7 @@ export async function GET() {
           stream,
           connectedAt: Date.now() - (peer.connected_secs || 0) * 1000,
           lastSeen: peer.last_seen || Date.now(),
-          version: peer.version || '0.1.0',
+          version,
           blockHeight: peer.block_height || 0,
           latency: variance,
           isBootnode: false,

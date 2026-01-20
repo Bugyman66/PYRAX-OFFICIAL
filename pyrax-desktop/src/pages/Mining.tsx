@@ -11,8 +11,10 @@ export default function Mining() {
   const { addresses, selectedAddress } = useWalletStore();
   const [threads, setThreads] = useState(0);
 
+  // PERFORMANCE FIX: Increased polling interval from 2s to 5s to reduce CPU overhead
   useEffect(() => {
-    const interval = setInterval(fetchStatus, 2000);
+    fetchStatus(); // Initial fetch
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 

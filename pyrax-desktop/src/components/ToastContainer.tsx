@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { writeText } from '@tauri-apps/api/clipboard';
 import { X, Copy, Check, AlertCircle, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { useToastStore, Toast } from '../stores/toastStore';
 
@@ -21,10 +22,18 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
   
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(toast.message);
+      // CLIPBOARD FIX: Use Tauri clipboard API
+      await writeText(toast.message);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
+      // Fallback to navigator.clipboard
+      try {
+        await navigator.clipboard.writeText(toast.message);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      } catch (_) {}
       console.error('Failed to copy:', e);
     }
   };

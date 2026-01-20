@@ -168,6 +168,51 @@ export async function getContract(address: string, network?: string): Promise<Co
   return rpcCall<ContractInfo>('pyrax_getContract', [address], network);
 }
 
+// Address/Account Response from node
+export interface AddressInfo {
+  address: string;
+  balance: number;
+  utxo_count: number;
+  utxos: UtxoInfo[];
+}
+
+export interface UtxoInfo {
+  txid: string;
+  vout: number;
+  value: number;
+  script_pubkey: string;
+  height: number;
+  coinbase: boolean;
+}
+
+export interface AddressTransactions {
+  address: string;
+  transactions: AddressTx[];
+  total_received: number;
+  total_sent: number;
+  tx_count: number;
+}
+
+export interface AddressTx {
+  txid: string;
+  block_hash: string;
+  block_height: number;
+  tx_index: number;
+  direction: 'receive' | 'send' | 'mining' | 'unknown';
+  value: number;
+  timestamp: number;
+  is_coinbase: boolean;
+  confirmations: number;
+}
+
+export async function getAddressBalance(address: string, network?: string): Promise<AddressInfo | null> {
+  return rpcCall<AddressInfo>('pyrax_getBalance', [address], network);
+}
+
+export async function getAddressTransactions(address: string, limit: number = 50, network?: string): Promise<AddressTransactions | null> {
+  return rpcCall<AddressTransactions>('pyrax_getAddressTransactions', [address, limit], network);
+}
+
 export async function getRecentBlocksFromNode(count: number = 10, network?: string): Promise<BlockInfo[]> {
   const chainInfo = await getChainInfo(network);
   if (!chainInfo || chainInfo.best_block_height === 0) {

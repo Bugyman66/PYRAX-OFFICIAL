@@ -63,12 +63,17 @@ impl Default for ConnectionManagerConfig {
             min_peers: 3,  // FIXED: Was 30, now 3 - allows small networks to reach Maintaining state
             max_peers: 60,
             max_concurrent_dials: 5,
-            dial_timeout: Duration::from_secs(10),
-            peer_refresh_interval: Duration::from_secs(30),
-            peer_reevaluate_interval: Duration::from_secs(60),
-            liveness_check_interval: Duration::from_secs(15),
-            min_prune_interval: Duration::from_secs(30),
-            min_connection_age: Duration::from_secs(60),
+            dial_timeout: Duration::from_secs(15),  // NETWORK STABILITY: Increased from 10s
+            // NETWORK STABILITY: Increased from 30s to 120s - less aggressive peer refresh
+            peer_refresh_interval: Duration::from_secs(120),
+            // NETWORK STABILITY: Increased from 60s to 300s - don't re-evaluate peers too frequently
+            peer_reevaluate_interval: Duration::from_secs(300),
+            // NETWORK STABILITY: Increased from 15s to 60s - less aggressive liveness checks
+            liveness_check_interval: Duration::from_secs(60),
+            // NETWORK STABILITY: Increased from 30s to 120s - don't prune too frequently
+            min_prune_interval: Duration::from_secs(120),
+            // NETWORK STABILITY: Increased from 60s to 300s - give new connections time to stabilize
+            min_connection_age: Duration::from_secs(300),
         }
     }
 }

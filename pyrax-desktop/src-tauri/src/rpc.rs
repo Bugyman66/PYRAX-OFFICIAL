@@ -14,10 +14,13 @@ pub struct RpcClient {
 
 impl RpcClient {
     /// Create a new RPC client
+    /// PERFORMANCE FIX: Reduced timeouts to prevent UI freezing
+    /// - Request timeout: 10s (was 30s)
+    /// - Connect timeout: 3s (was 5s)
     pub fn new(url: &str) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(3))
             .build()
             .expect("Failed to create HTTP client");
 
@@ -196,6 +199,15 @@ impl RpcClient {
     /// Submit block
     pub async fn submit_block(&self, block_hex: &str) -> Result<bool, RpcError> {
         self.request("pyrax_submitBlock", (block_hex,)).await
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Address History Methods
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get transaction history for an address
+    pub async fn get_address_transactions(&self, address: &str, limit: Option<u32>) -> Result<AddressTransactionsResponse, RpcError> {
+        self.request("pyrax_getAddressTransactions", (address, limit)).await
     }
 }
 
@@ -390,4 +402,26 @@ pub struct NetworkInfoResponse {
     pub nat_status: String,
     pub mesh_peers: usize,
     pub gossip_peers: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddressTransactionsResponse {
+    pub address: String,
+    pub transactions: Vec<AddressTxResponse>,
+    pub total_received: u64,
+    pub total_sent: u64,
+    pub tx_count: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddressTxResponse {
+    pub txid: String,
+    pub block_hash: String,
+    pub block_height: u64,
+    pub tx_index: u32,
+    pub direction: String,
+    pub value: u64,
+    pub timestamp: u64,
+    pub is_coinbase: bool,
+    pub confirmations: u64,
 }

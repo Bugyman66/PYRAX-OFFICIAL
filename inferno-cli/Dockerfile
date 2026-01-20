@@ -1,5 +1,6 @@
 # Inferno Node Docker Image
 # Multi-stage build for minimal image size
+# DOCKER BUILD FIX: Optimized for faster builds with better layer caching
 
 # Build stage
 FROM rust:1.75-bookworm AS builder
@@ -14,17 +15,33 @@ RUN apt-get update && apt-get install -y \
     cmake \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace files
-COPY . .
+# DOCKER BUILD FIX: Copy only Cargo files first to cache dependencies
+COPY Cargo.toml Cargo.lock ./
+COPY pyrax-node/Cargo.toml ./pyrax-node/
+COPY pyrax-wallet/Cargo.toml ./pyrax-wallet/
+COPY inferno-cli/Cargo.toml ./inferno-cli/
 
-# Build both binaries from workspace root
-# Cargo workspace puts all binaries in workspace root target directory
-WORKDIR /build
+# Create dummy source files to build dependencies
+RUN mkdir -p pyrax-node/src pyrax-wallet/src inferno-cli/src && \
+    echo "fn main() {}" > pyrax-node/src/main.rs && \
+    echo "pub fn dummy() {}" > pyrax-wallet/src/lib.rs && \
+    echo "fn main() {}" > inferno-cli/src/main.rs
 
-# Allow warnings during build - some unused code warnings are expected
-# The --cap-lints warn prevents warnings from being treated as errors
+# Build dependencies only (this layer will be cached)
 ENV RUSTFLAGS="-A warnings"
+ENV CARGO_INCREMENTAL=1
+RUN cargo build --release -p pyrax-node --bin pyrax-node || true
+RUN cargo build --release -p inferno-cli --bin inferno || true
 
+# Remove dummy source files
+RUN rm -rf pyrax-node/src pyrax-wallet/src inferno-cli/src
+
+# Now copy actual source code
+COPY pyrax-node/src ./pyrax-node/src
+COPY pyrax-wallet/src ./pyrax-wallet/src
+COPY inferno-cli/src ./inferno-cli/src
+
+# Build the actual binaries (only source changed, deps are cached)
 RUN cargo build --release -p pyrax-node --bin pyrax-node
 RUN cargo build --release -p inferno-cli --bin inferno
 

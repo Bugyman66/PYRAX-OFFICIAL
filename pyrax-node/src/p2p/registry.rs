@@ -54,7 +54,7 @@ pub struct RelayCircuit {
 }
 
 /// Extended P2P metrics for RPC and dashboard
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct RegistryMetrics {
     pub inbound_peers: usize,
     pub outbound_peers: usize,
@@ -175,6 +175,27 @@ impl PeerRegistry {
 impl Default for PeerRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Default for RegistryMetrics {
+    fn default() -> Self {
+        Self {
+            inbound_peers: 0,
+            outbound_peers: 0,
+            target_peers: 50,
+            max_peers: 60,
+            dial_attempts: 0,
+            dial_successes: 0,
+            dial_failures: 0,
+            average_rtt_ms: None,
+            network_state: "Initializing".to_string(),
+            nat_status: "Detecting".to_string(),
+            mesh_peers: 0,
+            gossip_peers: 0,
+            mesh_connections: vec![],
+            relay_circuits: vec![],
+        }
     }
 }
 

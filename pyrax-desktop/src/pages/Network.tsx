@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { writeText } from '@tauri-apps/api/clipboard';
 import { 
   Network as NetworkIcon, 
   Shield, 
@@ -161,10 +162,22 @@ export default function Network() {
   const [expandedFirewall, setExpandedFirewall] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async (text: string) => {
+    try {
+      // CLIPBOARD FIX: Use Tauri clipboard API
+      await writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Fallback to navigator.clipboard
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (_) {
+        console.error('Failed to copy:', e);
+      }
+    }
   };
 
   const peerCount = status?.peerCount || 0;

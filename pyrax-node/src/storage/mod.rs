@@ -9,7 +9,7 @@
 mod chaindb;
 mod columns;
 
-pub use chaindb::ChainDB;
+pub use chaindb::{ChainDB, TxDirection, TxLocation};
 pub use columns::{ColumnFamily, keys, CURRENT_SCHEMA_VERSION};
 
 use thiserror::Error;

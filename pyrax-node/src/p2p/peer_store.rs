@@ -55,8 +55,10 @@ impl Default for PeerStoreConfig {
             max_backoff: Duration::from_secs(900), // 15 minutes
             backoff_multiplier: 2.0,
             backoff_clear_after: Duration::from_secs(300), // 5 minutes
-            max_peers_per_subnet: 3,
-            peer_timeout: Duration::from_secs(120),
+            // NETWORK STABILITY: Increased from 3 to 10 to support multiple home nodes on same network
+            max_peers_per_subnet: 10,
+            // NETWORK STABILITY: Increased from 120s to 600s (10 minutes) to prevent premature disconnection
+            peer_timeout: Duration::from_secs(600),
         }
     }
 }
@@ -573,11 +575,13 @@ impl PeerStore {
         // - Users with intermittent connectivity
         score -= peer.failures_last_hour as f64 * 0.05;
         
-        // Subnet diversity penalty
+        // NETWORK STABILITY: Subnet diversity penalty reduced from -5 to -1
+        // Many home users run multiple nodes on the same network (family members, mining rigs, etc.)
+        // We should allow this without penalizing them heavily
         if let Some(ip) = &peer.ip_addr {
             let subnet_count = self.subnet_tracker.peer_count_in_subnet(ip);
             if subnet_count >= self.config.max_peers_per_subnet {
-                score -= 5.0;
+                score -= 1.0;  // Was -5.0 - minimal penalty for home networks
             }
         }
         

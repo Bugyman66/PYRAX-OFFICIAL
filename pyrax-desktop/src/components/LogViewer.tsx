@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { writeText } from '@tauri-apps/api/clipboard';
 import { 
   Terminal, 
   Trash2, 
@@ -59,15 +60,27 @@ export default function LogViewer() {
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // PERFORMANCE FIX: Cleanup scroll timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle scroll events to detect user scrolling away from bottom
+  // PERFORMANCE FIX: Throttled scroll handler to reduce overhead
   const handleScroll = useCallback(() => {
     if (!logContainerRef.current) return;
+    
+    // Throttle: Skip if we recently handled a scroll
+    if (scrollTimeoutRef.current) return;
     
     const container = logContainerRef.current;
     const { scrollTop, scrollHeight, clientHeight } = container;
     
     // Check if user is at or near the bottom (within 50px)
-    // Note: scrollTop is 0 at top, increases as you scroll down
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     
     // If user scrolled away from bottom, pause auto-scroll
@@ -84,15 +97,10 @@ export default function LogViewer() {
       setAutoScroll(true);
     }
     
-    // Clear existing timeout
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-    
-    // Set timeout to detect scroll end
+    // Throttle scroll handling to once per 100ms
     scrollTimeoutRef.current = setTimeout(() => {
-      isUserScrollingRef.current = false;
-    }, 150);
+      scrollTimeoutRef.current = null;
+    }, 100);
   }, []);
 
   // Resume auto-scroll and scroll to bottom
@@ -113,12 +121,15 @@ export default function LogViewer() {
     }
   }, [logs, autoScroll, paused, userScrolledAway]);
 
+  // PERFORMANCE FIX: Limit displayed logs to prevent rendering overhead
+  const MAX_DISPLAY_LOGS = 50;
   const filteredLogs = logs.filter((log) => 
     filters.level.includes(log.level) && 
     filters.category.includes(log.category)
   );
 
-  const displayLogs = paused ? [] : filteredLogs;
+  // Only render the most recent logs to prevent UI freeze
+  const displayLogs = paused ? [] : filteredLogs.slice(0, MAX_DISPLAY_LOGS);
 
   const handleCopyLogs = async () => {
     const text = filteredLogs
@@ -126,11 +137,21 @@ export default function LogViewer() {
       .join('\n');
     
     try {
-      await navigator.clipboard.writeText(text);
+      // CLIPBOARD FIX: Use Tauri clipboard API instead of navigator.clipboard
+      // navigator.clipboard doesn't work reliably in Tauri apps
+      await writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
       console.error('Failed to copy logs:', e);
+      // Fallback to navigator.clipboard if Tauri API fails
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (e2) {
+        console.error('Fallback copy also failed:', e2);
+      }
     }
   };
 

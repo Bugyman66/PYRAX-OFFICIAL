@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { writeText } from '@tauri-apps/api/clipboard';
 import { 
   Wallet as WalletIcon, 
   Plus, 
@@ -8,7 +9,12 @@ import {
   RefreshCw,
   Lock,
   Unlock,
-  Key
+  Key,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Hammer,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { useWalletStore } from '../stores/walletStore';
 import { useNodeStore } from '../stores/nodeStore';
@@ -41,6 +47,7 @@ export default function Wallet() {
   const [sendAmount, setSendAmount] = useState('');
   const [mnemonic, setMnemonic] = useState('');
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'addresses' | 'transactions'>('addresses');
 
   useEffect(() => {
     if (info && !info.locked) {
@@ -84,10 +91,22 @@ export default function Wallet() {
     }
   };
 
-  const copyAddress = (address: string) => {
-    navigator.clipboard.writeText(address);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyAddress = async (address: string) => {
+    try {
+      // CLIPBOARD FIX: Use Tauri clipboard API
+      await writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // Fallback to navigator.clipboard
+      try {
+        await navigator.clipboard.writeText(address);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (_) {
+        console.error('Failed to copy:', e);
+      }
+    }
   };
 
   const selectedAddr = addresses.find(a => a.address === selectedAddress);
@@ -249,70 +268,144 @@ export default function Wallet() {
         </div>
       </div>
 
-      {/* Addresses */}
-      <div className="bg-gray-800 rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Addresses</h2>
-        <div className="space-y-2">
-          {addresses.map((addr) => (
-            <div
-              key={addr.address}
-              onClick={() => setSelectedAddress(addr.address)}
-              className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                selectedAddress === addr.address
-                  ? 'bg-purple-600/20 border border-purple-500'
-                  : 'bg-gray-700 hover:bg-gray-650'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-mono text-sm">{truncateHash(addr.address, 12)}</div>
-                  {addr.label && <div className="text-xs text-gray-400 mt-1">{addr.label}</div>}
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">{formatBalance(addr.balance)} PYRAX</div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); copyAddress(addr.address); }}
-                    className="text-xs text-gray-400 hover:text-white mt-1"
-                  >
-                    {copied ? <Check size={14} className="inline" /> : <Copy size={14} className="inline" />}
-                    {' '}Copy
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+      {/* Tab Navigation */}
+      <div className="bg-gray-800 rounded-xl overflow-hidden">
+        <div className="flex border-b border-gray-700">
+          <button
+            onClick={() => setActiveTab('addresses')}
+            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+              activeTab === 'addresses'
+                ? 'bg-purple-600/20 text-purple-400 border-b-2 border-purple-500'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+            }`}
+          >
+            <WalletIcon size={16} className="inline mr-2" />
+            Addresses ({addresses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+              activeTab === 'transactions'
+                ? 'bg-purple-600/20 text-purple-400 border-b-2 border-purple-500'
+                : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+            }`}
+          >
+            <Clock size={16} className="inline mr-2" />
+            Transactions ({transactions.length})
+          </button>
         </div>
-      </div>
 
-      {/* Transactions */}
-      <div className="bg-gray-800 rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Recent Transactions</h2>
-        {transactions.length === 0 ? (
-          <p className="text-gray-400 text-center py-8">No transactions yet</p>
-        ) : (
-          <div className="space-y-2">
-            {transactions.slice(0, 10).map((tx) => (
-              <div key={tx.hash} className="p-4 bg-gray-700 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-mono text-sm">{truncateHash(tx.hash)}</div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      {tx.txType} • {tx.status}
+        <div className="p-6">
+          {/* Addresses Tab */}
+          {activeTab === 'addresses' && (
+            <div className="space-y-2">
+              {addresses.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No addresses yet. Create one to get started.</p>
+              ) : (
+                addresses.map((addr) => (
+                  <div
+                    key={addr.address}
+                    onClick={() => setSelectedAddress(addr.address)}
+                    className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                      selectedAddress === addr.address
+                        ? 'bg-purple-600/20 border border-purple-500'
+                        : 'bg-gray-700 hover:bg-gray-650'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-mono text-sm">{truncateHash(addr.address, 12)}</div>
+                        {addr.label && <div className="text-xs text-gray-400 mt-1">{addr.label}</div>}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">{formatBalance(addr.balance)} PYRAX</div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); copyAddress(addr.address); }}
+                          className="text-xs text-gray-400 hover:text-white mt-1"
+                        >
+                          {copied ? <Check size={14} className="inline" /> : <Copy size={14} className="inline" />}
+                          {' '}Copy
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className={tx.txType === 'receive' ? 'text-green-400' : 'text-red-400'}>
-                      {tx.txType === 'receive' ? '+' : '-'}{formatBalance(tx.value)} PYRAX
-                    </div>
-                    {tx.timestamp && (
-                      <div className="text-xs text-gray-500">{formatTimeAgo(tx.timestamp)}</div>
-                    )}
-                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Transactions Tab */}
+          {activeTab === 'transactions' && (
+            <div className="space-y-2">
+              {transactions.length === 0 ? (
+                <div className="text-center py-12">
+                  <Clock size={48} className="mx-auto text-gray-600 mb-4" />
+                  <p className="text-gray-400">No transactions yet</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Receive mining rewards or use the faucet to get started
+                  </p>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ) : (
+                transactions.map((tx) => {
+                  const isMining = tx.txType === 'mining' || tx.txType === 'coinbase';
+                  const isReceive = tx.txType === 'receive' || isMining;
+                  const isSend = tx.txType === 'send';
+                  
+                  return (
+                    <div key={tx.hash} className="p-4 bg-gray-700 rounded-lg hover:bg-gray-650 transition-colors">
+                      <div className="flex items-center gap-4">
+                        {/* Icon */}
+                        <div className={`p-2 rounded-full ${
+                          isMining ? 'bg-yellow-500/20 text-yellow-400' :
+                          isReceive ? 'bg-green-500/20 text-green-400' :
+                          'bg-red-500/20 text-red-400'
+                        }`}>
+                          {isMining ? <Hammer size={20} /> :
+                           isReceive ? <ArrowDownLeft size={20} /> :
+                           <ArrowUpRight size={20} />}
+                        </div>
+                        
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium capitalize">
+                              {isMining ? 'Mining Reward' : tx.txType}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              tx.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                            }`}>
+                              {tx.status}
+                            </span>
+                          </div>
+                          <div className="font-mono text-xs text-gray-400 truncate mt-1">
+                            {truncateHash(tx.hash, 16)}
+                          </div>
+                          {tx.blockNumber && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Block #{tx.blockNumber}
+                              {tx.timestamp && ` • ${formatTimeAgo(tx.timestamp)}`}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Amount */}
+                        <div className="text-right">
+                          <div className={`font-semibold ${
+                            isMining ? 'text-yellow-400' :
+                            isReceive ? 'text-green-400' :
+                            'text-red-400'
+                          }`}>
+                            {isReceive ? '+' : '-'}{formatBalance(tx.value)} PYRAX
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Send Modal */}

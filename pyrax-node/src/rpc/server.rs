@@ -9,7 +9,7 @@ use jsonrpsee::core::{async_trait, RpcResult};
 use jsonrpsee::proc_macros::rpc;
 use tracing::info;
 
-use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo};
+use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo, RpcAddressTransactions, RpcAddressTx};
 use crate::storage::ChainDB;
 use crate::types::{H256, Address, Transaction, TxInput, TxOutput, Block, NetworkId, OutPoint};
 use crate::mempool::Mempool;
@@ -82,6 +82,10 @@ pub trait PyraxRpc {
     /// Use this to diagnose peer count mismatches
     #[method(name = "pyrax_debugP2PState")]
     async fn debug_p2p_state(&self) -> RpcResult<super::RpcP2PDebugState>;
+
+    /// Get transaction history for an address
+    #[method(name = "pyrax_getAddressTransactions")]
+    async fn get_address_transactions(&self, address: String, limit: Option<u32>) -> RpcResult<super::RpcAddressTransactions>;
 }
 
 /// RPC server state
@@ -132,6 +136,7 @@ impl PyraxRpcServer for RpcServerImpl {
             difficulty: tip.total_difficulty,
             utxo_count,
             syncing: false,
+            node_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
         })
     }
 
@@ -603,6 +608,75 @@ impl PyraxRpcServer for RpcServerImpl {
                 diagnosis: "P2P is not enabled - no peer registry available".to_string(),
             })
         }
+    }
+
+    async fn get_address_transactions(&self, address: String, limit: Option<u32>) -> RpcResult<RpcAddressTransactions> {
+        use crate::storage::TxDirection;
+        
+        let addr = parse_address(&address)?;
+        let max_txs = limit.unwrap_or(50).min(100) as usize;
+        let tip = self.db.get_tip();
+        
+        // Get transactions for this address
+        let txs = self.db.get_transactions_for_address(&addr, max_txs)
+            .map_err(|e| RpcError::InternalError(e.to_string()))?;
+        
+        let mut total_received = 0u64;
+        let mut total_sent = 0u64;
+        
+        let rpc_txs: Vec<RpcAddressTx> = txs.iter().map(|(tx, loc, direction)| {
+            // Calculate value for this address in this transaction
+            let value: u64 = tx.outputs.iter()
+                .filter_map(|o| {
+                    if let Some(out_addr) = o.get_address() {
+                        if out_addr == addr {
+                            return Some(o.value);
+                        }
+                    }
+                    None
+                })
+                .sum();
+            
+            match direction {
+                TxDirection::Receive | TxDirection::Mining => total_received += value,
+                TxDirection::Send => total_sent += value,
+                _ => {}
+            }
+            
+            // Get block timestamp
+            let timestamp = self.db.get_block(&loc.block_hash)
+                .ok()
+                .flatten()
+                .map(|b| b.header.timestamp)
+                .unwrap_or(0);
+            
+            let confirmations = tip.height.saturating_sub(loc.block_height) + 1;
+            
+            RpcAddressTx {
+                txid: format!("0x{}", hex::encode(&tx.txid().0)),
+                block_hash: format!("0x{}", hex::encode(&loc.block_hash.0)),
+                block_height: loc.block_height,
+                tx_index: loc.tx_index,
+                direction: match direction {
+                    TxDirection::Receive => "receive".to_string(),
+                    TxDirection::Send => "send".to_string(),
+                    TxDirection::Mining => "mining".to_string(),
+                    TxDirection::Unknown => "unknown".to_string(),
+                },
+                value,
+                timestamp,
+                is_coinbase: tx.is_coinbase(),
+                confirmations,
+            }
+        }).collect();
+        
+        Ok(RpcAddressTransactions {
+            address,
+            transactions: rpc_txs.clone(),
+            total_received,
+            total_sent,
+            tx_count: rpc_txs.len(),
+        })
     }
 }
 

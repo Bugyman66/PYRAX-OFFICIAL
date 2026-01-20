@@ -195,10 +195,11 @@ impl Default for P2PConfig {
             min_peers: 30,
             max_peers: 60,
             max_concurrent_dials: 5,
-            dial_timeout_secs: 10,
-            ping_interval_secs: 15,
-            peer_refresh_interval_secs: 30,
-            peer_reevaluate_interval_secs: 60,
+            // NETWORK STABILITY: Increased timeouts and intervals to prevent premature disconnections
+            dial_timeout_secs: 15,
+            ping_interval_secs: 45,  // Was 15s - reduced ping frequency
+            peer_refresh_interval_secs: 120,  // Was 30s - less aggressive refresh
+            peer_reevaluate_interval_secs: 300,  // Was 60s - less frequent re-evaluation
             node_key_path: None,
             // Mass adoption defaults - Auto mode for best compatibility
             connection_mode: ConnectionMode::Auto,
@@ -485,21 +486,25 @@ impl Network {
                 // CRITICAL: Limit cache size to prevent AutoNAT "len > max when encoding" errors
                 // When nodes accumulate many addresses (especially long relay addresses),
                 // the AutoNAT dial-back request can exceed protocol message size limits
+                // VERSION FIX: Set proper agent version for network version tracking
                 let identify = identify::Behaviour::new(
                     identify::Config::new(
                         format!("/pyrax/{}/1.0.0", network_id.name()),
                         key.public(),
                     )
+                    .with_agent_version(format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")))
                     .with_cache_size(10) // Limit cached addresses to prevent message overflow
                 );
 
                 // Ping for keep-alive and RTT measurement
-                // ASIC FIX: Increased timeout from 20s to 30s for relay peer tolerance
-                // Relay connections have higher latency - don't penalize them for slow pings
+                // NETWORK STABILITY FIX: Increased interval and timeout for connection stability
+                // - Interval: 45s (was 15s) - less frequent pings reduce overhead
+                // - Timeout: 120s (was 30s) - tolerant of slow/relay connections
+                // This prevents false-positive liveness failures on congested/relay links
                 let ping = ping::Behaviour::new(
                     ping::Config::new()
                         .with_interval(ping_interval)
-                        .with_timeout(Duration::from_secs(30))
+                        .with_timeout(Duration::from_secs(120))
                 );
 
                 // Kademlia DHT for peer discovery - primary discovery mechanism
@@ -561,10 +566,11 @@ impl Network {
 
                 PyraxBehaviour { gossipsub, mdns, identify, ping, kademlia, relay_server, relay_client, autonat, dcutr }
             })?
-            // STABILITY FIX: Increased idle timeout from 5 minutes to 30 minutes
+            // NETWORK STABILITY FIX: Increased idle timeout from 30 minutes to 2 hours
             // This prevents connections from being dropped during low-activity periods
             // Combined with regular ping keepalives, this ensures stable long-running connections
-            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(1800)))
+            // Users were experiencing disconnections after ~20 minutes - this fix addresses that
+            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(7200)))
             .build();
 
         // Create block/tx channels
