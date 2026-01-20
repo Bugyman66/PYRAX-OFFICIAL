@@ -151,6 +151,7 @@ jobs:
   build-docker:
     needs: create-release
     runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail release if Docker push fails (org package permissions)
     steps:
       - uses: actions/checkout@v4
 
