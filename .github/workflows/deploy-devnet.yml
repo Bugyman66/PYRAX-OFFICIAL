@@ -209,6 +209,13 @@ jobs:
             sleep 2
           fi
           
+          # Free up memory after build before service operations
+          echo "=== FREEING MEMORY AFTER BUILD ==="
+          sync
+          echo 3 > /proc/sys/vm/drop_caches
+          sleep 2
+          free -h
+          
           # Install binary (workspace root target directory)
           echo "=== INSTALLING PYRAX-NODE BINARY ==="
           cp -f /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
@@ -254,11 +261,18 @@ jobs:
           WantedBy=multi-user.target
           SERVICE
           
+          # Reload and enable service (with memory safety)
+          echo "=== ENABLING SYSTEMD SERVICE ==="
+          sync
+          echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+          sleep 1
           systemctl daemon-reload
+          sleep 1
           systemctl enable pyrax-node
           
           # Restart pyrax-node service
           echo "=== RESTARTING PYRAX-NODE SERVICE ==="
+          sleep 2
           systemctl restart pyrax-node
           
           # Wait for node to fully start (it takes time to initialize)
@@ -378,8 +392,14 @@ jobs:
           WantedBy=multi-user.target
           SERVICE
           
+          # Reload and enable service (with memory safety)
+          sync
+          echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
+          sleep 1
           systemctl daemon-reload
+          sleep 1
           systemctl enable pyrax-node
+          sleep 2
           systemctl restart pyrax-node
           
           # Wait for startup

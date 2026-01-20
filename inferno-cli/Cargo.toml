@@ -1,6 +1,6 @@
 [package]
 name = "inferno-cli"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 authors = ["PYRAX Chain <team@pyrax.org>"]
 description = "Inferno CLI - Terminal-based node management for PYRAX blockchain"
