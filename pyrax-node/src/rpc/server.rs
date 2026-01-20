@@ -69,6 +69,10 @@ pub trait PyraxRpc {
     #[method(name = "pyrax_getNetworkInfo")]
     async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo>;
 
+    /// Get peer list (for desktop app compatibility)
+    #[method(name = "pyrax_getPeers")]
+    async fn get_peers(&self) -> RpcResult<Vec<RpcPeerInfo>>;
+
     /// Simple health check - returns immediately without database access
     #[method(name = "pyrax_health")]
     async fn health(&self) -> RpcResult<String>;
@@ -530,6 +534,32 @@ impl PyraxRpcServer for RpcServerImpl {
                 mesh_connections: vec![],
                 relay_circuits: vec![],
             })
+        }
+    }
+
+    async fn get_peers(&self) -> RpcResult<Vec<RpcPeerInfo>> {
+        if let Some(ref registry) = self.peer_registry {
+            let peers = registry.get_peers().await;
+            let rpc_peers: Vec<RpcPeerInfo> = peers.iter().map(|p| {
+                RpcPeerInfo {
+                    peer_id: p.peer_id.clone(),
+                    address: p.address.clone(),
+                    ip: p.ip.clone(),
+                    port: p.port,
+                    protocol: format!("/pyrax/{}/1.0.0", self.network_id.name()),
+                    direction: p.direction.to_string(),
+                    connected_secs: p.connected_at.elapsed().as_secs(),
+                    last_seen: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64 - p.last_seen.elapsed().as_millis() as u64,
+                    version: p.client_version.clone(),
+                    block_height: p.best_height,
+                }
+            }).collect();
+            Ok(rpc_peers)
+        } else {
+            Ok(vec![])
         }
     }
 

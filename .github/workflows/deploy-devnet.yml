@@ -226,11 +226,19 @@ jobs:
           echo "=== DEPENDENCY VERSIONS ==="
           grep -A1 'name = "libp2p"' /opt/pyrax/Cargo.lock | head -4 || true
           
-          # CRITICAL: Wipe old data to regenerate genesis with current code
-          echo "=== WIPING OLD CHAIN DATA FOR FRESH GENESIS ==="
-          rm -rf /var/lib/pyrax/devnet/*
+          # CRITICAL: Selective wipe - preserve node identity for stable peer IDs
+          echo "=== WIPING CHAIN DATA (PRESERVING NODE IDENTITY) ==="
           mkdir -p /var/lib/pyrax/devnet
-          echo "Chain data wiped - fresh genesis will be created on start"
+          # Preserve node.key for stable peer ID across deploys
+          # Wipe only chain data, blocks, and cache - NOT identity
+          rm -rf /var/lib/pyrax/devnet/chaindata 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/blocks 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/utxo 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/index 2>/dev/null || true
+          rm -f /var/lib/pyrax/devnet/*.db 2>/dev/null || true
+          rm -f /var/lib/pyrax/devnet/*.log 2>/dev/null || true
+          # Keep: /var/lib/pyrax/node.key (stable peer ID)
+          echo "Chain data wiped - node identity preserved for mesh stability"
           
           # Create systemd service for pyrax-node
           echo "=== CONFIGURING PYRAX-NODE SYSTEMD SERVICE ==="
@@ -363,9 +371,14 @@ jobs:
           cp -f /opt/pyrax/target/release/pyrax-node /usr/local/bin/pyrax-node
           chmod +x /usr/local/bin/pyrax-node
           
-          # Wipe old data for fresh genesis
-          rm -rf /var/lib/pyrax/devnet/*
+          # Selective wipe - preserve node identity for stable peer IDs
           mkdir -p /var/lib/pyrax/devnet
+          rm -rf /var/lib/pyrax/devnet/chaindata 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/blocks 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/utxo 2>/dev/null || true
+          rm -rf /var/lib/pyrax/devnet/index 2>/dev/null || true
+          rm -f /var/lib/pyrax/devnet/*.db 2>/dev/null || true
+          rm -f /var/lib/pyrax/devnet/*.log 2>/dev/null || true
           
           # Create systemd service (connects to Bootnode 1 as peer)
           cat > /etc/systemd/system/pyrax-node.service << 'SERVICE'
