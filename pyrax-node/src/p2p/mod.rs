@@ -497,14 +497,14 @@ impl Network {
                 );
 
                 // Ping for keep-alive and RTT measurement
-                // NETWORK STABILITY FIX: Increased interval and timeout for connection stability
-                // - Interval: 45s (was 15s) - less frequent pings reduce overhead
-                // - Timeout: 120s (was 30s) - tolerant of slow/relay connections
-                // This prevents false-positive liveness failures on congested/relay links
+                // NETWORK STABILITY FIX: Balanced interval for NAT keepalive AND stability
+                // - Interval: 25s - keeps NAT mappings alive (most NAT tables timeout at 30-60s)
+                // - Timeout: 90s - tolerant of slow/relay connections but not excessively long
+                // This prevents NAT-induced disconnections while avoiding false-positive failures
                 let ping = ping::Behaviour::new(
                     ping::Config::new()
-                        .with_interval(ping_interval)
-                        .with_timeout(Duration::from_secs(120))
+                        .with_interval(Duration::from_secs(25))  // STABILITY: Fixed 25s for NAT keepalive
+                        .with_timeout(Duration::from_secs(90))   // STABILITY: 90s timeout for slow links
                 );
 
                 // Kademlia DHT for peer discovery - primary discovery mechanism
@@ -513,11 +513,15 @@ impl Network {
                 kademlia_config.set_protocol_names(vec![
                     libp2p::StreamProtocol::try_from_owned(format!("/pyrax/{}/kad/1.0.0", network_id.name())).unwrap()
                 ]);
-                // FIX: Reduced from 60s to 30s for faster peer discovery
-                // Long timeouts slow down discovery when unreachable peers are in DHT
-                kademlia_config.set_query_timeout(Duration::from_secs(30));
+                // WRONGPEERID FIX: Reduced from 30s to 15s for faster stale entry detection
+                // Stale DHT entries cause WrongPeerId errors - faster timeout = faster cleanup
+                kademlia_config.set_query_timeout(Duration::from_secs(15));
                 kademlia_config.set_replication_factor(std::num::NonZeroUsize::new(20).unwrap());
-                kademlia_config.set_parallelism(std::num::NonZeroUsize::new(5).unwrap());
+                // STABILITY FIX: Increased parallelism from 5 to 8 for faster discovery
+                kademlia_config.set_parallelism(std::num::NonZeroUsize::new(8).unwrap());
+                // WRONGPEERID FIX: Enable record republishing to push fresh data to DHT
+                kademlia_config.set_record_ttl(Some(Duration::from_secs(3600))); // 1 hour TTL
+                kademlia_config.set_publication_interval(Some(Duration::from_secs(1800))); // Republish every 30 min
                 let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
                 
                 // CRITICAL: Set Kademlia to Server mode so nodes can respond to DHT queries
@@ -541,25 +545,31 @@ impl Network {
                 
                 // AutoNAT for automatic NAT detection
                 // This allows the node to discover if it's behind NAT by asking other peers to dial it
+                // HOLE-PUNCH FIX: Optimized settings for faster NAT detection and better hole-punch prep
                 let autonat = autonat::Behaviour::new(
                     local_peer_id,
                     autonat::Config {
-                        // How often to check NAT status
-                        retry_interval: Duration::from_secs(60),
-                        // Timeout for probes
-                        refresh_interval: Duration::from_secs(30),
-                        // How many probes before confirming status
-                        confidence_max: 3,
+                        // HOLE-PUNCH FIX: Faster retry for quicker NAT status determination (was 60s)
+                        retry_interval: Duration::from_secs(30),
+                        // HOLE-PUNCH FIX: Faster refresh for responsive NAT changes (was 30s)
+                        refresh_interval: Duration::from_secs(15),
+                        // HOLE-PUNCH FIX: Lower confidence for faster status determination (was 3)
+                        // 2 probes is enough to confirm NAT status in most cases
+                        confidence_max: 2,
                         // Only use public addresses for probes
                         only_global_ips: true,
-                        // Throttle configuration
-                        throttle_server_period: Duration::from_secs(5),
+                        // HOLE-PUNCH FIX: Faster throttle for more responsive probing (was 5s)
+                        throttle_server_period: Duration::from_secs(3),
+                        // HOLE-PUNCH FIX: Limit boot delay for faster startup
+                        boot_delay: Duration::from_secs(5),
                         ..Default::default()
                     },
                 );
                 
                 // DCUtR (Direct Connection Upgrade through Relay) for hole-punching
                 // After establishing a relayed connection, this attempts to upgrade to a direct connection
+                // HOLE-PUNCH FIX: DCUtR works best when we have accurate NAT status from AutoNAT
+                // The faster AutoNAT settings above help DCUtR make better decisions
                 let dcutr = dcutr::Behaviour::new(local_peer_id);
                 
                 info!("P2P behaviours initialized with full NAT traversal (relay + autonat + dcutr)");

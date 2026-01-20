@@ -177,6 +177,10 @@ pub struct ConnectionManager {
     /// STABILITY FIX: Track recently disconnected peers to prevent duplicate event handling
     /// Maps peer_id -> disconnect timestamp. Cleared after 5 seconds.
     recently_disconnected: HashMap<PeerId, Instant>,
+    /// STABILITY FIX: Track when we entered FillingPeers state to prevent getting stuck
+    filling_peers_since: Option<Instant>,
+    /// WRONGPEERID FIX: Track peers with WrongPeerId errors for extended backoff
+    wrong_peer_id_peers: HashMap<PeerId, Instant>,
 }
 
 impl ConnectionManager {
@@ -201,6 +205,8 @@ impl ConnectionManager {
             prune_events: 0,
             event_tx,
             recently_disconnected: HashMap::new(),
+            filling_peers_since: None,
+            wrong_peer_id_peers: HashMap::new(),
         }
     }
 
@@ -238,6 +244,14 @@ impl ConnectionManager {
         if self.state != new_state {
             info!("Connection manager state: {:?} -> {:?}", self.state, new_state);
             self.state = new_state;
+            
+            // STABILITY FIX: Track when we enter FillingPeers to prevent getting stuck
+            if new_state == NetworkState::FillingPeers {
+                self.filling_peers_since = Some(Instant::now());
+            } else {
+                self.filling_peers_since = None;
+            }
+            
             let _ = self.event_tx.try_send(ConnectionEvent::StateChanged(new_state));
         }
     }
@@ -537,8 +551,9 @@ impl ConnectionManager {
     /// This prevents immediate reconnection attempts that cause WrongPeerId errors
     pub fn is_recently_disconnected(&self, peer_id: &PeerId) -> bool {
         if let Some(disconnect_time) = self.recently_disconnected.get(peer_id) {
-            // 10 second grace period before allowing reconnection
-            Instant::now().duration_since(*disconnect_time) < Duration::from_secs(10)
+            // STABILITY FIX: Increased grace period from 10s to 30s
+            // Allows network blips to recover naturally and prevents dial storms
+            Instant::now().duration_since(*disconnect_time) < Duration::from_secs(30)
         } else {
             false
         }
@@ -573,7 +588,19 @@ impl ConnectionManager {
         // Remove all addresses for this peer since they're all potentially stale
         self.peer_store.clear_addresses(&peer_id);
         
-        warn!("WrongPeerId for {} - cleared addresses and applied extended backoff", peer_id);
+        // WRONGPEERID FIX: Track this peer for extended backoff (30 minutes)
+        // This prevents repeated dial attempts to stale DHT entries
+        self.wrong_peer_id_peers.insert(peer_id, Instant::now());
+        
+        warn!("WrongPeerId for {} - cleared addresses, applied 30min extended backoff", peer_id);
+    }
+    
+    /// WRONGPEERID FIX: Cleanup stale WrongPeerId entries (older than 30 minutes)
+    fn cleanup_wrong_peer_id_entries(&mut self) {
+        let now = Instant::now();
+        self.wrong_peer_id_peers.retain(|_, timestamp| {
+            now.duration_since(*timestamp) < Duration::from_secs(1800) // 30 minutes
+        });
     }
     
     /// FIX: Pre-dial health check - skip peers with recent failures
@@ -582,6 +609,14 @@ impl ConnectionManager {
         // Never skip bootnodes - they're critical for connectivity
         if self.bootnodes.contains(peer_id) {
             return false;
+        }
+        
+        // WRONGPEERID FIX: Skip peers with WrongPeerId errors (30 minute backoff)
+        if let Some(wrong_peer_time) = self.wrong_peer_id_peers.get(peer_id) {
+            if wrong_peer_time.elapsed() < Duration::from_secs(1800) {
+                debug!("Skipping dial to {} - WrongPeerId backoff active", peer_id);
+                return true;
+            }
         }
         
         // Check if peer has too many recent failures
@@ -670,6 +705,9 @@ impl ConnectionManager {
         // Cleanup peer store
         self.peer_store.cleanup();
         
+        // WRONGPEERID FIX: Cleanup stale WrongPeerId entries
+        self.cleanup_wrong_peer_id_entries();
+        
         // Process any queued dials
         self.process_dial_queue().await;
         
@@ -692,15 +730,24 @@ impl ConnectionManager {
                 // Waiting for Kademlia bootstrap
             }
             NetworkState::FillingPeers => {
-                // FIXED: Transition to Maintaining with just 3 peers (mesh is healthy)
+                // STABILITY FIX: Transition to Maintaining with just min_peers (default 3)
                 // Previously required 30 peers which caused state to be stuck
                 if connected >= self.config.min_peers {
                     self.transition_to(NetworkState::Maintaining);
-                } else if connected >= 2 {
-                    // Even with 2 peers, we can maintain - just keep trying to add more
+                } else if connected >= 1 {
+                    // STABILITY FIX: Timeout-based transition to prevent getting stuck
+                    // If we've been in FillingPeers for 60+ seconds with at least 1 peer,
+                    // transition to Maintaining and continue filling in background
+                    if let Some(since) = self.filling_peers_since {
+                        if since.elapsed() > Duration::from_secs(60) {
+                            info!("FillingPeers timeout ({}s) with {} peers - transitioning to Maintaining", 
+                                since.elapsed().as_secs(), connected);
+                            self.transition_to(NetworkState::Maintaining);
+                            return;
+                        }
+                    }
+                    // Keep trying to fill while waiting
                     self.try_fill_peers().await;
-                    // After 60 seconds in FillingPeers with any peers, transition anyway
-                    // This prevents getting stuck when peer discovery is slow
                 } else {
                     self.try_fill_peers().await;
                 }
