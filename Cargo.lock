@@ -4215,7 +4215,7 @@ dependencies = [
 
 [[package]]
 name = "inferno-cli"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "actix-cors",
  "actix-files",
@@ -6845,7 +6845,7 @@ dependencies = [
 
 [[package]]
 name = "pyrax-desktop"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "bincode",
  "blake3",
@@ -6873,7 +6873,7 @@ dependencies = [
 
 [[package]]
 name = "pyrax-node"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
@@ -6930,7 +6930,7 @@ dependencies = [
 
 [[package]]
 name = "pyrax-wallet"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "aes-gcm",
  "argon2",

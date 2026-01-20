@@ -80,15 +80,9 @@ impl SystemCapabilities {
     }
     
     fn get_disk_free() -> u64 {
-        // Try to get disk space for data directory
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::MetadataExt;
-            if let Ok(stat) = nix::sys::statvfs::statvfs("/var/lib/pyrax") {
-                return (stat.blocks_available() * stat.block_size() as u64) / (1024 * 1024 * 1024);
-            }
-        }
-        100 // Default
+        // Cross-platform disk space check not easily available without external crates
+        // Return a reasonable default - actual disk usage is handled by storage layer
+        100 // Default 100GB assumed available
     }
     
     fn get_power_info() -> (bool, bool) {
