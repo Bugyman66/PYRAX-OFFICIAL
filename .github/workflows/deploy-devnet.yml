@@ -142,14 +142,26 @@ jobs:
           echo "╚═══════════════════════════════════════════════════════════════╝"
           
           # Ensure swap exists to prevent OOM during Rust compilation
+          # 8GB swap needed for compiling wasmtime and heavy crates
           echo "=== ENSURING SWAP SPACE FOR COMPILATION ==="
+          SWAP_SIZE="8G"
+          if [ -f /swapfile ]; then
+            # Check if existing swap is large enough (at least 8GB)
+            CURRENT_SIZE=$(ls -l /swapfile 2>/dev/null | awk '{print $5}')
+            if [ "$CURRENT_SIZE" -lt 8589934592 ]; then
+              echo "Existing swap too small, recreating with 8GB..."
+              swapoff /swapfile 2>/dev/null || true
+              rm -f /swapfile
+            fi
+          fi
+          
           if [ ! -f /swapfile ]; then
-            echo "Creating 4GB swap file..."
-            fallocate -l 4G /swapfile
+            echo "Creating 8GB swap file..."
+            fallocate -l $SWAP_SIZE /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=8192
             chmod 600 /swapfile
             mkswap /swapfile
             swapon /swapfile
-            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
             echo "Swap created and enabled"
           else
             # Ensure swap is active
@@ -178,13 +190,8 @@ jobs:
           echo "=== BUILDING PYRAX-NODE ==="
           cd /opt/pyrax
           
-          # Add swap space to prevent OOM during compilation
-          echo "=== ADDING SWAP SPACE ==="
-          if [ ! -f /swapfile ]; then
-            fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096
-            chmod 600 /swapfile
-            mkswap /swapfile
-          fi
+          # Verify swap is active
+          echo "=== VERIFYING SWAP SPACE ==="
           swapon /swapfile 2>/dev/null || true
           free -h
           
@@ -193,8 +200,13 @@ jobs:
           cargo clean -p pyrax-node 2>/dev/null || true
           rm -f /opt/pyrax/target/release/pyrax-node
           
-          # Build pyrax-node (allow Cargo.lock updates for new dependencies)
-          # Use -j 1 to limit parallel jobs and prevent OOM on 8GB servers
+          # Build pyrax-node with memory-optimized settings
+          # -j 1: Single job to minimize memory usage
+          # CARGO_BUILD_JOBS=1: Ensure no parallel codegen
+          # codegen-units=1: Reduce memory per compilation unit
+          echo "=== BUILDING PYRAX-NODE (memory-optimized) ==="
+          export CARGO_BUILD_JOBS=1
+          export RUSTFLAGS="-C codegen-units=1"
           cargo build --release -p pyrax-node -j 1
           
           # Stop running service and kill any orphan processes before replacing binary
@@ -326,17 +338,29 @@ jobs:
           echo "║     PYRAX Bootnode 2 Deployment (P2P Redundancy)              ║"
           echo "╚═══════════════════════════════════════════════════════════════╝"
           
-          # Ensure swap exists
+          # Ensure 8GB swap exists to prevent OOM during compilation
+          echo "=== ENSURING SWAP SPACE ==="
+          SWAP_SIZE="8G"
+          if [ -f /swapfile ]; then
+            CURRENT_SIZE=$(ls -l /swapfile 2>/dev/null | awk '{print $5}')
+            if [ "$CURRENT_SIZE" -lt 8589934592 ]; then
+              echo "Existing swap too small, recreating with 8GB..."
+              swapoff /swapfile 2>/dev/null || true
+              rm -f /swapfile
+            fi
+          fi
+          
           if [ ! -f /swapfile ]; then
-            echo "Creating 4GB swap file..."
-            fallocate -l 4G /swapfile
+            echo "Creating 8GB swap file..."
+            fallocate -l $SWAP_SIZE /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=8192
             chmod 600 /swapfile
             mkswap /swapfile
             swapon /swapfile
-            echo '/swapfile none swap sw 0 0' >> /etc/fstab
+            grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
           else
             swapon /swapfile 2>/dev/null || true
           fi
+          free -h
           
           cd /opt/pyrax
           
@@ -360,10 +384,11 @@ jobs:
           ufw allow 28545/tcp comment 'RPC'
           echo "y" | ufw enable || true
           
-          # Build pyrax-node
-          echo "=== BUILDING PYRAX-NODE ==="
+          # Build pyrax-node with memory-optimized settings
+          echo "=== BUILDING PYRAX-NODE (memory-optimized) ==="
           cargo clean -p pyrax-node 2>/dev/null || true
-          # Use -j 1 to limit parallel jobs and prevent OOM on 8GB servers
+          export CARGO_BUILD_JOBS=1
+          export RUSTFLAGS="-C codegen-units=1"
           cargo build --release -p pyrax-node -j 1
           
           # Stop and replace binary

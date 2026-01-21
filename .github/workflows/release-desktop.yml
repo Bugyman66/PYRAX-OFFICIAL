@@ -321,19 +321,24 @@ jobs:
           key: ${{ matrix.rust_target }}
 
       # Linux dependencies - install correct webkit and soup versions
+      # Tauri 1.x requires BOTH libsoup2.4-dev AND libsoup-3.0-dev
       # libfuse2 is required for AppImage to run properly
       - name: Install Linux dependencies
         if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
-          # Use matrix-defined webkit and soup packages
-          WEBKIT_PKG="${{ matrix.webkit_pkg || 'libwebkit2gtk-4.1-dev' }}"
-          SOUP_PKG="${{ matrix.soup_pkg || 'libsoup-3.0-dev' }}"
-          echo "Installing packages: $WEBKIT_PKG, $SOUP_PKG"
-          sudo apt-get install -y libgtk-3-dev "$WEBKIT_PKG" "$SOUP_PKG" libappindicator3-dev librsvg2-dev patchelf libfuse2 || {
-            echo "Failed with primary packages, trying alternatives..."
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
-          }
+          # Tauri 1.x needs libsoup2.4 (soup2-sys crate) AND libsoup-3.0
+          echo "Installing Tauri Linux dependencies..."
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libsoup2.4-dev \
+            libsoup-3.0-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2 \
+            libjavascriptcoregtk-4.1-dev
 
       # macOS dependencies for DMG creation
       - name: Install macOS dependencies
