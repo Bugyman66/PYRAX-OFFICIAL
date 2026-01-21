@@ -78,6 +78,17 @@ const BOOTNODES = [
 // Cache for IP geolocation to avoid repeated API calls
 const geoCache = new Map<string, GeoLocation>();
 
+// Deterministic hash function for peer ID
+function hashPeerId(peerId: string): number {
+  let hash = 0;
+  for (let i = 0; i < peerId.length; i++) {
+    const char = peerId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+}
+
 // Get geolocation for an IP address using ip-api.com (free, no API key required)
 async function getGeoLocation(ip: string): Promise<GeoLocation> {
   // Check cache first
@@ -100,18 +111,46 @@ async function getGeoLocation(ip: string): Promise<GeoLocation> {
   }
 
   // Handle relay-connected peers (behind NAT, no direct IP)
-  // Give them approximate random locations near bootnodes so they show on the map
-  if (ip === 'relay-connected') {
-    // Distribute relay peers across different regions for visual representation
-    // Use a hash of the cache size to get consistent but varied positions
-    const regionIndex = geoCache.size % 4;
+  // Give them DETERMINISTIC positions based on peer ID hash so they don't jump around
+  if (ip.startsWith('relay-connected:')) {
+    const peerId = ip.split(':')[1] || 'unknown';
+    const hash = hashPeerId(peerId);
+    const regionIndex = hash % 4;
+    // Deterministic offset based on peer ID hash (±4 degrees)
+    const latOffset = ((hash % 800) - 400) / 100;
+    const lonOffset = (((hash >> 8) % 800) - 400) / 100;
+    
     const regions = [
-      { country: 'United States', countryCode: 'US', city: 'East Coast (Relay)', lat: 40.7128 + (Math.random() - 0.5) * 8, lon: -74.0060 + (Math.random() - 0.5) * 8 },
-      { country: 'United States', countryCode: 'US', city: 'West Coast (Relay)', lat: 37.7749 + (Math.random() - 0.5) * 8, lon: -122.4194 + (Math.random() - 0.5) * 8 },
-      { country: 'Europe', countryCode: 'EU', city: 'Europe (Relay)', lat: 51.5074 + (Math.random() - 0.5) * 10, lon: -0.1278 + (Math.random() - 0.5) * 10 },
-      { country: 'Asia', countryCode: 'AS', city: 'Asia (Relay)', lat: 35.6762 + (Math.random() - 0.5) * 10, lon: 139.6503 + (Math.random() - 0.5) * 10 },
+      { country: 'United States', countryCode: 'US', city: 'East Coast (Relay)', baseLat: 40.7128, baseLon: -74.0060 },
+      { country: 'United States', countryCode: 'US', city: 'West Coast (Relay)', baseLat: 37.7749, baseLon: -122.4194 },
+      { country: 'Europe', countryCode: 'EU', city: 'Europe (Relay)', baseLat: 51.5074, baseLon: -0.1278 },
+      { country: 'Asia', countryCode: 'AS', city: 'Asia (Relay)', baseLat: 35.6762, baseLon: 139.6503 },
+    ];
+    const region = regions[regionIndex];
+    const relayGeo: GeoLocation = {
+      country: region.country,
+      countryCode: region.countryCode,
+      city: region.city,
+      lat: region.baseLat + latOffset,
+      lon: region.baseLon + lonOffset,
+    };
+    // Cache with peer ID to ensure consistency
+    geoCache.set(ip, relayGeo);
+    return relayGeo;
+  }
+  
+  // Legacy relay-connected without peer ID - use cache size for distribution
+  if (ip === 'relay-connected') {
+    const regionIndex = geoCache.size % 4;
+    const offset = (geoCache.size % 80 - 40) / 10;
+    const regions = [
+      { country: 'United States', countryCode: 'US', city: 'East Coast (Relay)', lat: 40.7128 + offset, lon: -74.0060 + offset },
+      { country: 'United States', countryCode: 'US', city: 'West Coast (Relay)', lat: 37.7749 + offset, lon: -122.4194 - offset },
+      { country: 'Europe', countryCode: 'EU', city: 'Europe (Relay)', lat: 51.5074 + offset, lon: -0.1278 + offset },
+      { country: 'Asia', countryCode: 'AS', city: 'Asia (Relay)', lat: 35.6762 - offset, lon: 139.6503 + offset },
     ];
     const relayGeo: GeoLocation = regions[regionIndex];
+    geoCache.set(`relay-${geoCache.size}`, relayGeo);
     return relayGeo;
   }
 
@@ -153,14 +192,16 @@ async function getGeoLocation(ip: string): Promise<GeoLocation> {
 
 // Extract IP from multiaddr or address string
 // For relay addresses, we need special handling since the first IP is the relay server, not the peer
-function extractIP(address: string): string {
+function extractIP(address: string, peerId?: string): string {
   // RELAY FIX: For relay addresses (/p2p-circuit/), the first IP is the relay server, not the peer
-  // These peers don't have a direct IP we can geolocate - return empty to avoid filtering issues
+  // These peers don't have a direct IP we can geolocate - include peer ID for deterministic positioning
   if (address.includes('/p2p-circuit/') || address.includes('/p2p-circuit')) {
-    // For relay connections, try to find an IP after the circuit marker
     // Format: /ip4/RELAY_IP/tcp/PORT/p2p/RELAY_ID/p2p-circuit/p2p/PEER_ID
     // The peer's actual IP is not in the address - they're behind NAT
-    // Return a marker so we don't filter them as bootnodes
+    // Return a marker WITH peer ID for deterministic geolocation
+    if (peerId) {
+      return `relay-connected:${peerId}`;
+    }
     return 'relay-connected';
   }
 
@@ -304,13 +345,14 @@ async function checkBootnodeStatus(rpcUrl: string): Promise<{ online: boolean; l
 export async function GET() {
   try {
     // Fetch peers from all 3 streams in parallel
-    const [streamA, streamC] = await Promise.all([
+    const [streamA, streamB, streamC] = await Promise.all([
       fetchStreamPeers(STREAM_ENDPOINTS.A, 'A'),
+      fetchStreamPeers(STREAM_ENDPOINTS.B, 'B'),
       fetchStreamPeers(STREAM_ENDPOINTS.C, 'C'),
     ]);
 
-    // Combine all peers, using _stream tag or detecting from endpoint
-    const allPeers = [...streamA.peers, ...streamC.peers];
+    // Combine all peers from all streams
+    const allPeers = [...streamA.peers, ...streamB.peers, ...streamC.peers];
     
     // Get bootnode IPs to filter them out from peer list (avoid duplicates)
     const bootnodeIPs = new Set(BOOTNODES.map(bn => bn.ip));
@@ -323,7 +365,8 @@ export async function GET() {
       seenPeerIds.add(id);
       
       // Filter out peers that are actually bootnodes (by IP)
-      const peerIP = extractIP(peer.address || peer.ip || '');
+      // Pass peer ID for deterministic relay positioning
+      const peerIP = extractIP(peer.address || peer.ip || '', id);
       if (bootnodeIPs.has(peerIP)) return false;
       
       return true;
@@ -332,7 +375,9 @@ export async function GET() {
     // Process peers and get geolocation for each
     const peerNodes: ConnectedNode[] = await Promise.all(
       uniquePeers.map(async (peer: any, idx: number) => {
-        const ip = extractIP(peer.address || peer.ip || '');
+        const peerId = peer.peer_id || peer.id || `peer-${idx}`;
+        // Pass peer ID for deterministic relay positioning
+        const ip = extractIP(peer.address || peer.ip || '', peerId);
         const geo = await getGeoLocation(ip);
         
         // Use the stream tag we added, or determine from port
@@ -344,7 +389,7 @@ export async function GET() {
         }
 
         // Get latency based on which stream this peer belongs to
-        const peerLatency = stream === 'A' ? streamA.latency : stream === 'C' ? streamC.latency : -1;
+        const peerLatency = stream === 'A' ? streamA.latency : stream === 'B' ? streamB.latency : streamC.latency;
         // Simulate per-peer latency variance (±20% of base latency)
         const variance = peerLatency > 0 ? Math.round(peerLatency * (0.8 + Math.random() * 0.4)) : -1;
         
@@ -483,13 +528,26 @@ export async function GET() {
     // USER-TO-USER CONNECTIONS inferred from shared mesh topics
     // Bootnodes report mesh_connections as bootnode->user, so we infer user-to-user
     // by finding users that share the same mesh topic on the same bootnode
-    const allMeshConnections = [...streamA.meshConnections, ...streamC.meshConnections];
+    const allMeshConnections = [...streamA.meshConnections, ...streamB.meshConnections, ...streamC.meshConnections];
     const peerIdToNode = new Map<string, ConnectedNode>();
     
-    // Build lookup map of peer IDs to nodes (for coordinate lookup)
+    // Build lookup map with MULTIPLE keys for peer ID matching (full ID, last 12 chars, node id)
+    // This handles format mismatches between RPC response and processed nodes
     for (const node of [...bootnodeNodes, ...peerNodes]) {
       peerIdToNode.set(node.peerId, node);
+      if (node.peerId.length > 12) {
+        peerIdToNode.set(node.peerId.slice(-12), node); // Last 12 chars
+        peerIdToNode.set(node.peerId.slice(-8), node);  // Last 8 chars
+      }
+      peerIdToNode.set(node.id, node);
     }
+    
+    // Helper to find node by peer ID with fallback lookups
+    const findNodeByPeerId = (peerId: string): ConnectedNode | undefined => {
+      return peerIdToNode.get(peerId) 
+        || peerIdToNode.get(peerId.slice(-12)) 
+        || peerIdToNode.get(peerId.slice(-8));
+    };
     
     // Group user peers by topic to infer user-to-user connections
     // If users A and B are both in mesh for topic "blocks", they can communicate
@@ -497,8 +555,8 @@ export async function GET() {
     
     for (const meshConn of allMeshConnections) {
       // peer_a is bootnode, peer_b is user in mesh for this topic
-      const userPeer = peerIdToNode.get(meshConn.peer_b);
-      if (userPeer && !userPeer.isBootnode && meshConn.connection_type === 'mesh') {
+      const userPeer = findNodeByPeerId(meshConn.peer_b);
+      if (userPeer && !userPeer.isBootnode && (meshConn.connection_type === 'mesh' || meshConn.connection_type === 'gossip')) {
         const topic = meshConn.topic;
         if (!topicToUsers.has(topic)) {
           topicToUsers.set(topic, []);
@@ -521,8 +579,8 @@ export async function GET() {
       
       for (let i = 0; i < userPeerIds.length && pairCount < maxPairs; i++) {
         for (let j = i + 1; j < userPeerIds.length && pairCount < maxPairs; j++) {
-          const peerA = peerIdToNode.get(userPeerIds[i]);
-          const peerB = peerIdToNode.get(userPeerIds[j]);
+          const peerA = findNodeByPeerId(userPeerIds[i]);
+          const peerB = findNodeByPeerId(userPeerIds[j]);
           
           if (!peerA || !peerB) continue;
           // Skip if no valid coordinates
@@ -547,12 +605,22 @@ export async function GET() {
       }
     }
 
+    // Log connection stats for debugging
+    const connStats = {
+      total: connections.length,
+      bootnodeToBootnode: connections.filter(c => c.from.includes('bootnode') && c.to.includes('bootnode')).length,
+      userToBootnode: connections.filter(c => !c.isMesh && !(c.from.includes('bootnode') && c.to.includes('bootnode'))).length,
+      userToUser: connections.filter(c => c.isMesh).length,
+    };
+    console.log(`[Nodes API] Nodes: ${nodes.length}, Connections: ${connStats.total} (BN↔BN: ${connStats.bootnodeToBootnode}, User↔BN: ${connStats.userToBootnode}, User↔User: ${connStats.userToUser})`);
+
     return NextResponse.json({ 
       nodes, 
       stats,
       connections,
-      localPeerId: streamA.localPeerId || streamC.localPeerId || '',
-      listenAddresses: [...streamA.listenAddresses, ...streamC.listenAddresses],
+      connectionStats: connStats,
+      localPeerId: streamA.localPeerId || streamB.localPeerId || streamC.localPeerId || '',
+      listenAddresses: [...streamA.listenAddresses, ...streamB.listenAddresses, ...streamC.listenAddresses],
     });
   } catch (error) {
     console.error('Failed to fetch nodes:', error);

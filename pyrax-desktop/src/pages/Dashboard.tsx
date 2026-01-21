@@ -2,10 +2,12 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
+import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+import { relaunch } from '@tauri-apps/api/process';
 import { 
   Activity, Blocks, Users, Zap, Play, Square, RefreshCw, Globe,
   Network, Wifi, Clock, TrendingUp, ArrowUpRight, ArrowDownLeft,
-  Shield, Signal, Radio, Gauge, ChevronRight, Server
+  Shield, Signal, Radio, Gauge, ChevronRight, Server, Download
 } from 'lucide-react';
 import { useNodeStore, MeshConnection } from '../stores/nodeStore';
 import { useWalletStore } from '../stores/walletStore';
@@ -58,6 +60,9 @@ export default function Dashboard() {
   const { status: minerStatus } = useMinerStore();
   const { addLog } = useLogStore();
   const [selectedNetwork, setSelectedNetwork] = useState<'testnet' | 'devnet'>('devnet');
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<{ version: string; body: string } | null>(null);
   
   // Telemetry history for charts
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryDataPoint[]>([]);
@@ -288,6 +293,32 @@ export default function Dashboard() {
     }
   };
 
+  const handleCheckUpdate = async () => {
+    setUpdateChecking(true);
+    try {
+      const { shouldUpdate, manifest } = await checkUpdate();
+      if (shouldUpdate && manifest) {
+        setUpdateAvailable(true);
+        setUpdateInfo({ version: manifest.version, body: manifest.body || '' });
+        addLog({ level: 'info', category: 'update', message: `Update available: v${manifest.version}` });
+        
+        // Ask user and install if they confirm
+        if (window.confirm(`Update to v${manifest.version}?\n\n${manifest.body || 'New version available.'}`)) {
+          addLog({ level: 'info', category: 'update', message: 'Installing update...' });
+          await installUpdate();
+          await relaunch();
+        }
+      } else {
+        addLog({ level: 'info', category: 'update', message: 'No updates available - you have the latest version!' });
+      }
+    } catch (e) {
+      console.error('Failed to check for updates:', e);
+      addLog({ level: 'error', category: 'update', message: `Update check failed: ${e}` });
+    } finally {
+      setUpdateChecking(false);
+    }
+  };
+
   // Health calculations - handle 0 as valid value with !== undefined checks
   const meshHealth = status?.meshPeers !== undefined && status.meshPeers !== null 
     ? Math.min(100, (status.meshPeers / 4) * 100) : 0;
@@ -341,6 +372,28 @@ export default function Dashboard() {
               <span className="text-sm font-medium">Start Node</span>
             </button>
           )}
+          {/* Check for Updates */}
+          <button 
+            onClick={handleCheckUpdate} 
+            disabled={updateChecking}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all border ${
+              updateAvailable 
+                ? 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-blue-500/50 shadow-lg shadow-blue-500/20' 
+                : 'bg-dark-800/80 hover:bg-dark-700 border-dark-600'
+            } disabled:opacity-50`}
+            title={updateAvailable ? `Update to ${updateInfo?.version}` : 'Check for updates'}
+          >
+            {updateChecking ? (
+              <RefreshCw size={14} className="animate-spin text-stone-400" />
+            ) : updateAvailable ? (
+              <Download size={14} className="text-white" />
+            ) : (
+              <Download size={14} className="text-stone-400" />
+            )}
+            <span className={`text-xs font-medium ${updateAvailable ? 'text-white' : 'text-stone-400'}`}>
+              {updateAvailable ? 'Update' : 'Updates'}
+            </span>
+          </button>
         </div>
       </div>
 
