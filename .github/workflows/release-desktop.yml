@@ -141,6 +141,7 @@ jobs:
             core.setOutput('upload_url', data.upload_url);
 
   build-tauri:
+    name: Build ${{ matrix.display_name }}
     needs: create-release
     permissions:
       contents: write
