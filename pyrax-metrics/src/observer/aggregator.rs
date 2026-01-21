@@ -30,6 +30,12 @@ pub struct ChainState {
     pub is_stalled: bool,
     /// Last update timestamp
     pub last_update: u64,
+    /// Network hashrate
+    pub network_hashrate: u64,
+    /// Current difficulty
+    pub difficulty: u64,
+    /// Total blocks found by monitored nodes
+    pub total_blocks_found: u64,
 }
 
 /// State aggregator that computes chain-level metrics
@@ -117,6 +123,11 @@ impl StateAggregator {
         
         let last_update = chrono::Utc::now().timestamp() as u64;
         
+        // Aggregate mining stats
+        let network_hashrate = reachable_nodes.iter().map(|s| s.hashrate).max().unwrap_or(0);
+        let difficulty = reachable_nodes.iter().map(|s| s.difficulty).max().unwrap_or(0);
+        let total_blocks_found = reachable_nodes.iter().map(|s| s.blocks_found).sum();
+        
         ChainState {
             head_block,
             lowest_block,
@@ -128,6 +139,9 @@ impl StateAggregator {
             block_rate,
             is_stalled,
             last_update,
+            network_hashrate,
+            difficulty,
+            total_blocks_found,
         }
     }
     
@@ -180,6 +194,9 @@ impl Default for ChainState {
             block_rate: 0.0,
             is_stalled: false,
             last_update: 0,
+            network_hashrate: 0,
+            difficulty: 0,
+            total_blocks_found: 0,
         }
     }
 }

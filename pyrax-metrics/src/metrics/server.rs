@@ -90,6 +90,18 @@ async fn metrics_handler(State(state): State<AppState>) -> String {
     output.push_str("# TYPE pyrax_avg_latency_ms gauge\n");
     output.push_str(&format!("pyrax_avg_latency_ms {}\n", chain_state.avg_latency_ms));
     
+    output.push_str("# HELP pyrax_mining_hashrate Network hashrate\n");
+    output.push_str("# TYPE pyrax_mining_hashrate gauge\n");
+    output.push_str(&format!("pyrax_mining_hashrate {}\n", chain_state.network_hashrate));
+    
+    output.push_str("# HELP pyrax_mining_difficulty Current difficulty\n");
+    output.push_str("# TYPE pyrax_mining_difficulty gauge\n");
+    output.push_str(&format!("pyrax_mining_difficulty {}\n", chain_state.difficulty));
+
+    output.push_str("# HELP pyrax_mining_blocks_found Total blocks found by monitored nodes\n");
+    output.push_str("# TYPE pyrax_mining_blocks_found gauge\n");
+    output.push_str(&format!("pyrax_mining_blocks_found {}\n", chain_state.total_blocks_found));
+    
     // Per-node metrics
     output.push_str("# HELP pyrax_node_block_height Block height per node\n");
     output.push_str("# TYPE pyrax_node_block_height gauge\n");
