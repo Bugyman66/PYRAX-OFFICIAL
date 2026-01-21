@@ -36,13 +36,12 @@ interface NodeStats {
 }
 
 // RPC endpoints for all 3 streams
-// Node runs via systemd on host - use host.docker.internal (configured via extra_hosts in docker-compose)
-// In dev: use direct bootnode IP rpc.pyrax-devnet.org (209.38.137.105:28545)
-// Currently: All streams use the same node (single node deployment)
+// Use bootnode IPs directly for reliable connectivity in Docker
+// Bootnode 1: NYC (209.38.137.105), Bootnode 2: SFO (137.184.118.228)
 const STREAM_ENDPOINTS = {
-  A: process.env.STREAM_A_RPC || 'http://host.docker.internal:28545',
-  B: process.env.STREAM_B_RPC || 'http://host.docker.internal:28545',
-  C: process.env.STREAM_C_RPC || 'http://host.docker.internal:28545',
+  A: process.env.STREAM_A_RPC || 'http://209.38.137.105:28545',
+  B: process.env.STREAM_B_RPC || 'http://137.184.118.228:28545',
+  C: process.env.STREAM_C_RPC || 'http://209.38.137.105:28545',
 };
 
 // Bootnode configurations - these are always shown regardless of P2P connections
