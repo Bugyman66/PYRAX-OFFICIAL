@@ -76,8 +76,52 @@ impl NodeCrawler {
                 warn!("Crawl error: {}", e);
             }
             
-            let count = self.discovered.read().len();
-            info!("Discovered {} nodes", count);
+            // Verify which nodes are actually online
+            self.verify_nodes().await;
+            
+            let discovered = self.discovered.read();
+            let total = discovered.len();
+            let online = discovered.iter().filter(|n| n.reachable).count();
+            info!("Discovered {} nodes, {} online", total, online);
+        }
+    }
+    
+    /// Verify discovered nodes are reachable via RPC
+    async fn verify_nodes(&self) {
+        let timeout = Duration::from_millis(self.config.probe_timeout_ms);
+        let mut endpoints_to_check: Vec<(usize, String)> = Vec::new();
+        
+        // Collect endpoints to verify
+        {
+            let discovered = self.discovered.read();
+            for (i, node) in discovered.iter().enumerate() {
+                endpoints_to_check.push((i, node.endpoint.clone()));
+            }
+        }
+        
+        // Probe each endpoint
+        for (idx, endpoint) in endpoints_to_check {
+            let client = RpcClient::new(endpoint.clone(), timeout);
+            
+            // Try a simple RPC call to verify reachability
+            let is_reachable = match client.get_status().await {
+                Ok(status) => {
+                    // Update block height while we're at it
+                    let mut discovered = self.discovered.write();
+                    if let Some(node) = discovered.get_mut(idx) {
+                        node.best_height = status.block_height;
+                        node.last_seen = chrono::Utc::now().timestamp() as u64;
+                    }
+                    status.reachable
+                }
+                Err(_) => false,
+            };
+            
+            // Update reachable status
+            let mut discovered = self.discovered.write();
+            if let Some(node) = discovered.get_mut(idx) {
+                node.reachable = is_reachable;
+            }
         }
     }
     

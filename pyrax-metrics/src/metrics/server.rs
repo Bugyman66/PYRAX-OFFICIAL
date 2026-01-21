@@ -128,13 +128,19 @@ async fn metrics_handler(State(state): State<AppState>) -> String {
     }
     
     // Discovered nodes metrics (from crawler)
-    let discovered_count = state.discovered_nodes_count();
+    let discovered_nodes = state.discovered_nodes();
+    let discovered_count = discovered_nodes.len();
+    let online_count = discovered_nodes.iter().filter(|n| n.reachable).count();
+    
     output.push_str("# HELP pyrax_discovered_nodes_total Total nodes discovered by crawler\n");
     output.push_str("# TYPE pyrax_discovered_nodes_total gauge\n");
     output.push_str(&format!("pyrax_discovered_nodes_total {}\n", discovered_count));
     
+    output.push_str("# HELP pyrax_discovered_nodes_online Discovered nodes that are online/reachable\n");
+    output.push_str("# TYPE pyrax_discovered_nodes_online gauge\n");
+    output.push_str(&format!("pyrax_discovered_nodes_online {}\n", online_count));
+    
     // Per-discovered-node metrics
-    let discovered_nodes = state.discovered_nodes();
     if !discovered_nodes.is_empty() {
         output.push_str("# HELP pyrax_discovered_node_height Block height of discovered node\n");
         output.push_str("# TYPE pyrax_discovered_node_height gauge\n");
