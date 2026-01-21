@@ -223,7 +223,7 @@ impl RpcClient {
     /// Get pending transaction count from mempool
     pub async fn get_pending_transaction_count(&self) -> Result<u64, RpcError> {
         let mempool = self.get_mempool_info().await?;
-        Ok(mempool.size)
+        Ok(mempool.size as u64)
     }
 
     /// Get gas price (returns hex string for compatibility)

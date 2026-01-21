@@ -20,6 +20,7 @@ use commands::neurax::NeuraxState;
 use commands::neurax_commands::NeuraxStateWrapper;
 use commands::neurax_email::{NeuraxErrorBuffer, NeuraxErrorBufferWrapper};
 use commands::neurax_llm::{LlmState, LlmStateWrapper};
+use commands::neurax_mesh_optimizer::{MeshOptimizer, MeshOptimizerWrapper};
 
 /// Check if Visual C++ Runtime is installed (Windows only)
 #[cfg(target_os = "windows")]
@@ -165,7 +166,7 @@ fn main() {
 fn run_app() {
     // WINDOWS FIX: Initialize logging safely - write to file on Windows to avoid console issues
     #[cfg(target_os = "windows")]
-    let log_dir = {
+    {
         // On Windows GUI apps, there's no console, so we write logs to a file
         let log_dir = directories::ProjectDirs::from("org", "pyrax", "PYRAX Desktop")
             .map(|d| d.data_dir().to_path_buf())
@@ -219,12 +220,16 @@ fn run_app() {
     
     // Initialize NEURAX LLM state for local AI inference
     let neurax_llm_state = Arc::new(LlmState::new());
+    
+    // Initialize NEURAX Mesh Network Optimizer
+    let neurax_mesh_optimizer = Arc::new(MeshOptimizer::new());
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(NeuraxStateWrapper(neurax_state.clone()))
         .manage(NeuraxErrorBufferWrapper(neurax_error_buffer.clone()))
         .manage(LlmStateWrapper(neurax_llm_state.clone()))
+        .manage(MeshOptimizerWrapper(neurax_mesh_optimizer.clone()))
         .invoke_handler(tauri::generate_handler![
             // Node commands
             commands::node::start_node,
@@ -333,6 +338,13 @@ fn run_app() {
             commands::neurax_admin::neurax_check_admin,
             commands::neurax_admin::neurax_request_elevation,
             commands::neurax_admin::neurax_get_permission_info,
+            
+            // NEURAX Mesh Optimizer commands
+            commands::neurax_mesh_optimizer::neurax_get_mesh_health,
+            commands::neurax_mesh_optimizer::neurax_get_optimization_action,
+            commands::neurax_mesh_optimizer::neurax_get_mesh_summary,
+            commands::neurax_mesh_optimizer::neurax_set_optimizer_config,
+            commands::neurax_mesh_optimizer::neurax_toggle_optimizer,
         ])
         .setup(|app| {
             info!("Application setup complete");
