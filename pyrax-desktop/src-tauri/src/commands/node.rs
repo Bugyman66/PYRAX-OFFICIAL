@@ -488,6 +488,30 @@ fn get_peer_cache_path(network: &crate::state::Network) -> std::path::PathBuf {
         .join(format!("peer_cache_{}.txt", network_name))
 }
 
+/// LINUX/MAC FIX: Ensure binary has executable permission
+#[cfg(unix)]
+fn ensure_executable(path: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if let Ok(metadata) = std::fs::metadata(path) {
+        let mut perms = metadata.permissions();
+        let mode = perms.mode();
+        // Add execute permission for owner if not already set
+        if mode & 0o100 == 0 {
+            perms.set_mode(mode | 0o755);
+            if let Err(e) = std::fs::set_permissions(path, perms) {
+                warn!("Failed to set executable permission on {:?}: {}", path, e);
+            } else {
+                info!("Set executable permission on {:?}", path);
+            }
+        }
+    }
+}
+
+#[cfg(not(unix))]
+fn ensure_executable(_path: &std::path::Path) {
+    // No-op on Windows
+}
+
 fn get_node_binary_path() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "windows")]
     let binary_name = "pyrax-node.exe";
@@ -500,10 +524,13 @@ fn get_node_binary_path() -> Option<std::path::PathBuf> {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_default();
     
+    info!("Looking for {} binary, current_dir: {:?}", binary_name, current_dir);
+    
     // Check in same directory as executable
     let local_path = current_dir.join(binary_name);
     if local_path.exists() {
         info!("Found pyrax-node at: {:?}", local_path);
+        ensure_executable(&local_path);
         return Some(local_path);
     }
     
@@ -511,7 +538,19 @@ fn get_node_binary_path() -> Option<std::path::PathBuf> {
     let resource_path = current_dir.join("resources").join(binary_name);
     if resource_path.exists() {
         info!("Found pyrax-node in resources: {:?}", resource_path);
+        ensure_executable(&resource_path);
         return Some(resource_path);
+    }
+    
+    // LINUX/MAC FIX: Check inside app bundle (macOS .app/Contents/Resources)
+    #[cfg(target_os = "macos")]
+    {
+        let macos_resource_path = current_dir.join("../Resources").join(binary_name);
+        if macos_resource_path.exists() {
+            info!("Found pyrax-node in macOS bundle: {:?}", macos_resource_path);
+            ensure_executable(&macos_resource_path);
+            return Some(macos_resource_path);
+        }
     }
     
     // Check in _up_/resources (dev mode)
