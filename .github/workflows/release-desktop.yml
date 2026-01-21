@@ -156,15 +156,17 @@ jobs:
             node_binary: pyrax-node.exe
             bundle_type: nsis
             os_name: windows-x64
+            display_name: Windows-X64
             
           # ============ macOS ============
-          # macOS Intel (x86_64) - use macos-15-intel label (available until Aug 2027)
+          # macOS Intel (x86_64)
           - platform: macos-15-intel
             rust_target: x86_64-apple-darwin
             tauri_target: darwin-x86_64
             node_binary: pyrax-node
             bundle_type: dmg
             os_name: macos-intel
+            display_name: macOS-Intel
             
           # macOS Apple Silicon (ARM M1/M2/M3)
           - platform: macos-14
@@ -173,49 +175,46 @@ jobs:
             node_binary: pyrax-node
             bundle_type: dmg
             os_name: macos-arm64
+            display_name: macOS-ARM
             
-          # ============ LINUX - UBUNTU ============
-          # Ubuntu 22.04 LTS (Jammy) - webkit2gtk-4.0
-          - platform: ubuntu-22.04
-            rust_target: x86_64-unknown-linux-gnu
-            tauri_target: linux-ubuntu-22.04
-            node_binary: pyrax-node
-            bundle_type: appimage
-            os_name: ubuntu-22.04
-            webkit_pkg: libwebkit2gtk-4.0-dev
-            deb_webkit: libwebkit2gtk-4.0-37
-            
-          # Ubuntu 24.04 LTS (Noble) - webkit2gtk-4.1
+          # ============ LINUX - UBUNTU 24 ============
+          # Ubuntu 24.04 LTS (Noble) - Primary Ubuntu build
           - platform: ubuntu-24.04
             rust_target: x86_64-unknown-linux-gnu
-            tauri_target: linux-ubuntu-24.04
+            tauri_target: linux-ubuntu-24
             node_binary: pyrax-node
             bundle_type: appimage
-            os_name: ubuntu-24.04
+            os_name: ubuntu-24
+            display_name: Ubuntu-24
             webkit_pkg: libwebkit2gtk-4.1-dev
+            soup_pkg: libsoup-3.0-dev
             deb_webkit: libwebkit2gtk-4.1-0
             
           # ============ LINUX - MINT ============
-          # Linux Mint 21/22 (based on Ubuntu 22.04, uses webkit2gtk-4.1)
-          - platform: ubuntu-22.04
+          # Linux Mint 22 (based on Ubuntu 24.04)
+          - platform: ubuntu-24.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_target: linux-mint
             node_binary: pyrax-node
             bundle_type: deb
             os_name: linux-mint
-            webkit_pkg: libwebkit2gtk-4.0-dev
-            deb_webkit: "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"
+            display_name: Linux-Mint
+            webkit_pkg: libwebkit2gtk-4.1-dev
+            soup_pkg: libsoup-3.0-dev
+            deb_webkit: libwebkit2gtk-4.1-0
             
           # ============ LINUX - FEDORA ============
           # Fedora/RHEL (AppImage for broad compatibility)
-          - platform: ubuntu-22.04
+          - platform: ubuntu-24.04
             rust_target: x86_64-unknown-linux-gnu
             tauri_target: linux-fedora
             node_binary: pyrax-node
             bundle_type: appimage
             os_name: fedora
-            webkit_pkg: libwebkit2gtk-4.0-dev
-            deb_webkit: libwebkit2gtk-4.0-37
+            display_name: Fedora-Linux
+            webkit_pkg: libwebkit2gtk-4.1-dev
+            soup_pkg: libsoup-3.0-dev
+            deb_webkit: libwebkit2gtk-4.1-0
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -239,18 +238,19 @@ jobs:
           workspaces: '. -> target'
           key: ${{ matrix.rust_target }}
 
-      # Linux dependencies - install correct webkit version based on platform
+      # Linux dependencies - install correct webkit and soup versions
       # libfuse2 is required for AppImage to run properly
       - name: Install Linux dependencies
         if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
-          # Use matrix-defined webkit package or default to 4.0
-          WEBKIT_PKG="${{ matrix.webkit_pkg || 'libwebkit2gtk-4.0-dev' }}"
-          echo "Installing webkit package: $WEBKIT_PKG"
-          sudo apt-get install -y libgtk-3-dev "$WEBKIT_PKG" libappindicator3-dev librsvg2-dev patchelf libfuse2 || {
-            echo "Failed to install $WEBKIT_PKG, trying alternative..."
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+          # Use matrix-defined webkit and soup packages
+          WEBKIT_PKG="${{ matrix.webkit_pkg || 'libwebkit2gtk-4.1-dev' }}"
+          SOUP_PKG="${{ matrix.soup_pkg || 'libsoup-3.0-dev' }}"
+          echo "Installing packages: $WEBKIT_PKG, $SOUP_PKG"
+          sudo apt-get install -y libgtk-3-dev "$WEBKIT_PKG" "$SOUP_PKG" libappindicator3-dev librsvg2-dev patchelf libfuse2 || {
+            echo "Failed with primary packages, trying alternatives..."
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
           }
 
       # macOS dependencies for DMG creation
@@ -562,20 +562,21 @@ jobs:
           }
           
           VERSION="${{ needs.create-release.outputs.version }}"
+          DISPLAY="${{ matrix.display_name }}"
           
           # Upload EXE
           if [ -n "${{ steps.find-bundle-windows.outputs.exe_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-windows.outputs.exe_path }}" "PYRAX-Desktop_${VERSION}_windows-x64_setup.exe"
+            upload_asset "${{ steps.find-bundle-windows.outputs.exe_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}_setup.exe"
           fi
           
           # Upload NSIS ZIP
           if [ -n "${{ steps.find-bundle-windows.outputs.zip_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-windows.outputs.zip_path }}" "PYRAX-Desktop_${VERSION}_windows-x64.nsis.zip"
+            upload_asset "${{ steps.find-bundle-windows.outputs.zip_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.nsis.zip"
           fi
           
           # Upload signature
           if [ -n "${{ steps.find-bundle-windows.outputs.sig_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-windows.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_windows-x64.nsis.zip.sig"
+            upload_asset "${{ steps.find-bundle-windows.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.nsis.zip.sig"
           fi
 
       # Upload macOS assets using curl to uploads.github.com
@@ -600,26 +601,26 @@ jobs:
           }
           
           VERSION="${{ needs.create-release.outputs.version }}"
-          TARGET="${{ matrix.tauri_target }}"
+          DISPLAY="${{ matrix.display_name }}"
           
           # Upload DMG
           if [ -n "${{ steps.find-bundle-macos.outputs.dmg_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-macos.outputs.dmg_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.dmg"
+            upload_asset "${{ steps.find-bundle-macos.outputs.dmg_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.dmg"
           fi
           
           # Upload tar.gz for updates
           if [ -n "${{ steps.find-bundle-macos.outputs.tar_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-macos.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.app.tar.gz"
+            upload_asset "${{ steps.find-bundle-macos.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.app.tar.gz"
           fi
           
           # Upload signature
           if [ -n "${{ steps.find-bundle-macos.outputs.sig_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-macos.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_macos-${TARGET}.app.tar.gz.sig"
+            upload_asset "${{ steps.find-bundle-macos.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.app.tar.gz.sig"
           fi
 
       # Upload Linux assets using curl to uploads.github.com
       - name: Upload Linux assets
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
@@ -639,25 +640,26 @@ jobs:
           }
           
           VERSION="${{ needs.create-release.outputs.version }}"
+          DISPLAY="${{ matrix.display_name }}"
           
           # Upload AppImage
           if [ -n "${{ steps.find-bundle-linux.outputs.appimage_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-linux.outputs.appimage_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage"
+            upload_asset "${{ steps.find-bundle-linux.outputs.appimage_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage"
           fi
           
           # Upload .deb
           if [ -n "${{ steps.find-bundle-linux.outputs.deb_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-linux.outputs.deb_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.deb"
+            upload_asset "${{ steps.find-bundle-linux.outputs.deb_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.deb"
           fi
           
           # Upload tar.gz for updates
           if [ -n "${{ steps.find-bundle-linux.outputs.tar_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-linux.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage.tar.gz"
+            upload_asset "${{ steps.find-bundle-linux.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage.tar.gz"
           fi
           
           # Upload signature
           if [ -n "${{ steps.find-bundle-linux.outputs.sig_path }}" ]; then
-            upload_asset "${{ steps.find-bundle-linux.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_linux-amd64.AppImage.tar.gz.sig"
+            upload_asset "${{ steps.find-bundle-linux.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage.tar.gz.sig"
           fi
 
   publish-release:

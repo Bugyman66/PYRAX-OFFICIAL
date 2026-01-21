@@ -8,6 +8,11 @@ on:
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
+      - 'pyrax-desktop/**'
+      - 'inferno-cli/**'
+    # Don't run on tag pushes - those trigger release workflows
+    tags-ignore:
+      - '**'
 
   workflow_dispatch:
 
