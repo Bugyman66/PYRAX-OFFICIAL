@@ -83,17 +83,20 @@ pub enum SyncStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PeerInfo {
     /// Peer ID
-    pub id: String,
-    /// Remote address (IP:Port)
+    pub peer_id: String,
+    /// IP address
     #[serde(default)]
-    pub remote_addr: Option<String>,
-    /// Local address
+    pub ip: Option<String>,
+    /// Port number
     #[serde(default)]
-    pub local_addr: Option<String>,
+    pub port: Option<u16>,
+    /// Full address
+    #[serde(default)]
+    pub address: Option<String>,
     /// Peer's best block height
     #[serde(default)]
-    pub best_height: u64,
-    /// Protocol version
+    pub block_height: u64,
+    /// Node version
     #[serde(default)]
     pub version: Option<String>,
     /// Direction (inbound/outbound)

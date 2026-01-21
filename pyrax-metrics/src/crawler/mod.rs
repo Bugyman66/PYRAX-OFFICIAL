@@ -128,34 +128,34 @@ impl NodeCrawler {
         
         for peer in peers {
             // Skip if already seen
-            if self.seen_peers.read().contains(&peer.id) {
+            if self.seen_peers.read().contains(&peer.peer_id) {
                 continue;
             }
             
             // Mark as seen
-            self.seen_peers.write().insert(peer.id.clone());
+            self.seen_peers.write().insert(peer.peer_id.clone());
             
-            // Extract RPC endpoint from remote_addr if available
-            if let Some(remote_addr) = &peer.remote_addr {
-                // Try to construct RPC URL from remote address
-                // Format: IP:P2P_PORT -> http://IP:RPC_PORT (assume RPC is P2P_PORT - 1)
-                if let Some(endpoint) = self.addr_to_rpc_endpoint(remote_addr) {
-                    let node = DiscoveredNode {
-                        endpoint,
-                        peer_id: peer.id.clone(),
-                        last_seen: timestamp,
-                        reachable: true, // Will be verified on next probe
-                        best_height: peer.best_height,
-                        version: peer.version.clone(),
-                    };
-                    
-                    // Check if not already discovered
-                    let mut discovered = self.discovered.write();
-                    if !discovered.iter().any(|n| n.peer_id == peer.id) {
-                        if discovered.len() < self.config.max_nodes {
-                            info!("Discovered new node: {} (height: {})", node.endpoint, node.best_height);
-                            discovered.push(node);
-                        }
+            // Extract RPC endpoint from IP if available
+            if let Some(ip) = &peer.ip {
+                // Construct RPC URL from IP address
+                // Assume RPC port is 8545 by default for discovered nodes
+                let endpoint = format!("http://{}:8545", ip);
+                
+                let node = DiscoveredNode {
+                    endpoint,
+                    peer_id: peer.peer_id.clone(),
+                    last_seen: timestamp,
+                    reachable: true, // Will be verified on next probe
+                    best_height: peer.block_height,
+                    version: peer.version.clone(),
+                };
+                
+                // Check if not already discovered
+                let mut discovered = self.discovered.write();
+                if !discovered.iter().any(|n| n.peer_id == peer.peer_id) {
+                    if discovered.len() < self.config.max_nodes {
+                        info!("Discovered new node: {} (height: {})", node.endpoint, node.best_height);
+                        discovered.push(node);
                     }
                 }
             }
