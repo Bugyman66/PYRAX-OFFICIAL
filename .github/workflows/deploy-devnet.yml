@@ -8,10 +8,7 @@ on:
       - '**.md'
       - '.gitignore'
       - 'LICENSE'
-    # Also trigger on desktop release tags to deploy alongside app releases
-    tags:
-      - 'desktop-v*'
-
+  # Manual trigger only - NO tag triggers to prevent duplicate deploys
   workflow_dispatch:
 
 env:
