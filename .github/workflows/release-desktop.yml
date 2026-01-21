@@ -148,30 +148,74 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Windows
+          # ============ WINDOWS ============
+          # Windows x64 (NSIS Installer)
           - platform: windows-latest
             rust_target: x86_64-pc-windows-msvc
             tauri_target: windows-x86_64
             node_binary: pyrax-node.exe
             bundle_type: nsis
-          # macOS Intel (macos-15-intel is x86_64)
+            os_name: windows-x64
+            
+          # ============ macOS ============
+          # macOS Intel (x86_64) - use macos-15-intel label (available until Aug 2027)
           - platform: macos-15-intel
             rust_target: x86_64-apple-darwin
             tauri_target: darwin-x86_64
             node_binary: pyrax-node
             bundle_type: dmg
-          # macOS Apple Silicon (macos-14 is ARM M1)
+            os_name: macos-intel
+            
+          # macOS Apple Silicon (ARM M1/M2/M3)
           - platform: macos-14
             rust_target: aarch64-apple-darwin
             tauri_target: darwin-aarch64
             node_binary: pyrax-node
             bundle_type: dmg
-          # Linux (ubuntu-22.04 for Tauri v1 webkit2gtk-4.0 compat)
+            os_name: macos-arm64
+            
+          # ============ LINUX - UBUNTU ============
+          # Ubuntu 22.04 LTS (Jammy) - webkit2gtk-4.0
           - platform: ubuntu-22.04
             rust_target: x86_64-unknown-linux-gnu
-            tauri_target: linux-x86_64
+            tauri_target: linux-ubuntu-22.04
             node_binary: pyrax-node
             bundle_type: appimage
+            os_name: ubuntu-22.04
+            webkit_pkg: libwebkit2gtk-4.0-dev
+            deb_webkit: libwebkit2gtk-4.0-37
+            
+          # Ubuntu 24.04 LTS (Noble) - webkit2gtk-4.1
+          - platform: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-ubuntu-24.04
+            node_binary: pyrax-node
+            bundle_type: appimage
+            os_name: ubuntu-24.04
+            webkit_pkg: libwebkit2gtk-4.1-dev
+            deb_webkit: libwebkit2gtk-4.1-0
+            
+          # ============ LINUX - MINT ============
+          # Linux Mint 21/22 (based on Ubuntu 22.04, uses webkit2gtk-4.1)
+          - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-mint
+            node_binary: pyrax-node
+            bundle_type: deb
+            os_name: linux-mint
+            webkit_pkg: libwebkit2gtk-4.0-dev
+            deb_webkit: "libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37"
+            
+          # ============ LINUX - FEDORA ============
+          # Fedora/RHEL (AppImage for broad compatibility)
+          - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-fedora
+            node_binary: pyrax-node
+            bundle_type: appimage
+            os_name: fedora
+            webkit_pkg: libwebkit2gtk-4.0-dev
+            deb_webkit: libwebkit2gtk-4.0-37
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -195,17 +239,23 @@ jobs:
           workspaces: '. -> target'
           key: ${{ matrix.rust_target }}
 
-      # Linux dependencies (ubuntu-22.04 has webkit2gtk-4.0 required by Tauri v1)
+      # Linux dependencies - install correct webkit version based on platform
       # libfuse2 is required for AppImage to run properly
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+          # Use matrix-defined webkit package or default to 4.0
+          WEBKIT_PKG="${{ matrix.webkit_pkg || 'libwebkit2gtk-4.0-dev' }}"
+          echo "Installing webkit package: $WEBKIT_PKG"
+          sudo apt-get install -y libgtk-3-dev "$WEBKIT_PKG" libappindicator3-dev librsvg2-dev patchelf libfuse2 || {
+            echo "Failed to install $WEBKIT_PKG, trying alternative..."
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+          }
 
       # macOS dependencies for DMG creation
       - name: Install macOS dependencies
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         run: |
           brew install create-dmg
           echo "✓ Installed create-dmg for DMG bundling"
@@ -224,7 +274,7 @@ jobs:
 
       # Copy binary - macOS (with pre-signing)
       - name: Copy and pre-sign pyrax-node (macOS)
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         run: |
           mkdir -p pyrax-desktop/src-tauri/resources
           cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
@@ -234,9 +284,9 @@ jobs:
           codesign --force --options runtime --sign - pyrax-desktop/src-tauri/resources/pyrax-node
           echo "✓ pyrax-node pre-signed"
 
-      # Copy binary - Linux
+      # Copy binary - Linux (all distros)
       - name: Copy pyrax-node to resources (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           mkdir -p pyrax-desktop/src-tauri/resources
           cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
@@ -387,7 +437,7 @@ jobs:
 
       # Find and upload bundles - macOS
       - name: Find bundle files (macOS)
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        if: startsWith(matrix.platform, 'macos')
         id: find-bundle-macos
         run: |
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
@@ -423,7 +473,7 @@ jobs:
 
       # Verify and fix Linux AppImage permissions
       - name: Verify Linux bundle permissions
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           echo "Verifying Linux bundle..."
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
@@ -443,9 +493,9 @@ jobs:
             echo "✓ pyrax-node is executable"
           fi
 
-      # Find and upload bundles - Linux
+      # Find and upload bundles - Linux (all distros)
       - name: Find bundle files (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         id: find-bundle-linux
         run: |
           BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"

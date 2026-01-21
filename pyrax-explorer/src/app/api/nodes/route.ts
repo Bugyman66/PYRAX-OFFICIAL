@@ -251,7 +251,66 @@ interface MeshConnection {
   connection_type: string; // "mesh", "gossip", "direct"
 }
 
-// Fetch peers from a specific stream endpoint
+// Fetch peers using pyrax_getPeers RPC method (returns detailed peer list)
+async function fetchPeersDirectly(endpoint: string, stream: 'A' | 'B' | 'C'): Promise<any[]> {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'pyrax_getPeers',
+        params: [],
+        id: 1,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.error) return [];
+    
+    // Tag each peer with the stream it came from
+    const peers = (data.result || []).map((p: any) => ({ ...p, _stream: stream, _source: 'getPeers' }));
+    console.log(`[fetchPeersDirectly] ${endpoint} returned ${peers.length} peers`);
+    return peers;
+  } catch (e) {
+    console.error(`[fetchPeersDirectly] ${endpoint} failed:`, e);
+    return [];
+  }
+}
+
+// Fetch debug P2P state for mesh topology information
+async function fetchDebugP2PState(endpoint: string): Promise<{ meshPeers: string[]; gossipPeers: string[]; connections: MeshConnection[] }> {
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'pyrax_debugP2PState',
+        params: [],
+        id: 1,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) return { meshPeers: [], gossipPeers: [], connections: [] };
+    const data = await response.json();
+    if (data.error) return { meshPeers: [], gossipPeers: [], connections: [] };
+    
+    const result = data.result || {};
+    return {
+      meshPeers: result.mesh_peers || result.meshPeers || [],
+      gossipPeers: result.gossip_peers || result.gossipPeers || [],
+      connections: result.connections || result.mesh_connections || [],
+    };
+  } catch {
+    return { meshPeers: [], gossipPeers: [], connections: [] };
+  }
+}
+
+// Fetch peers from a specific stream endpoint using multiple RPC methods
 async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Promise<{ 
   peers: any[]; 
   localPeerId: string; 
@@ -260,46 +319,80 @@ async function fetchStreamPeers(endpoint: string, stream: 'A' | 'B' | 'C'): Prom
   meshConnections: MeshConnection[];
 }> {
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'pyrax_getNetworkInfo',
-        params: [],
-        id: 1,
+    // Call BOTH pyrax_getNetworkInfo AND pyrax_getPeers for complete data
+    const [networkInfoResponse, directPeers, debugState] = await Promise.all([
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'pyrax_getNetworkInfo',
+          params: [],
+          id: 1,
+        }),
+        signal: AbortSignal.timeout(5000),
       }),
-      signal: AbortSignal.timeout(5000),
-    });
+      fetchPeersDirectly(endpoint, stream),
+      fetchDebugP2PState(endpoint),
+    ]);
 
-    if (!response.ok) {
-      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
+    if (!networkInfoResponse.ok) {
+      // Even if networkInfo fails, we may have peers from getPeers
+      return { 
+        peers: directPeers, 
+        localPeerId: '', 
+        listenAddresses: [], 
+        latency: -1, 
+        meshConnections: debugState.connections 
+      };
     }
 
-    const data = await response.json();
+    const data = await networkInfoResponse.json();
     if (data.error) {
-      return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
+      return { 
+        peers: directPeers, 
+        localPeerId: '', 
+        listenAddresses: [], 
+        latency: -1, 
+        meshConnections: debugState.connections 
+      };
     }
 
     const networkInfo = data.result;
-    // Tag each peer with the stream it came from
-    const peers = (networkInfo?.peers || []).map((p: any) => ({ ...p, _stream: stream }));
+    // Get peers from networkInfo AND merge with direct peers
+    const networkInfoPeers = (networkInfo?.peers || []).map((p: any) => ({ ...p, _stream: stream, _source: 'networkInfo' }));
+    
+    // Merge both sources, preferring directPeers data (more detailed)
+    const allPeers = [...directPeers];
+    const seenIds = new Set(directPeers.map((p: any) => p.peer_id || p.id));
+    for (const peer of networkInfoPeers) {
+      const id = peer.peer_id || peer.id;
+      if (!seenIds.has(id)) {
+        allPeers.push(peer);
+        seenIds.add(id);
+      }
+    }
     
     // CAMELCASE FIX: Support both camelCase (new) and snake_case (legacy) field names
-    // This ensures compatibility during the transition period
-    const meshConnections: MeshConnection[] = networkInfo?.meshConnections || networkInfo?.mesh_connections || [];
+    const meshConnections: MeshConnection[] = [
+      ...(networkInfo?.meshConnections || networkInfo?.mesh_connections || []),
+      ...debugState.connections,
+    ];
     
     // Measure latency to this endpoint
     const latency = await measureLatency(endpoint);
     
+    console.log(`[fetchStreamPeers] ${endpoint} stream ${stream}: networkInfo=${networkInfoPeers.length}, direct=${directPeers.length}, total=${allPeers.length}`);
+    
     return {
-      peers,
+      peers: allPeers,
       localPeerId: networkInfo?.localPeerId || networkInfo?.local_peer_id || '',
       listenAddresses: networkInfo?.listenAddresses || networkInfo?.listen_addresses || [],
       latency,
       meshConnections,
     };
-  } catch {
+  } catch (e) {
+    console.error(`[fetchStreamPeers] ${endpoint} failed:`, e);
     return { peers: [], localPeerId: '', listenAddresses: [], latency: -1, meshConnections: [] };
   }
 }
