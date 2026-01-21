@@ -300,20 +300,20 @@ export default function Dashboard() {
       if (shouldUpdate && manifest) {
         setUpdateAvailable(true);
         setUpdateInfo({ version: manifest.version, body: manifest.body || '' });
-        addLog({ level: 'info', category: 'update', message: `Update available: v${manifest.version}` });
+        addLog('info', 'system', `Update available: v${manifest.version}`);
         
         // Ask user and install if they confirm
         if (window.confirm(`Update to v${manifest.version}?\n\n${manifest.body || 'New version available.'}`)) {
-          addLog({ level: 'info', category: 'update', message: 'Installing update...' });
+          addLog('info', 'system', 'Installing update...');
           await installUpdate();
           await relaunch();
         }
       } else {
-        addLog({ level: 'info', category: 'update', message: 'No updates available - you have the latest version!' });
+        addLog('info', 'system', 'No updates available - you have the latest version!');
       }
     } catch (e) {
       console.error('Failed to check for updates:', e);
-      addLog({ level: 'error', category: 'update', message: `Update check failed: ${e}` });
+      addLog('error', 'system', `Update check failed: ${e}`);
     } finally {
       setUpdateChecking(false);
     }
