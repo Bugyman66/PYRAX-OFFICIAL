@@ -14,8 +14,8 @@ use state::AppState;
 use std::sync::Arc;
 use parking_lot::Mutex;
 use tauri::Manager;
-use tracing::{info, warn};
-use tracing_subscriber;
+use tracing::{info, warn, error};
+use tracing_subscriber::{self, fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use commands::neurax::NeuraxState;
 use commands::neurax_commands::NeuraxStateWrapper;
 use commands::neurax_email::{NeuraxErrorBuffer, NeuraxErrorBufferWrapper};
@@ -88,8 +88,37 @@ fn check_and_install_vcruntime() {
 }
 
 fn main() {
-    // Initialize logging
-    tracing_subscriber::fmt::init();
+    // WINDOWS FIX: Initialize logging safely - write to file on Windows to avoid console issues
+    #[cfg(target_os = "windows")]
+    {
+        // On Windows GUI apps, there's no console, so we write logs to a file
+        let log_dir = directories::ProjectDirs::from("org", "pyrax", "PYRAX Desktop")
+            .map(|d| d.data_dir().to_path_buf())
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("inferno-desktop.log");
+        
+        // Try to set up file logging, fall back to no logging if it fails
+        if let Ok(file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file)
+        {
+            let file_layer = fmt::layer()
+                .with_writer(std::sync::Mutex::new(file))
+                .with_ansi(false);
+            let _ = tracing_subscriber::registry()
+                .with(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+                .with(file_layer)
+                .try_init();
+        }
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        // On Unix, console logging works fine
+        let _ = tracing_subscriber::fmt::try_init();
+    }
     
     info!("Starting PYRAX Desktop v{}", env!("CARGO_PKG_VERSION"));
     
@@ -221,11 +250,16 @@ fn main() {
         .setup(|app| {
             info!("Application setup complete");
             
-            // Get data directory
+            // Get data directory - use fallback if Tauri can't provide one
             let app_handle = app.handle();
             let data_dir = app_handle.path_resolver()
                 .app_data_dir()
-                .expect("Failed to get app data directory");
+                .unwrap_or_else(|| {
+                    warn!("Could not get app data directory from Tauri, using fallback");
+                    directories::ProjectDirs::from("org", "pyrax", "PYRAX Desktop")
+                        .map(|d| d.data_dir().to_path_buf())
+                        .unwrap_or_else(|| std::path::PathBuf::from("./pyrax-data"))
+                });
             
             info!("Data directory: {:?}", data_dir);
             
@@ -266,5 +300,23 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("Error while running PYRAX Desktop");
+        .unwrap_or_else(|e| {
+            error!("Failed to run PYRAX Desktop: {}", e);
+            // WINDOWS FIX: Show error dialog on Windows since there's no console
+            #[cfg(target_os = "windows")]
+            {
+                use std::ptr::null_mut;
+                let msg = format!("Failed to start Inferno Node:\n\n{}\n\nPlease ensure WebView2 is installed.", e);
+                let msg_wide: Vec<u16> = msg.encode_utf16().chain(std::iter::once(0)).collect();
+                let title: Vec<u16> = "Inferno Node Error".encode_utf16().chain(std::iter::once(0)).collect();
+                unsafe {
+                    #[link(name = "user32")]
+                    extern "system" {
+                        fn MessageBoxW(hwnd: *mut std::ffi::c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
+                    }
+                    MessageBoxW(null_mut(), msg_wide.as_ptr(), title.as_ptr(), 0x10); // MB_ICONERROR
+                }
+            }
+            std::process::exit(1);
+        });
 }
