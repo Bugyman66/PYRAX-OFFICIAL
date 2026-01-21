@@ -8,6 +8,7 @@ pub mod observer;
 pub mod metrics;
 pub mod api;
 pub mod state;
+pub mod crawler;
 
 pub use config::Config;
 pub use error::{ObserverError, Result};

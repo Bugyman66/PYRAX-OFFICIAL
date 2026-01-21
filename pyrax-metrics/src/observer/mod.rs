@@ -7,7 +7,7 @@ mod aggregator;
 pub mod stream_monitor;
 pub mod fork_detector;
 
-pub use rpc_client::{RpcClient, NodeStatus};
+pub use rpc_client::{RpcClient, NodeStatus, PeerInfo};
 pub use aggregator::{StateAggregator, ChainState};
 pub use stream_monitor::StreamMonitor;
 pub use fork_detector::ForkDetector;

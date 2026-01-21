@@ -78,6 +78,29 @@ pub enum SyncStatus {
     NotSyncing(bool),
 }
 
+/// Peer information from pyrax_getPeers
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PeerInfo {
+    /// Peer ID
+    pub id: String,
+    /// Remote address (IP:Port)
+    #[serde(default)]
+    pub remote_addr: Option<String>,
+    /// Local address
+    #[serde(default)]
+    pub local_addr: Option<String>,
+    /// Peer's best block height
+    #[serde(default)]
+    pub best_height: u64,
+    /// Protocol version
+    #[serde(default)]
+    pub version: Option<String>,
+    /// Direction (inbound/outbound)
+    #[serde(default)]
+    pub direction: Option<String>,
+}
+
 impl RpcClient {
     /// Create a new RPC client
     pub fn new(endpoint: String, timeout: Duration) -> Self {
@@ -205,6 +228,17 @@ impl RpcClient {
     pub async fn health(&self) -> Result<bool> {
         let result: Value = self.call("pyrax_health", json!([])).await?;
         Ok(result.as_str() == Some("ok"))
+    }
+    
+    /// Get connected peers (PYRAX custom RPC for node discovery)
+    pub async fn get_peers(&self) -> Result<Vec<PeerInfo>> {
+        let result: Vec<PeerInfo> = self.call("pyrax_getPeers", json!([])).await?;
+        Ok(result)
+    }
+    
+    /// Get endpoint URL
+    pub fn endpoint(&self) -> &str {
+        &self.endpoint
     }
     
     /// Make a JSON-RPC call

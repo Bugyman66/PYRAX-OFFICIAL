@@ -14,6 +14,7 @@ mod observer;
 mod metrics;
 mod api;
 mod state;
+mod crawler;
 
 use config::Config;
 use state::AppState;
@@ -61,6 +62,14 @@ async fn main() -> Result<()> {
     // Create the chain observer with shared state
     let observer = observer::ChainObserver::new(config.clone(), app_state.clone());
     
+    // Create node discovery crawler
+    let node_crawler = crawler::NodeCrawler::new(
+        config.crawler.clone(),
+        config.nodes.endpoints.clone(),
+    );
+    let discovered_nodes = node_crawler.discovered_nodes();
+    app_state.set_discovered_nodes(discovered_nodes);
+    
     // Create metrics server with shared state
     let metrics_server = metrics::MetricsServer::new(config.metrics.clone(), app_state.clone());
     
@@ -72,6 +81,11 @@ async fn main() -> Result<()> {
         result = observer.run() => {
             if let Err(e) = result {
                 error!("Observer error: {}", e);
+            }
+        }
+        result = node_crawler.run() => {
+            if let Err(e) = result {
+                error!("Crawler error: {}", e);
             }
         }
         result = metrics_server.run() => {

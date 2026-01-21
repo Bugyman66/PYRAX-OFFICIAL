@@ -19,6 +19,9 @@ pub struct Config {
     pub streams: StreamsConfig,
     /// Canary transaction settings
     pub canary: CanaryConfig,
+    /// Node discovery crawler settings
+    #[serde(default)]
+    pub crawler: CrawlerConfig,
     /// Prometheus metrics server settings
     pub metrics: MetricsConfig,
     /// Health/Status API settings
@@ -132,6 +135,23 @@ pub struct LoggingConfig {
     pub json: bool,
 }
 
+/// Node discovery crawler settings
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CrawlerConfig {
+    /// Enable node discovery crawler
+    #[serde(default)]
+    pub enabled: bool,
+    /// Crawl interval in milliseconds
+    #[serde(default = "default_crawl_interval")]
+    pub crawl_interval_ms: u64,
+    /// Maximum nodes to discover
+    #[serde(default = "default_max_nodes")]
+    pub max_nodes: usize,
+    /// Probe timeout in milliseconds
+    #[serde(default = "default_probe_timeout")]
+    pub probe_timeout_ms: u64,
+}
+
 // Default value functions
 fn default_poll_interval() -> u64 { 5000 }
 fn default_request_timeout() -> u64 { 3000 }
@@ -150,6 +170,9 @@ fn default_max_pending() -> u32 { 5 }
 fn default_metrics_addr() -> String { "0.0.0.0:9092".to_string() }
 fn default_api_addr() -> String { "0.0.0.0:8080".to_string() }
 fn default_log_level() -> String { "info".to_string() }
+fn default_crawl_interval() -> u64 { 300000 } // 5 minutes
+fn default_max_nodes() -> usize { 100 }
+fn default_probe_timeout() -> u64 { 5000 }
 
 impl Config {
     /// Load configuration from a TOML file
@@ -223,6 +246,12 @@ impl Default for Config {
             logging: LoggingConfig {
                 level: default_log_level(),
                 json: false,
+            },
+            crawler: CrawlerConfig {
+                enabled: false,
+                crawl_interval_ms: default_crawl_interval(),
+                max_nodes: default_max_nodes(),
+                probe_timeout_ms: default_probe_timeout(),
             },
         }
     }

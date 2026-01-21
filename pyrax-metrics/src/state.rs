@@ -7,6 +7,7 @@ use parking_lot::RwLock;
 use crate::observer::{ChainState, NodeStatus};
 use crate::observer::fork_detector::ForkDetector;
 use crate::observer::stream_monitor::{StreamMonitor, Stream, StreamState};
+use crate::crawler::{SharedDiscoveredNodes, DiscoveredNode};
 use crate::config::Config;
 
 /// Shared application state
@@ -24,6 +25,8 @@ struct AppStateInner {
     fork_detected: RwLock<bool>,
     /// Stream states
     stream_states: RwLock<StreamStates>,
+    /// Discovered nodes from crawler
+    discovered_nodes: RwLock<Option<SharedDiscoveredNodes>>,
     /// Configuration
     config: Config,
 }
@@ -55,6 +58,7 @@ impl AppState {
                 node_statuses: RwLock::new(Vec::new()),
                 fork_detected: RwLock::new(false),
                 stream_states: RwLock::new(StreamStates::default()),
+                discovered_nodes: RwLock::new(None),
                 config,
             }),
         }
@@ -103,5 +107,28 @@ impl AppState {
     /// Get config
     pub fn config(&self) -> &Config {
         &self.inner.config
+    }
+    
+    /// Set discovered nodes reference
+    pub fn set_discovered_nodes(&self, nodes: SharedDiscoveredNodes) {
+        *self.inner.discovered_nodes.write() = Some(nodes);
+    }
+    
+    /// Get discovered nodes
+    pub fn discovered_nodes(&self) -> Vec<DiscoveredNode> {
+        if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
+            nodes.read().clone()
+        } else {
+            Vec::new()
+        }
+    }
+    
+    /// Get discovered nodes count
+    pub fn discovered_nodes_count(&self) -> usize {
+        if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
+            nodes.read().len()
+        } else {
+            0
+        }
     }
 }
