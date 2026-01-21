@@ -21,6 +21,7 @@ use commands::neurax_commands::NeuraxStateWrapper;
 use commands::neurax_email::{NeuraxErrorBuffer, NeuraxErrorBufferWrapper};
 use commands::neurax_llm::{LlmState, LlmStateWrapper};
 use commands::neurax_mesh_optimizer::{MeshOptimizer, MeshOptimizerWrapper};
+use commands::neurax_inference::{AiInferenceEngine, AiInferenceWrapper};
 
 /// Check if Visual C++ Runtime is installed (Windows only)
 #[cfg(target_os = "windows")]
@@ -223,6 +224,9 @@ fn run_app() {
     
     // Initialize NEURAX Mesh Network Optimizer
     let neurax_mesh_optimizer = Arc::new(MeshOptimizer::new());
+    
+    // Initialize NEURAX Distributed AI Inference Engine
+    let neurax_ai_engine = Arc::new(AiInferenceEngine::new());
 
     tauri::Builder::default()
         .manage(app_state)
@@ -230,6 +234,7 @@ fn run_app() {
         .manage(NeuraxErrorBufferWrapper(neurax_error_buffer.clone()))
         .manage(LlmStateWrapper(neurax_llm_state.clone()))
         .manage(MeshOptimizerWrapper(neurax_mesh_optimizer.clone()))
+        .manage(AiInferenceWrapper(neurax_ai_engine.clone()))
         .invoke_handler(tauri::generate_handler![
             // Node commands
             commands::node::start_node,
@@ -345,6 +350,16 @@ fn run_app() {
             commands::neurax_mesh_optimizer::neurax_get_mesh_summary,
             commands::neurax_mesh_optimizer::neurax_set_optimizer_config,
             commands::neurax_mesh_optimizer::neurax_toggle_optimizer,
+            
+            // NEURAX Distributed AI Inference commands
+            commands::neurax_inference::neurax_get_gpu_capabilities,
+            commands::neurax_inference::neurax_get_inference_mode,
+            commands::neurax_inference::neurax_get_ai_config,
+            commands::neurax_inference::neurax_set_ai_config,
+            commands::neurax_inference::neurax_process_chat,
+            commands::neurax_inference::neurax_get_ai_stats,
+            commands::neurax_inference::neurax_get_remote_ai_nodes,
+            commands::neurax_inference::neurax_can_local_inference,
         ])
         .setup(|app| {
             info!("Application setup complete");
@@ -395,6 +410,12 @@ fn run_app() {
             let llm_state = app.state::<LlmStateWrapper>();
             llm_state.0.load_config(&data_dir);
             info!("NEURAX LLM system initialized");
+            
+            // Load AI Inference Engine config
+            let ai_engine = app.state::<AiInferenceWrapper>();
+            ai_engine.0.load_config(&data_dir);
+            let mode = ai_engine.0.get_inference_mode();
+            info!("NEURAX AI Inference Engine initialized: {:?}", mode);
             
             Ok(())
         })

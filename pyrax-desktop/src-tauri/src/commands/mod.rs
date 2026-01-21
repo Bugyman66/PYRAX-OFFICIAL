@@ -10,3 +10,4 @@ pub mod neurax_email;
 pub mod neurax_llm;
 pub mod neurax_admin;
 pub mod neurax_mesh_optimizer;
+pub mod neurax_inference;
