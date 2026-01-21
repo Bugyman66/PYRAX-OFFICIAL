@@ -37,6 +37,21 @@ interface NodePosition {
 
 const MAX_DATA_POINTS = 30;
 
+// Bootnode IPs for devnet
+const BOOTNODE_IPS = ['209.38.137.105', '137.184.118.228'];
+
+// Helper to check if an IP is a bootnode
+const isBootnodeIP = (ip: string): boolean => BOOTNODE_IPS.includes(ip);
+
+// Helper to extract IP from multiaddr format (e.g., /ip4/1.2.3.4/tcp/30303)
+const extractIPFromAddress = (address: string): string => {
+  const match = address.match(/\/ip4\/([^/]+)/);
+  if (match) return match[1];
+  const colonMatch = address.match(/^([^:]+):/);
+  if (colonMatch) return colonMatch[1];
+  return address;
+};
+
 export default function Dashboard() {
   const { status, chainInfo, peers, fetchPeers, startNode, stopNode, fetchChainInfo, loading: nodeLoading } = useNodeStore();
   const { addresses } = useWalletStore();
@@ -114,26 +129,30 @@ export default function Dashboard() {
     }
   }, [status?.running, status?.connected, fetchChainInfo, fetchPeers]);
 
-  // Collect telemetry data every 10 seconds
+  // Collect telemetry data - add first point immediately, then every 10 seconds
   useEffect(() => {
     if (!status?.connected) return;
-    const interval = setInterval(() => {
-      const now = Date.now();
-      if (now - lastUpdateRef.current < 10000) return;
-      lastUpdateRef.current = now;
+    
+    const addDataPoint = () => {
       const newDataPoint: TelemetryDataPoint = {
-        timestamp: now,
+        timestamp: Date.now(),
         peerCount: status.peerCount || 0,
-        meshPeers: status.meshPeers || 0,
-        latency: status.averageRttMs || 0,
+        meshPeers: status.meshPeers ?? 0,
+        latency: status.averageRttMs ?? 0,
       };
       setTelemetryHistory(prev => {
         const newHistory = [...prev, newDataPoint];
         return newHistory.length > MAX_DATA_POINTS ? newHistory.slice(-MAX_DATA_POINTS) : newHistory;
       });
-    }, 10000);
+    };
+    
+    // Add first data point immediately
+    addDataPoint();
+    
+    // Then collect every 10 seconds
+    const interval = setInterval(addDataPoint, 10000);
     return () => clearInterval(interval);
-  }, [status]);
+  }, [status?.connected, status?.peerCount, status?.meshPeers, status?.averageRttMs]);
 
   // Fetch mesh data for visualization
   const fetchMeshData = useCallback(async () => {
@@ -180,9 +199,9 @@ export default function Dashboard() {
         id: peer.id,
         x: centerX + radius * Math.cos(angle),
         y: centerY + radius * Math.sin(angle),
-        label: peer.id.slice(0, 6),
+        label: peer.id.slice(-6),
         isLocal: false,
-        isBootnode: peer.ip === '209.38.137.105' || peer.ip === '137.184.118.228',
+        isBootnode: isBootnodeIP(peer.ip) || isBootnodeIP(extractIPFromAddress(peer.address || '')),
       });
     });
 
@@ -269,11 +288,13 @@ export default function Dashboard() {
     }
   };
 
-  // Health calculations
-  const meshHealth = status?.meshPeers ? Math.min(100, (status.meshPeers / 4) * 100) : 0;
-  const totalDials = (status?.dialSuccesses || 0) + (status?.dialFailures || 0);
-  const dialSuccess = totalDials > 0 ? ((status?.dialSuccesses || 0) / totalDials) * 100 : 50;
-  const latencyScore = status?.averageRttMs ? Math.max(0, Math.min(100, 100 - (status.averageRttMs / 5))) : 50;
+  // Health calculations - handle 0 as valid value with !== undefined checks
+  const meshHealth = status?.meshPeers !== undefined && status.meshPeers !== null 
+    ? Math.min(100, (status.meshPeers / 4) * 100) : 0;
+  const totalDials = (status?.dialSuccesses ?? 0) + (status?.dialFailures ?? 0);
+  const dialSuccess = totalDials > 0 ? ((status?.dialSuccesses ?? 0) / totalDials) * 100 : 50;
+  const latencyScore = status?.averageRttMs !== undefined && status.averageRttMs !== null && status.averageRttMs > 0
+    ? Math.max(0, Math.min(100, 100 - (status.averageRttMs / 5))) : 50;
   const overallHealth = Math.round((meshHealth + dialSuccess + latencyScore) / 3);
 
   const getHealthColor = (value: number) => value > 70 ? 'text-green-400' : value > 40 ? 'text-yellow-400' : 'text-red-400';
@@ -495,7 +516,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
                 {peers.slice(0, 12).map((peer) => (
                   <div key={peer.id} className="flex items-center gap-3 bg-dark-700/50 rounded-lg px-3 py-2">
-                    <div className={`w-2 h-2 rounded-full ${peer.direction === 'inbound' ? 'bg-blue-400' : 'bg-purple-400'}`} />
+                    <div className={`w-2 h-2 rounded-full ${isBootnodeIP(peer.ip) ? 'bg-amber-500' : 'bg-green-500'}`} />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-mono text-stone-300 truncate">{peer.id.slice(0, 16)}...</div>
                       <div className="text-[10px] text-stone-500">{peer.ip}:{peer.port} • {peer.direction}</div>

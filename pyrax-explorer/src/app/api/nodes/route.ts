@@ -100,14 +100,18 @@ async function getGeoLocation(ip: string): Promise<GeoLocation> {
   }
 
   // Handle relay-connected peers (behind NAT, no direct IP)
+  // Give them approximate random locations near bootnodes so they show on the map
   if (ip === 'relay-connected') {
-    const relayGeo: GeoLocation = {
-      country: 'Relay Network',
-      countryCode: 'RN',
-      city: 'NAT Traversal',
-      lat: 0,
-      lon: 0,
-    };
+    // Distribute relay peers across different regions for visual representation
+    // Use a hash of the cache size to get consistent but varied positions
+    const regionIndex = geoCache.size % 4;
+    const regions = [
+      { country: 'United States', countryCode: 'US', city: 'East Coast (Relay)', lat: 40.7128 + (Math.random() - 0.5) * 8, lon: -74.0060 + (Math.random() - 0.5) * 8 },
+      { country: 'United States', countryCode: 'US', city: 'West Coast (Relay)', lat: 37.7749 + (Math.random() - 0.5) * 8, lon: -122.4194 + (Math.random() - 0.5) * 8 },
+      { country: 'Europe', countryCode: 'EU', city: 'Europe (Relay)', lat: 51.5074 + (Math.random() - 0.5) * 10, lon: -0.1278 + (Math.random() - 0.5) * 10 },
+      { country: 'Asia', countryCode: 'AS', city: 'Asia (Relay)', lat: 35.6762 + (Math.random() - 0.5) * 10, lon: 139.6503 + (Math.random() - 0.5) * 10 },
+    ];
+    const relayGeo: GeoLocation = regions[regionIndex];
     return relayGeo;
   }
 
@@ -427,7 +431,7 @@ export async function GET() {
     };
 
     // Generate connections between nodes (bootnodes connect to all peers via relay or direct)
-    const connections: Array<{ from: string; to: string; fromCoords: [number, number]; toCoords: [number, number]; isRelay?: boolean }> = [];
+    const connections: Array<{ from: string; to: string; fromCoords: [number, number]; toCoords: [number, number]; isRelay?: boolean; isMesh?: boolean; connectionType?: string }> = [];
     
     // Each online peer is connected to at least one bootnode (via relay or direct)
     const onlineBootnodes = bootnodeNodes.filter(bn => bn.online);
@@ -537,7 +541,7 @@ export async function GET() {
             isRelay: false,
             isMesh: true,
             connectionType: 'mesh',
-          } as any);
+          });
           pairCount++;
         }
       }

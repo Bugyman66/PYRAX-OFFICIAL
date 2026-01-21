@@ -105,6 +105,7 @@ fn main() {
             commands::node::get_chain_info,
             commands::node::get_peers,
             commands::node::get_network_mesh,
+            commands::node::measure_bootnode_latency,
             
             // Wallet commands
             commands::wallet::create_wallet,

@@ -1765,3 +1765,52 @@ pub async fn get_network_mesh(
         }
     }
 }
+
+/// Measure real-time latency to bootnodes
+/// Returns latency in milliseconds for each bootnode
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BootnodeLatency {
+    pub ip: String,
+    pub latency_ms: Option<u64>,
+    pub online: bool,
+}
+
+#[tauri::command]
+pub async fn measure_bootnode_latency(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<Vec<BootnodeLatency>, String> {
+    let network = {
+        let app_state = state.lock();
+        app_state.network.clone()
+    };
+    
+    let bootnode_configs = get_bootnode_configs(&network);
+    let mut results = Vec::new();
+    
+    for config in bootnode_configs {
+        let start = std::time::Instant::now();
+        let rpc_url = format!("http://{}:{}", config.ip, config.rpc_port);
+        let rpc = RpcClient::new(&rpc_url);
+        
+        match rpc.health_check().await {
+            Ok(_) => {
+                let latency = start.elapsed().as_millis() as u64;
+                results.push(BootnodeLatency {
+                    ip: config.ip.to_string(),
+                    latency_ms: Some(latency),
+                    online: true,
+                });
+            }
+            Err(_) => {
+                results.push(BootnodeLatency {
+                    ip: config.ip.to_string(),
+                    latency_ms: None,
+                    online: false,
+                });
+            }
+        }
+    }
+    
+    Ok(results)
+}
