@@ -319,6 +319,10 @@ jobs:
         with:
           targets: ${{ matrix.rust_target }}
 
+      # Ensure cross-compilation target is installed (especially for Windows ARM)
+      - name: Add Rust target for cross-compilation
+        run: rustup target add ${{ matrix.rust_target }}
+
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
