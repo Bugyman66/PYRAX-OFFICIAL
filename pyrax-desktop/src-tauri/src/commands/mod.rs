@@ -4,3 +4,5 @@ pub mod miner;
 pub mod explorer;
 pub mod settings;
 pub mod updater;
+pub mod neurax;
+pub mod neurax_commands;

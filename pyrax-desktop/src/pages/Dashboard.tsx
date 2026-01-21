@@ -15,6 +15,7 @@ import { useMinerStore } from '../stores/minerStore';
 import { useLogStore } from '../stores/logStore';
 import { formatBalance, formatHashrate } from '../lib/utils';
 import LogViewer from '../components/LogViewer';
+import NeuraxInsightsPanel from '../components/NeuraxInsightsPanel';
 
 interface TelemetryDataPoint {
   timestamp: number;
@@ -599,8 +600,15 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Log Viewer */}
-      <LogViewer />
+      {/* NEURAX AI Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <LogViewer />
+        </div>
+        <div>
+          <NeuraxInsightsPanel />
+        </div>
+      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

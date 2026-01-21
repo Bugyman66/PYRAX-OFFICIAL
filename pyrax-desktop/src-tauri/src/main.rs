@@ -16,6 +16,8 @@ use parking_lot::Mutex;
 use tauri::Manager;
 use tracing::{info, warn};
 use tracing_subscriber;
+use commands::neurax::NeuraxState;
+use commands::neurax_commands::NeuraxStateWrapper;
 
 /// Check if Visual C++ Runtime is installed (Windows only)
 #[cfg(target_os = "windows")]
@@ -94,9 +96,13 @@ fn main() {
 
     // Initialize application state
     let app_state = Arc::new(Mutex::new(AppState::new()));
+    
+    // Initialize NEURAX AI state
+    let neurax_state = Arc::new(NeuraxState::new());
 
     tauri::Builder::default()
         .manage(app_state)
+        .manage(NeuraxStateWrapper(neurax_state.clone()))
         .invoke_handler(tauri::generate_handler![
             // Node commands
             commands::node::start_node,
@@ -164,6 +170,23 @@ fn main() {
             commands::updater::install_update,
             commands::updater::get_app_version,
             commands::updater::check_version_compatibility,
+            
+            // NEURAX AI commands
+            commands::neurax_commands::neurax_get_config,
+            commands::neurax_commands::neurax_set_config,
+            commands::neurax_commands::neurax_set_enabled,
+            commands::neurax_commands::neurax_set_permissions,
+            commands::neurax_commands::neurax_get_system_metrics,
+            commands::neurax_commands::neurax_get_metrics_history,
+            commands::neurax_commands::neurax_analyze_logs,
+            commands::neurax_commands::neurax_generate_insights,
+            commands::neurax_commands::neurax_get_insights,
+            commands::neurax_commands::neurax_dismiss_insight,
+            commands::neurax_commands::neurax_chat,
+            commands::neurax_commands::neurax_get_chat_history,
+            commands::neurax_commands::neurax_clear_chat,
+            commands::neurax_commands::neurax_execute_action,
+            commands::neurax_commands::neurax_get_quick_insights,
         ])
         .setup(|app| {
             info!("Application setup complete");
@@ -178,6 +201,11 @@ fn main() {
             
             // Create data directory if it doesn't exist
             std::fs::create_dir_all(&data_dir).ok();
+            
+            // Load NEURAX config
+            let neurax = app.state::<NeuraxStateWrapper>();
+            neurax.0.load_config(&data_dir);
+            info!("NEURAX AI system initialized");
             
             Ok(())
         })
