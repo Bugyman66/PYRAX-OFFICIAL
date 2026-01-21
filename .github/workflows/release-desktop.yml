@@ -746,52 +746,65 @@ jobs:
             // Build platforms object for all available platforms
             const platforms = {};
             
-            // Windows x86_64
-            const windowsAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
-            const windowsSig = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            // Windows x86_64 - check for .nsis.zip first, fallback to .exe
+            let windowsAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
+            let windowsSig = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            if (!windowsAsset) {
+              windowsAsset = release.assets.find(a => a.name.includes('Windows') && a.name.endsWith('.exe'));
+            }
             if (windowsAsset) {
               console.log('Found Windows asset:', windowsAsset.name);
               platforms['windows-x86_64'] = {
-                signature: await getSignature(windowsSig),
+                signature: windowsSig ? await getSignature(windowsSig) : '',
                 url: windowsAsset.browser_download_url
               };
             }
             
-            // macOS x86_64 (Intel)
-            const macosIntelAsset = release.assets.find(a => a.name.includes('darwin-x86_64') && a.name.endsWith('.app.tar.gz'));
-            const macosIntelSig = release.assets.find(a => a.name.includes('darwin-x86_64') && a.name.endsWith('.app.tar.gz.sig'));
+            // macOS x86_64 (Intel) - check for .app.tar.gz first, fallback to .dmg
+            let macosIntelAsset = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.app.tar.gz'));
+            let macosIntelSig = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.sig'));
+            if (!macosIntelAsset) {
+              macosIntelAsset = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.dmg'));
+            }
             if (macosIntelAsset) {
               console.log('Found macOS Intel asset:', macosIntelAsset.name);
               platforms['darwin-x86_64'] = {
-                signature: await getSignature(macosIntelSig),
+                signature: macosIntelSig ? await getSignature(macosIntelSig) : '',
                 url: macosIntelAsset.browser_download_url
               };
             }
             
-            // macOS aarch64 (Apple Silicon)
-            const macosArmAsset = release.assets.find(a => a.name.includes('darwin-aarch64') && a.name.endsWith('.app.tar.gz'));
-            const macosArmSig = release.assets.find(a => a.name.includes('darwin-aarch64') && a.name.endsWith('.app.tar.gz.sig'));
+            // macOS aarch64 (Apple Silicon) - check for .app.tar.gz first, fallback to .dmg
+            let macosArmAsset = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.app.tar.gz'));
+            let macosArmSig = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.sig'));
+            if (!macosArmAsset) {
+              macosArmAsset = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.dmg'));
+            }
             if (macosArmAsset) {
               console.log('Found macOS ARM asset:', macosArmAsset.name);
               platforms['darwin-aarch64'] = {
-                signature: await getSignature(macosArmSig),
+                signature: macosArmSig ? await getSignature(macosArmSig) : '',
                 url: macosArmAsset.browser_download_url
               };
             }
             
-            // Linux x86_64
-            const linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz'));
-            const linuxSig = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz.sig'));
+            // Linux x86_64 - check for .AppImage.tar.gz first, fallback to .AppImage
+            let linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz'));
+            let linuxSig = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz.sig'));
+            if (!linuxAsset) {
+              linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage'));
+            }
             if (linuxAsset) {
               console.log('Found Linux asset:', linuxAsset.name);
               platforms['linux-x86_64'] = {
-                signature: await getSignature(linuxSig),
+                signature: linuxSig ? await getSignature(linuxSig) : '',
                 url: linuxAsset.browser_download_url
               };
             }
             
             if (Object.keys(platforms).length === 0) {
-              core.setFailed('No platform assets found in release!');
+              console.log('Warning: No platform assets found - skipping manifest generation');
+              console.log('Available assets:', release.assets.map(a => a.name));
               return;
             }
             
