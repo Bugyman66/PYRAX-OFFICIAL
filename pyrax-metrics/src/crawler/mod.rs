@@ -79,8 +79,9 @@ impl NodeCrawler {
             // All nodes from pyrax_getPeers are online (actively connected)
             // No need for RPC verification
             let discovered = self.discovered.read();
-            let online = discovered.len();
-            info!("{} nodes online (connected to seed)", online);
+            let total = discovered.len();
+            let online = discovered.iter().filter(|n| n.reachable).count();
+            info!("{} nodes discovered, {} online", total, online);
         }
     }
     
@@ -126,34 +127,57 @@ impl NodeCrawler {
     /// Perform one crawl cycle
     async fn crawl_network(&self) -> Result<()> {
         let timeout = Duration::from_millis(self.config.probe_timeout_ms);
+        let timestamp = chrono::Utc::now().timestamp() as u64;
         
-        // Start with seed endpoints
-        let mut endpoints_to_probe: Vec<String> = self.seed_endpoints.clone();
-        
-        // Add already discovered endpoints
+        // First, mark all discovered nodes as offline
         {
-            let discovered = self.discovered.read();
-            for node in discovered.iter() {
-                if !endpoints_to_probe.contains(&node.endpoint) {
-                    endpoints_to_probe.push(node.endpoint.clone());
-                }
+            let mut discovered = self.discovered.write();
+            for node in discovered.iter_mut() {
+                node.reachable = false;
             }
         }
         
-        // Probe each endpoint
-        for endpoint in endpoints_to_probe.iter() {
-            if self.discovered.read().len() >= self.config.max_nodes {
-                debug!("Reached max nodes limit");
-                break;
-            }
-            
+        // Collect current peer IDs in this crawl cycle
+        let mut current_peer_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
+        
+        // Query seed endpoints for current peer list
+        for endpoint in &self.seed_endpoints {
             let client = RpcClient::new(endpoint.clone(), timeout);
             
-            // Try to get peers from this node
             match client.get_peers().await {
                 Ok(peers) => {
                     debug!("Got {} peers from {}", peers.len(), endpoint);
-                    self.process_peers(peers).await;
+                    
+                    for peer in peers {
+                        current_peer_ids.insert(peer.peer_id.clone());
+                        
+                        // Add or update node
+                        if let Some(ip) = &peer.ip {
+                            let node_endpoint = format!("http://{}:8545", ip);
+                            
+                            let mut discovered = self.discovered.write();
+                            
+                            // Check if already discovered
+                            if let Some(existing) = discovered.iter_mut().find(|n| n.peer_id == peer.peer_id) {
+                                // Update existing node - mark as online
+                                existing.reachable = true;
+                                existing.last_seen = timestamp;
+                                existing.best_height = peer.block_height;
+                            } else if discovered.len() < self.config.max_nodes {
+                                // Add new node as online
+                                let node = DiscoveredNode {
+                                    endpoint: node_endpoint.clone(),
+                                    peer_id: peer.peer_id.clone(),
+                                    last_seen: timestamp,
+                                    reachable: true, // Online - currently connected
+                                    best_height: peer.block_height,
+                                    version: peer.version.clone(),
+                                };
+                                info!("New node: {} (peer: {})", node_endpoint, &peer.peer_id[..16]);
+                                discovered.push(node);
+                            }
+                        }
+                    }
                 }
                 Err(e) => {
                     debug!("Failed to get peers from {}: {}", endpoint, e);
