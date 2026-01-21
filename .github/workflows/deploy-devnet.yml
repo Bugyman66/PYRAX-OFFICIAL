@@ -193,9 +193,9 @@ jobs:
           cargo clean -p pyrax-node 2>/dev/null || true
           rm -f /opt/pyrax/target/release/pyrax-node
           
-          # Build using locked dependencies from Cargo.lock (DO NOT update - API breaking changes)
+          # Build pyrax-node (allow Cargo.lock updates for new dependencies)
           # Use -j 1 to limit parallel jobs and prevent OOM on 8GB servers
-          cargo build --release --locked -p pyrax-node -j 1
+          cargo build --release -p pyrax-node -j 1
           
           # Stop running service and kill any orphan processes before replacing binary
           echo "=== STOPPING PYRAX-NODE SERVICE ==="
