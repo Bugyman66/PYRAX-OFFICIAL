@@ -12,6 +12,7 @@ max_retries = 3
 # List of RPC endpoints to monitor
 endpoints = [
     "http://rpc.pyrax-devnet.org",
+    "http://209.38.137.105:8545",   # Bootnode
 ]
 
 [chain]

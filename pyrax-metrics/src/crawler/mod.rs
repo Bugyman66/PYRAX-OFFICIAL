@@ -76,13 +76,11 @@ impl NodeCrawler {
                 warn!("Crawl error: {}", e);
             }
             
-            // Verify which nodes are actually online
-            self.verify_nodes().await;
-            
+            // All nodes from pyrax_getPeers are online (actively connected)
+            // No need for RPC verification
             let discovered = self.discovered.read();
-            let total = discovered.len();
-            let online = discovered.iter().filter(|n| n.reachable).count();
-            info!("Discovered {} nodes, {} online", total, online);
+            let online = discovered.len();
+            info!("{} nodes online (connected to seed)", online);
         }
     }
     
