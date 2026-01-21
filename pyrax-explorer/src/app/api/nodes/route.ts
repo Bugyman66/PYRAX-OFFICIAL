@@ -36,12 +36,13 @@ interface NodeStats {
 }
 
 // RPC endpoints for all 3 streams
-// Node runs via systemd on host - use Docker host gateway IP (172.17.0.1) in production
-// When running standalone/dev, use direct server IP
+// Node runs via systemd on host - use host.docker.internal (configured via extra_hosts in docker-compose)
+// In dev: use direct bootnode IP rpc.pyrax-devnet.org (209.38.137.105:28545)
+// Currently: All streams use the same node (single node deployment)
 const STREAM_ENDPOINTS = {
-  A: process.env.STREAM_A_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28545' : 'http://209.38.137.105:28545'),
-  B: process.env.STREAM_B_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28545' : 'http://209.38.137.105:28545'),
-  C: process.env.STREAM_C_RPC || (process.env.NODE_ENV === 'production' ? 'http://172.17.0.1:28547' : 'http://209.38.137.105:28547'),
+  A: process.env.STREAM_A_RPC || 'http://host.docker.internal:28545',
+  B: process.env.STREAM_B_RPC || 'http://host.docker.internal:28545',
+  C: process.env.STREAM_C_RPC || 'http://host.docker.internal:28545',
 };
 
 // Bootnode configurations - these are always shown regardless of P2P connections
