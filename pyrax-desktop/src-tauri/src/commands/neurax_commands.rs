@@ -79,15 +79,15 @@ pub async fn neurax_set_permissions(
         permissions_changed.push("memory_optimization".to_string());
         needs_elevation = true;
     }
-    if permissions.auto_fix && !current_permissions.auto_fix {
-        permissions_changed.push("auto_fix".to_string());
+    if permissions.auto_apply && !current_permissions.auto_apply {
+        permissions_changed.push("auto_apply".to_string());
         needs_elevation = true;
     }
-    if permissions.network_diagnostics && !current_permissions.network_diagnostics {
-        permissions_changed.push("network_diagnostics".to_string());
+    if permissions.network_tuning && !current_permissions.network_tuning {
+        permissions_changed.push("network_tuning".to_string());
     }
-    if permissions.system_monitoring && !current_permissions.system_monitoring {
-        permissions_changed.push("system_monitoring".to_string());
+    if permissions.power_settings && !current_permissions.power_settings {
+        permissions_changed.push("power_settings".to_string());
     }
     
     // If enabling sensitive permissions and elevation is requested

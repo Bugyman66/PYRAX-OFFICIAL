@@ -73,8 +73,9 @@ impl NeuraxErrorBuffer {
         errors.push(entry);
         
         // Keep only last 1000 errors to prevent memory bloat
-        if errors.len() > 1000 {
-            errors.drain(0..errors.len() - 1000);
+        let len = errors.len();
+        if len > 1000 {
+            errors.drain(0..len - 1000);
         }
     }
 

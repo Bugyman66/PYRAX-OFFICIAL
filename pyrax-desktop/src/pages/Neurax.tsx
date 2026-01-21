@@ -197,7 +197,8 @@ export default function Neurax() {
   const sensitivePermissions: (keyof NeuraxPermissions)[] = [
     'process_management',
     'memory_optimization',
-    'auto_apply'
+    'auto_apply',
+    'power_settings'
   ];
 
   const updatePermissions = async (key: keyof NeuraxPermissions, value: boolean) => {
