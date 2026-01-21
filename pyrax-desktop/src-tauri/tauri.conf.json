@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "Inferno Node",
-    "version": "0.3.11"
+    "version": "0.3.13"
   },
   "tauri": {
     "allowlist": {
