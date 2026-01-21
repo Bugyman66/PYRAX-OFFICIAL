@@ -400,7 +400,7 @@ export async function GET() {
         
         return {
           id: peer.peer_id || `peer-${idx}`,
-          peerId: peer.peer_id || '',
+          peerId: peer.peer_id || `peer-${idx}`,
           ip,
           port,
           country: geo.country,
@@ -533,6 +533,7 @@ export async function GET() {
     // Build lookup map with MULTIPLE keys for peer ID matching (full ID, last 12 chars, node id)
     // This handles format mismatches between RPC response and processed nodes
     for (const node of [...bootnodeNodes, ...peerNodes]) {
+      if (!node.peerId) continue; // Skip nodes with undefined peerId
       peerIdToNode.set(node.peerId, node);
       if (node.peerId.length > 12) {
         peerIdToNode.set(node.peerId.slice(-12), node); // Last 12 chars
@@ -542,10 +543,11 @@ export async function GET() {
     }
     
     // Helper to find node by peer ID with fallback lookups
-    const findNodeByPeerId = (peerId: string): ConnectedNode | undefined => {
+    const findNodeByPeerId = (peerId: string | undefined): ConnectedNode | undefined => {
+      if (!peerId) return undefined;
       return peerIdToNode.get(peerId) 
-        || peerIdToNode.get(peerId.slice(-12)) 
-        || peerIdToNode.get(peerId.slice(-8));
+        || (peerId.length > 12 ? peerIdToNode.get(peerId.slice(-12)) : undefined)
+        || (peerId.length > 8 ? peerIdToNode.get(peerId.slice(-8)) : undefined);
     };
     
     // Group user peers by topic to infer user-to-user connections

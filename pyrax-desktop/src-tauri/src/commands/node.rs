@@ -1133,13 +1133,20 @@ pub async fn get_node_status(
     // P2P STATS FIX: Always prefer LOCAL node for accurate P2P statistics
     // Remote bootnode's P2P state is irrelevant to the user's local connections
     let remote_url = get_remote_rpc_url(&network);
+    info!("get_node_status: Checking RPC connections (local port={}, remote={})", rpc_port, remote_url);
     let remote_rpc = RpcClient::new(remote_url);
     let local_rpc = RpcClient::localhost(rpc_port);
     
     // Check which RPC is connected - LOCAL FIRST for accurate P2P stats
-    let (rpc, is_remote) = if local_rpc.is_connected().await {
+    let local_connected = local_rpc.is_connected().await;
+    let remote_connected = remote_rpc.is_connected().await;
+    info!("get_node_status: local_connected={}, remote_connected={}", local_connected, remote_connected);
+    
+    let (rpc, is_remote) = if local_connected {
+        info!("get_node_status: Using LOCAL RPC");
         (local_rpc, false)  // Local node preferred - has our actual P2P state
-    } else if remote_rpc.is_connected().await {
+    } else if remote_connected {
+        info!("get_node_status: Using REMOTE RPC (bootnode)");
         (remote_rpc, true)  // Remote only as fallback when no local node
     } else {
         return Ok(NodeStatus {
@@ -1177,6 +1184,9 @@ pub async fn get_node_status(
             // Remote stats show bootnode's view of the network, useful for users without local node
             let (peer_count, p2p_stats, network_state_override) = match rpc.get_network_info().await {
                 Ok(net_info) => {
+                    info!("get_node_status: get_network_info returned peer_count={}, mesh={}, gossip={}, in={}, out={}",
+                        net_info.peer_count, net_info.mesh_peers, net_info.gossip_peers, 
+                        net_info.inbound_peers, net_info.outbound_peers);
                     // PEER COUNT FIX: Use mesh_peers or gossip_peers as fallback if peer_count is 0
                     let effective_count = if net_info.peer_count > 0 {
                         net_info.peer_count as u32
@@ -1189,6 +1199,7 @@ pub async fn get_node_status(
                     } else {
                         if is_remote { 1 } else { 0 }
                     };
+                    info!("get_node_status: effective_peer_count={}", effective_count);
                     // When remote, indicate it's bootnode stats
                     let state_override = if is_remote { 
                         Some("Connected (via Bootnode)".to_string()) 
@@ -1287,31 +1298,38 @@ pub async fn get_chain_info(
 pub async fn get_peers(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<Vec<PeerInfo>, String> {
+    info!("get_peers called");
+    
     let (running, rpc_port) = {
         let app_state = state.lock();
+        info!("get_peers: Node running={}, RPC port={}", app_state.node_running, app_state.rpc_port);
         (app_state.node_running, app_state.rpc_port)
     };
     
     if !running {
+        warn!("get_peers: Node is not running");
         return Err("Node is not running".to_string());
     }
     
     let rpc = RpcClient::localhost(rpc_port);
     
     match rpc.get_peers().await {
-        Ok(peers) => Ok(peers.into_iter().map(|p| PeerInfo {
-            id: p.peer_id,
-            address: p.address,
-            ip: p.ip,
-            port: p.port,
-            protocol: p.protocol,
-            direction: p.direction,
-            connected_secs: p.connected_secs,
-            version: p.version,
-            block_height: p.block_height,
-        }).collect()),
+        Ok(peers) => {
+            info!("get_peers: Got {} peers from RPC", peers.len());
+            Ok(peers.into_iter().map(|p| PeerInfo {
+                id: p.peer_id,
+                address: p.address,
+                ip: p.ip,
+                port: p.port,
+                protocol: p.protocol,
+                direction: p.direction,
+                connected_secs: p.connected_secs,
+                version: p.version,
+                block_height: p.block_height,
+            }).collect())
+        },
         Err(e) => {
-            warn!("Failed to get peers: {}", e);
+            error!("get_peers failed: {}", e);
             Err(format!("Failed to get peers: {}", e))
         }
     }
