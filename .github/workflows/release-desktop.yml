@@ -159,15 +159,6 @@ jobs:
             os_name: windows-x64
             display_name: Windows-X64
             
-          # Windows ARM64 (for Surface Pro X, etc.)
-          - platform: windows-latest
-            rust_target: aarch64-pc-windows-msvc
-            tauri_target: windows-aarch64
-            node_binary: pyrax-node.exe
-            bundle_type: nsis
-            os_name: windows-arm64
-            display_name: Windows-ARM
-            
           # ============ macOS ============
           # macOS Intel (x86_64)
           - platform: macos-15-intel
@@ -430,20 +421,32 @@ jobs:
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: |
-          Write-Host "Building Tauri app for Windows..."
-          npm run tauri build -- --target ${{ matrix.rust_target }}
+          Write-Host "Building Tauri app for Windows (${{ matrix.bundle_type }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
 
-      # Build Tauri app - macOS/Linux
-      - name: Build Tauri app (Unix)
-        if: matrix.platform != 'windows-latest'
+      # Build Tauri app - macOS
+      - name: Build Tauri app (macOS)
+        if: startsWith(matrix.platform, 'macos')
         working-directory: pyrax-desktop
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: |
-          echo "Building Tauri app for ${{ matrix.tauri_target }}..."
-          npm run tauri build -- --target ${{ matrix.rust_target }}
+          echo "Building Tauri app for macOS (${{ matrix.display_name }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
+
+      # Build Tauri app - Linux (specify bundle type to avoid building both appimage and deb)
+      - name: Build Tauri app (Linux)
+        if: startsWith(matrix.platform, 'ubuntu')
+        working-directory: pyrax-desktop
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          echo "Building Tauri app for ${{ matrix.display_name }} (${{ matrix.bundle_type }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
 
       # Sign macOS binaries and app bundle to fix "damaged" errors
       # This performs deep ad-hoc signing on all executables including embedded pyrax-node
