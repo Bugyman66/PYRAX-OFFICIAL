@@ -18,6 +18,8 @@ use tracing::{info, warn};
 use tracing_subscriber;
 use commands::neurax::NeuraxState;
 use commands::neurax_commands::NeuraxStateWrapper;
+use commands::neurax_email::{NeuraxErrorBuffer, NeuraxErrorBufferWrapper};
+use commands::neurax_llm::{LlmState, LlmStateWrapper};
 
 /// Check if Visual C++ Runtime is installed (Windows only)
 #[cfg(target_os = "windows")]
@@ -99,10 +101,18 @@ fn main() {
     
     // Initialize NEURAX AI state
     let neurax_state = Arc::new(NeuraxState::new());
+    
+    // Initialize NEURAX error buffer for Brevo email reporting
+    let neurax_error_buffer = Arc::new(NeuraxErrorBuffer::new());
+    
+    // Initialize NEURAX LLM state for local AI inference
+    let neurax_llm_state = Arc::new(LlmState::new());
 
     tauri::Builder::default()
         .manage(app_state)
         .manage(NeuraxStateWrapper(neurax_state.clone()))
+        .manage(NeuraxErrorBufferWrapper(neurax_error_buffer.clone()))
+        .manage(LlmStateWrapper(neurax_llm_state.clone()))
         .invoke_handler(tauri::generate_handler![
             // Node commands
             commands::node::start_node,
@@ -187,6 +197,26 @@ fn main() {
             commands::neurax_commands::neurax_clear_chat,
             commands::neurax_commands::neurax_execute_action,
             commands::neurax_commands::neurax_get_quick_insights,
+            
+            // NEURAX Brevo email commands
+            commands::neurax_email::neurax_get_brevo_config,
+            commands::neurax_email::neurax_set_brevo_config,
+            commands::neurax_email::neurax_get_error_stats,
+            commands::neurax_email::neurax_test_email,
+            
+            // NEURAX LLM commands
+            commands::neurax_llm::neurax_get_llm_config,
+            commands::neurax_llm::neurax_set_llm_config,
+            commands::neurax_llm::neurax_detect_gpus,
+            commands::neurax_llm::neurax_get_available_models,
+            commands::neurax_llm::neurax_download_model,
+            commands::neurax_llm::neurax_get_download_status,
+            commands::neurax_llm::neurax_is_model_loaded,
+            
+            // NEURAX Admin privilege commands
+            commands::neurax_admin::neurax_check_admin,
+            commands::neurax_admin::neurax_request_elevation,
+            commands::neurax_admin::neurax_get_permission_info,
         ])
         .setup(|app| {
             info!("Application setup complete");
@@ -206,6 +236,32 @@ fn main() {
             let neurax = app.state::<NeuraxStateWrapper>();
             neurax.0.load_config(&data_dir);
             info!("NEURAX AI system initialized");
+            
+            // Load Brevo config and start error reporter
+            let error_buffer = app.state::<NeuraxErrorBufferWrapper>();
+            let brevo_config_path = data_dir.join("neurax_brevo_config.json");
+            if brevo_config_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&brevo_config_path) {
+                    if let Ok(mut config) = serde_json::from_str::<commands::neurax_email::BrevoConfig>(&content) {
+                        // API key should come from environment variable
+                        config.api_key = std::env::var("BREVO_API_KEY").ok();
+                        error_buffer.0.set_config(config);
+                    }
+                }
+            }
+            
+            // Start background error reporter (sends every 5 minutes if enabled)
+            let buffer_clone = error_buffer.0.clone();
+            commands::neurax_email::start_error_reporter(
+                buffer_clone,
+                || format!("PYRAX Desktop v{}", env!("CARGO_PKG_VERSION"))
+            );
+            info!("NEURAX error reporter initialized");
+            
+            // Load LLM config
+            let llm_state = app.state::<LlmStateWrapper>();
+            llm_state.0.load_config(&data_dir);
+            info!("NEURAX LLM system initialized");
             
             Ok(())
         })

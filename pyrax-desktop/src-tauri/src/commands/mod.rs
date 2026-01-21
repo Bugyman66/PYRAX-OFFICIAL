@@ -6,3 +6,6 @@ pub mod settings;
 pub mod updater;
 pub mod neurax;
 pub mod neurax_commands;
+pub mod neurax_email;
+pub mod neurax_llm;
+pub mod neurax_admin;

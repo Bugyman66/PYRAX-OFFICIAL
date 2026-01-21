@@ -48,19 +48,83 @@ pub async fn neurax_set_enabled(
     Ok(())
 }
 
+/// Result of permission change with elevation status
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PermissionChangeResult {
+    pub success: bool,
+    pub elevated: bool,
+    pub message: String,
+    pub permissions_changed: Vec<String>,
+}
+
 #[tauri::command]
 pub async fn neurax_set_permissions(
     app: AppHandle,
     state: State<'_, NeuraxStateWrapper>,
     permissions: NeuraxPermissions,
-) -> Result<(), String> {
+    request_elevation: bool,
+) -> Result<PermissionChangeResult, String> {
+    use crate::commands::neurax_admin;
+    
+    let current_permissions = state.0.config.read().permissions.clone();
+    let mut permissions_changed = Vec::new();
+    let mut needs_elevation = false;
+    
+    // Check which sensitive permissions are being enabled
+    if permissions.process_management && !current_permissions.process_management {
+        permissions_changed.push("process_management".to_string());
+        needs_elevation = true;
+    }
+    if permissions.memory_optimization && !current_permissions.memory_optimization {
+        permissions_changed.push("memory_optimization".to_string());
+        needs_elevation = true;
+    }
+    if permissions.auto_fix && !current_permissions.auto_fix {
+        permissions_changed.push("auto_fix".to_string());
+        needs_elevation = true;
+    }
+    if permissions.network_diagnostics && !current_permissions.network_diagnostics {
+        permissions_changed.push("network_diagnostics".to_string());
+    }
+    if permissions.system_monitoring && !current_permissions.system_monitoring {
+        permissions_changed.push("system_monitoring".to_string());
+    }
+    
+    // If enabling sensitive permissions and elevation is requested
+    if needs_elevation && request_elevation && !permissions_changed.is_empty() {
+        let permission_list = permissions_changed.join(", ");
+        let elevation_result = neurax_admin::request_elevation(
+            &permission_list,
+            "These permissions allow NEURAX to make system-level changes to optimize your node's performance.",
+        ).await;
+        
+        if !elevation_result.elevated {
+            return Ok(PermissionChangeResult {
+                success: false,
+                elevated: false,
+                message: elevation_result.message,
+                permissions_changed: vec![],
+            });
+        }
+    }
+    
+    // Apply permissions
     state.0.config.write().permissions = permissions;
     
     let data_dir = app.path_resolver().app_data_dir()
         .ok_or("Failed to get app data directory")?;
     state.0.save_config(&data_dir)?;
     
-    Ok(())
+    Ok(PermissionChangeResult {
+        success: true,
+        elevated: needs_elevation,
+        message: if permissions_changed.is_empty() {
+            "Permissions updated".to_string()
+        } else {
+            format!("Permissions granted: {}", permissions_changed.join(", "))
+        },
+        permissions_changed,
+    })
 }
 
 #[tauri::command]

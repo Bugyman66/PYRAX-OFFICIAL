@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
+import { useLogStore } from '../stores/logStore';
+import { useNodeStore } from '../stores/nodeStore';
 import { 
   Brain, Shield, Cpu, HardDrive, Wifi, Zap, MessageSquare, 
   Settings, ChevronRight, AlertTriangle, CheckCircle, Info,
@@ -83,7 +85,12 @@ export default function Neurax() {
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'chat' | 'permissions'>('dashboard');
+  const [quickInsights, setQuickInsights] = useState<QuickInsights | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Get real data from stores
+  const logs = useLogStore((state) => state.logs);
+  const nodeStatus = useNodeStore((state) => state.status);
 
   // Load initial data
   useEffect(() => {
@@ -91,6 +98,7 @@ export default function Neurax() {
     loadMetrics();
     loadInsights();
     loadChatHistory();
+    loadQuickInsights();
   }, []);
 
   // Auto-scroll chat
@@ -101,9 +109,12 @@ export default function Neurax() {
   // Refresh metrics periodically when enabled
   useEffect(() => {
     if (!config?.enabled) return;
-    const interval = setInterval(loadMetrics, 5000);
+    const interval = setInterval(() => {
+      loadMetrics();
+      loadQuickInsights();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [config?.enabled]);
+  }, [config?.enabled, logs, nodeStatus]);
 
   const loadConfig = async () => {
     try {
@@ -127,12 +138,39 @@ export default function Neurax() {
 
   const loadInsights = async () => {
     try {
-      const logs: string[] = []; // Would get from log store
-      const nodeStatus = null; // Would get from node store
-      const ins = await invoke<NeuraxInsight[]>('neurax_generate_insights', { logs, nodeStatus });
+      // Use real logs from log store
+      const logMessages = logs.map(l => `[${l.level.toUpperCase()}] [${l.category}] ${l.message}`);
+      // Use real node status from node store
+      const status = nodeStatus ? {
+        peerCount: nodeStatus.peerCount,
+        connected: nodeStatus.connected,
+        syncing: nodeStatus.syncing,
+        blockHeight: nodeStatus.blockHeight,
+        meshPeers: nodeStatus.meshPeers,
+        natStatus: nodeStatus.natStatus,
+      } : null;
+      const ins = await invoke<NeuraxInsight[]>('neurax_generate_insights', { logs: logMessages, nodeStatus: status });
       setInsights(ins);
     } catch (e) {
       console.error('Failed to load insights:', e);
+    }
+  };
+
+  const loadQuickInsights = async () => {
+    try {
+      const logMessages = logs.map(l => `[${l.level.toUpperCase()}] [${l.category}] ${l.message}`);
+      const status = nodeStatus ? {
+        peerCount: nodeStatus.peerCount,
+        connected: nodeStatus.connected,
+        syncing: nodeStatus.syncing,
+        blockHeight: nodeStatus.blockHeight,
+        meshPeers: nodeStatus.meshPeers,
+        natStatus: nodeStatus.natStatus,
+      } : null;
+      const qi = await invoke<QuickInsights>('neurax_get_quick_insights', { logs: logMessages, nodeStatus: status });
+      setQuickInsights(qi);
+    } catch (e) {
+      console.error('Failed to load quick insights:', e);
     }
   };
 
@@ -155,12 +193,40 @@ export default function Neurax() {
     }
   };
 
+  // Sensitive permissions that require admin elevation
+  const sensitivePermissions: (keyof NeuraxPermissions)[] = [
+    'process_management',
+    'memory_optimization',
+    'auto_apply'
+  ];
+
   const updatePermissions = async (key: keyof NeuraxPermissions, value: boolean) => {
     if (!config) return;
     const newPermissions = { ...config.permissions, [key]: value };
+    
+    // Request elevation for sensitive permissions being enabled
+    const needsElevation = value && sensitivePermissions.includes(key);
+    
     try {
-      await invoke('neurax_set_permissions', { permissions: newPermissions });
-      setConfig({ ...config, permissions: newPermissions });
+      const result = await invoke<{
+        success: boolean;
+        elevated: boolean;
+        message: string;
+        permissions_changed: string[];
+      }>('neurax_set_permissions', { 
+        permissions: newPermissions,
+        requestElevation: needsElevation 
+      });
+      
+      if (result.success) {
+        setConfig({ ...config, permissions: newPermissions });
+        if (result.elevated) {
+          console.log('Admin elevation granted:', result.message);
+        }
+      } else {
+        // User declined elevation - don't update the toggle
+        console.log('Permission change cancelled:', result.message);
+      }
     } catch (e) {
       console.error('Failed to update permissions:', e);
     }
@@ -183,12 +249,21 @@ export default function Neurax() {
     setChatHistory(prev => [...prev, tempUserMsg]);
     
     try {
-      const logs: string[] = [];
-      const nodeStatus = null;
+      // Use real logs from log store
+      const logMessages = logs.map(l => `[${l.level.toUpperCase()}] [${l.category}] ${l.message}`);
+      // Use real node status from node store
+      const status = nodeStatus ? {
+        peerCount: nodeStatus.peerCount,
+        connected: nodeStatus.connected,
+        syncing: nodeStatus.syncing,
+        blockHeight: nodeStatus.blockHeight,
+        meshPeers: nodeStatus.meshPeers,
+        natStatus: nodeStatus.natStatus,
+      } : null;
       const response = await invoke<ChatMessage>('neurax_chat', { 
         message: userMessage, 
-        logs, 
-        nodeStatus 
+        logs: logMessages, 
+        nodeStatus: status 
       });
       
       // Replace temp message and add response
@@ -402,9 +477,9 @@ export default function Neurax() {
                 
                 <div className="space-y-4">
                   {[
-                    { name: 'System', score: 85, icon: Cpu },
-                    { name: 'Network', score: 92, icon: Network },
-                    { name: 'Mining', score: 78, icon: Zap },
+                    { name: 'System', score: quickInsights?.system_score ?? 0, icon: Cpu },
+                    { name: 'Network', score: quickInsights?.network_score ?? 0, icon: Network },
+                    { name: 'Mining', score: quickInsights?.mining_score ?? 0, icon: Zap },
                   ].map(({ name, score, icon: Icon }) => (
                     <div key={name} className="flex items-center gap-3">
                       <Icon className={`w-5 h-5 ${getScoreColor(score)}`} />
