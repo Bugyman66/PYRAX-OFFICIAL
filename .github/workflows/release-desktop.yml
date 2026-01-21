@@ -285,6 +285,21 @@ jobs:
         working-directory: pyrax-desktop
         run: npm ci
 
+      # Build frontend and verify it exists
+      - name: Build and verify frontend
+        working-directory: pyrax-desktop
+        run: |
+          echo "Building frontend..."
+          npm run build
+          echo "Verifying frontend build..."
+          if [ ! -f "dist/index.html" ]; then
+            echo "ERROR: Frontend build failed - dist/index.html not found!"
+            ls -la dist/ 2>/dev/null || echo "dist directory does not exist"
+            exit 1
+          fi
+          echo "Frontend build verified successfully!"
+          ls -la dist/
+
       # Update version - Windows
       - name: Update version (Windows)
         if: matrix.platform == 'windows-latest'

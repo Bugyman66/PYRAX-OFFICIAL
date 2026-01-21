@@ -87,10 +87,85 @@ fn check_and_install_vcruntime() {
     // No-op on non-Windows platforms
 }
 
-fn main() {
-    // WINDOWS FIX: Initialize logging safely - write to file on Windows to avoid console issues
+/// Show a native error dialog on Windows
+#[cfg(target_os = "windows")]
+fn show_error_dialog(title: &str, message: &str) {
+    use std::ptr::null_mut;
+    let msg_wide: Vec<u16> = message.encode_utf16().chain(std::iter::once(0)).collect();
+    let title_wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
+    unsafe {
+        #[link(name = "user32")]
+        extern "system" {
+            fn MessageBoxW(hwnd: *mut std::ffi::c_void, text: *const u16, caption: *const u16, utype: u32) -> i32;
+        }
+        MessageBoxW(null_mut(), msg_wide.as_ptr(), title_wide.as_ptr(), 0x10); // MB_ICONERROR
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn show_error_dialog(_title: &str, message: &str) {
+    eprintln!("ERROR: {}", message);
+}
+
+/// Run startup diagnostics and return any issues found
+fn run_startup_diagnostics() -> Vec<String> {
+    let mut issues = Vec::new();
+    
+    // Check data directory
+    let data_dir = directories::ProjectDirs::from("org", "pyrax", "PYRAX Desktop")
+        .map(|d| d.data_dir().to_path_buf());
+    
+    match &data_dir {
+        Some(dir) => {
+            if std::fs::create_dir_all(dir).is_err() {
+                issues.push(format!("Cannot create data directory: {:?}", dir));
+            }
+        }
+        None => {
+            issues.push("Cannot determine data directory".to_string());
+        }
+    }
+    
+    // Check available disk space (warn if < 100MB)
     #[cfg(target_os = "windows")]
     {
+        if let Some(dir) = &data_dir {
+            if let Some(root) = dir.ancestors().last() {
+                // On Windows, check disk space using sysinfo would be ideal
+                // For now, just log the path
+                info!("Data directory root: {:?}", root);
+            }
+        }
+    }
+    
+    issues
+}
+
+fn main() {
+    // Wrap everything in a catch_unwind to prevent silent crashes
+    let result = std::panic::catch_unwind(|| {
+        run_app();
+    });
+    
+    if let Err(e) = result {
+        let panic_msg = if let Some(s) = e.downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = e.downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "Unknown panic".to_string()
+        };
+        
+        let msg = format!("Inferno Node crashed unexpectedly:\n\n{}\n\nPlease check the log file for details.", panic_msg);
+        show_error_dialog("Inferno Node Crash", &msg);
+        std::process::exit(1);
+    }
+}
+
+fn run_app() {
+    // WINDOWS FIX: Initialize logging safely - write to file on Windows to avoid console issues
+    #[cfg(target_os = "windows")]
+    let log_dir = {
         // On Windows GUI apps, there's no console, so we write logs to a file
         let log_dir = directories::ProjectDirs::from("org", "pyrax", "PYRAX Desktop")
             .map(|d| d.data_dir().to_path_buf())
@@ -122,8 +197,16 @@ fn main() {
     
     info!("Starting PYRAX Desktop v{}", env!("CARGO_PKG_VERSION"));
     
+    // Run startup diagnostics
+    let issues = run_startup_diagnostics();
+    for issue in &issues {
+        warn!("Startup issue: {}", issue);
+    }
+    
     // Check and install VC++ runtime if needed (Windows only)
     check_and_install_vcruntime();
+    
+    info!("Startup diagnostics complete, initializing app...");
 
     // Initialize application state
     let app_state = Arc::new(Mutex::new(AppState::new()));
@@ -177,6 +260,10 @@ fn main() {
             commands::explorer::get_transaction,
             commands::explorer::get_recent_blocks,
             commands::explorer::get_bootnode_info,
+            commands::explorer::get_blocks_paginated,
+            commands::explorer::get_network_stats,
+            commands::explorer::get_address_info,
+            commands::explorer::search_explorer,
             
             // Settings commands
             commands::settings::get_settings,
