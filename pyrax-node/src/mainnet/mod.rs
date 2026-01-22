@@ -7,6 +7,8 @@
 //! - Network monitoring
 //! - Upgrade mechanism
 
+#![allow(dead_code)]
+
 mod chaos;
 mod security;
 mod genesis_config;

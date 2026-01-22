@@ -41,12 +41,99 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const version = '${{ steps.get-version.outputs.version }}';
+            const releaseBody = [
+              '# 🔥 PYRAX Inferno v' + version,
+              '',
+              'This release includes updated Desktop Apps and CLI Tools aligned with the latest bootnode updates.',
+              '',
+              '---',
+              '',
+              '## 🖥️ Desktop Apps',
+              '',
+              'Cross-platform desktop application for running PYRAX nodes with a graphical interface.',
+              '',
+              '### Downloads',
+              '',
+              '| Platform | Architecture | Download |',
+              '|----------|--------------|----------|',
+              '| **Windows** | x64 | `Inferno-Node_' + version + '_x64-setup.exe` |',
+              '| **macOS** | Intel (x64) | `Inferno-Node_' + version + '_x64.dmg` |',
+              '| **macOS** | Apple Silicon (M1/M2) | `Inferno-Node_' + version + '_aarch64.dmg` |',
+              '| **Linux** | x64 | `Inferno-Node_' + version + '_amd64.AppImage` |',
+              '| **Linux** | x64 (deb) | `Inferno-Node_' + version + '_amd64.deb` |',
+              '',
+              '### Installation',
+              '',
+              '1. Download the installer for your platform',
+              '2. Run the installer',
+              '3. Launch **Inferno Node** from your applications',
+              '4. The app will automatically connect to the PYRAX devnet',
+              '',
+              '---',
+              '',
+              '## 🔧 CLI Apps',
+              '',
+              'Terminal-based node management for servers and advanced users.',
+              '',
+              '### Quick Install',
+              '',
+              '**Linux / macOS / WSL2:**',
+              '```bash',
+              'curl -fsSL https://get.pyrax-devnet.org/cli | bash',
+              '```',
+              '',
+              '**Direct from GitHub:**',
+              '```bash',
+              'curl -fsSL https://raw.githubusercontent.com/PYRAX-Chain/PYRAX-OFFICIAL/devnet/inferno-cli/install.sh | bash',
+              '```',
+              '',
+              '### CLI Features',
+              '',
+              '- 🚀 Multi-instance node management',
+              '- 🔄 Automatic port conflict resolution',
+              '- 🐳 Docker container support',
+              '- 🌐 SSH remote node management',
+              '- 📊 Web-based monitoring dashboard',
+              '- 📋 Live log streaming',
+              '',
+              '### Getting Started',
+              '',
+              '```bash',
+              'inferno init      # Initialize node configuration',
+              'inferno start     # Start node',
+              'inferno status    # Check node status',
+              'inferno dashboard # Open web dashboard',
+              '```',
+              '',
+              'See [INSTALL-CLI.md](https://github.com/PYRAX-Chain/PYRAX-OFFICIAL/blob/devnet/docs/INSTALL-CLI.md) for detailed instructions.',
+              '',
+              '---',
+              '',
+              '## 📝 Changes in v' + version,
+              '',
+              '- Fixed GossipSub mesh parameters (mesh_n_low=2) preventing node crashes',
+              '- P2P mesh now properly forms between bootnodes',
+              '- Updated CLI install scripts with pyrax-devnet.org domain',
+              '- Improved node stability and connection handling',
+              '',
+              '---',
+              '',
+              '## 🌐 Network Information',
+              '',
+              '**Devnet Bootnodes:**',
+              '- Primary: `209.38.137.105:28545` (RPC) / `:30303` (P2P)',
+              '- Secondary: `137.184.118.228:28545` (RPC) / `:30303` (P2P)',
+              '',
+              '**Chain ID:** 797292'
+            ].join('\n');
+
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: `desktop-v${{ steps.get-version.outputs.version }}`,
-              name: `PYRAX Desktop v${{ steps.get-version.outputs.version }}`,
-              body: `## PYRAX Desktop v${{ steps.get-version.outputs.version }}\n\nDownload the installer for your platform below.\n\n### Changes\n- See commit history for changes`,
+              tag_name: 'desktop-v' + version,
+              name: '🔥 PYRAX Inferno v' + version,
+              body: releaseBody,
               draft: true,
               prerelease: false
             });
@@ -54,6 +141,7 @@ jobs:
             core.setOutput('upload_url', data.upload_url);
 
   build-tauri:
+    name: Build ${{ matrix.display_name }}
     needs: create-release
     permissions:
       contents: write
@@ -61,9 +149,54 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ============ WINDOWS ============
+          # Windows x64 (NSIS Installer)
           - platform: windows-latest
-            args: ''
-            target: ''
+            rust_target: x86_64-pc-windows-msvc
+            tauri_target: windows-x86_64
+            node_binary: pyrax-node.exe
+            bundle_type: nsis
+            os_name: windows-x64
+            display_name: Windows-X64
+            
+          # ============ macOS ============
+          # macOS Intel (x86_64)
+          - platform: macos-15-intel
+            rust_target: x86_64-apple-darwin
+            tauri_target: darwin-x86_64
+            node_binary: pyrax-node
+            bundle_type: dmg
+            os_name: macos-intel
+            display_name: macOS-Intel
+            
+          # macOS Apple Silicon (ARM M1/M2/M3)
+          - platform: macos-14
+            rust_target: aarch64-apple-darwin
+            tauri_target: darwin-aarch64
+            node_binary: pyrax-node
+            bundle_type: dmg
+            os_name: macos-arm64
+            display_name: macOS-ARM
+            
+          # ============ LINUX ============
+          # All Linux builds use ubuntu-22.04 for Tauri 1.x compatibility
+          # Ubuntu 22.04 has webkit2gtk-4.0 and libsoup2.4 without conflicts
+          - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-x64
+            node_binary: pyrax-node
+            bundle_type: appimage
+            os_name: linux-appimage
+            display_name: Linux-AppImage
+            
+          # Linux .deb package (Debian/Ubuntu/Mint/Pop/Elementary)
+          - platform: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            tauri_target: linux-x64
+            node_binary: pyrax-node
+            bundle_type: deb
+            os_name: linux-deb
+            display_name: Linux-Deb
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -79,170 +212,501 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust_target }}
+
+      # Ensure cross-compilation target is installed (especially for Windows ARM)
+      - name: Add Rust target for cross-compilation
+        run: rustup target add ${{ matrix.rust_target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: '. -> target'
+          key: ${{ matrix.rust_target }}
 
+      # Linux dependencies - Tauri 1.x requires webkit2gtk-4.0 and libsoup2.4
+      # Using ubuntu-22.04 which has these packages without conflicts
+      # libfuse2 is required for AppImage to run properly
+      - name: Install Linux dependencies
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          sudo apt-get update
+          echo "Installing Tauri 1.x Linux dependencies (webkit2gtk-4.0)..."
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.0-dev \
+            libsoup2.4-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2 \
+            libjavascriptcoregtk-4.0-dev
+
+      # macOS dependencies for DMG creation
+      - name: Install macOS dependencies
+        if: startsWith(matrix.platform, 'macos')
+        run: |
+          brew install create-dmg
+          echo "✓ Installed create-dmg for DMG bundling"
+
+      # Build pyrax-node for the target platform
       - name: Build pyrax-node binary
-        run: cargo build --release -p pyrax-node
+        run: cargo build --release -p pyrax-node --target ${{ matrix.rust_target }}
 
-      - name: Copy pyrax-node to resources
+      # Copy binary - Windows
+      - name: Copy pyrax-node to resources (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
         run: |
           mkdir -p pyrax-desktop/src-tauri/resources
-          Copy-Item target/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
-        shell: pwsh
+          Copy-Item target/${{ matrix.rust_target }}/release/pyrax-node.exe pyrax-desktop/src-tauri/resources/
+
+      # Copy binary - macOS (with pre-signing)
+      - name: Copy and pre-sign pyrax-node (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        run: |
+          mkdir -p pyrax-desktop/src-tauri/resources
+          cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
+          chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
+          # Pre-sign the binary before bundling to prevent "damaged" errors
+          echo "Pre-signing pyrax-node binary..."
+          codesign --force --options runtime --sign - pyrax-desktop/src-tauri/resources/pyrax-node
+          echo "✓ pyrax-node pre-signed"
+
+      # Copy binary - Linux (all distros)
+      - name: Copy pyrax-node to resources (Linux)
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          mkdir -p pyrax-desktop/src-tauri/resources
+          cp target/${{ matrix.rust_target }}/release/pyrax-node pyrax-desktop/src-tauri/resources/
+          chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
 
       - name: Install frontend dependencies
         working-directory: pyrax-desktop
         run: npm ci
 
-      - name: Update version in tauri.conf.json
+      # Build frontend and verify it exists
+      - name: Build and verify frontend
+        working-directory: pyrax-desktop
+        run: |
+          echo "Building frontend..."
+          npm run build
+          echo "Verifying frontend build..."
+          if [ ! -f "dist/index.html" ]; then
+            echo "ERROR: Frontend build failed - dist/index.html not found!"
+            ls -la dist/ 2>/dev/null || echo "dist directory does not exist"
+            exit 1
+          fi
+          echo "Frontend build verified successfully!"
+          ls -la dist/
+
+      # Update version - Windows
+      - name: Update version (Windows)
+        if: matrix.platform == 'windows-latest'
         working-directory: pyrax-desktop/src-tauri
+        shell: pwsh
         run: |
           $content = Get-Content tauri.conf.json -Raw | ConvertFrom-Json
           $content.package.version = "${{ needs.create-release.outputs.version }}"
           $content | ConvertTo-Json -Depth 100 | Set-Content tauri.conf.json
-        shell: pwsh
+          (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
 
-      - name: Update version in Cargo.toml
+      # Update version - macOS/Linux
+      - name: Update version (Unix)
+        if: matrix.platform != 'windows-latest'
         working-directory: pyrax-desktop/src-tauri
         run: |
-          (Get-Content Cargo.toml) -replace 'version = "0.1.0"', 'version = "${{ needs.create-release.outputs.version }}"' | Set-Content Cargo.toml
-        shell: pwsh
+          # Update tauri.conf.json
+          sed -i.bak 's/"version": "[^"]*"/"version": "${{ needs.create-release.outputs.version }}"/' tauri.conf.json
+          # Update Cargo.toml
+          sed -i.bak 's/version = "0.1.0"/version = "${{ needs.create-release.outputs.version }}"/' Cargo.toml
 
-      - name: Write signing key to file
+      # Windows-specific: Download VC++ Redistributable
+      - name: Download Visual C++ Redistributable
+        if: matrix.platform == 'windows-latest'
         shell: pwsh
         run: |
-          $keyContent = "${{ secrets.TAURI_PRIVATE_KEY }}"
-          if ([string]::IsNullOrEmpty($keyContent)) {
-            Write-Error "TAURI_PRIVATE_KEY secret is not set!"
-            exit 1
-          }
-          # Write key to file (Tauri can read from file path)
-          $keyContent | Out-File -FilePath "$env:RUNNER_TEMP/tauri.key" -Encoding utf8 -NoNewline
-          Write-Host "Key written to $env:RUNNER_TEMP/tauri.key"
-          Write-Host "Key length: $($keyContent.Length) chars"
+          Write-Host "Downloading Visual C++ Redistributable for bundling..."
+          $resourcesDir = "pyrax-desktop/src-tauri/resources"
+          $vcRedistUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+          $vcRedistPath = "$resourcesDir/vc_redist.x64.exe"
+          Invoke-WebRequest -Uri $vcRedistUrl -OutFile $vcRedistPath -UseBasicParsing
+          Write-Host "Downloaded VC++ Redistributable"
 
-      - name: Build Tauri app with signing
+      # Build Tauri app - Windows
+      - name: Build Tauri app (Windows)
+        if: matrix.platform == 'windows-latest'
         working-directory: pyrax-desktop
         shell: pwsh
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ""
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
         run: |
-          Write-Host "Building Tauri app with signing enabled..."
-          Write-Host "TAURI_PRIVATE_KEY env var length: $($env:TAURI_PRIVATE_KEY.Length)"
-          npm run tauri build
+          Write-Host "Building Tauri app for Windows (${{ matrix.bundle_type }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
+
+      # Build Tauri app - macOS
+      - name: Build Tauri app (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        working-directory: pyrax-desktop
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          echo "Building Tauri app for macOS (${{ matrix.display_name }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
+
+      # Build Tauri app - Linux (specify bundle type to avoid building both appimage and deb)
+      - name: Build Tauri app (Linux)
+        if: startsWith(matrix.platform, 'ubuntu')
+        working-directory: pyrax-desktop
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          echo "Building Tauri app for ${{ matrix.display_name }} (${{ matrix.bundle_type }})..."
+          npm run tauri build -- --target ${{ matrix.rust_target }} --bundles ${{ matrix.bundle_type }}
+
+      # Sign macOS binaries and app bundle to fix "damaged" errors
+      # This performs deep ad-hoc signing on all executables including embedded pyrax-node
+      - name: Sign macOS binaries and app bundle
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        run: |
+          echo "Signing macOS app bundle and embedded binaries..."
           
-      - name: List ALL generated bundle files
+          # Find the app bundle
+          APP_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/macos -name "*.app" -type d | head -1)
+          
+          if [ -n "$APP_PATH" ]; then
+            echo "Found app at: $APP_PATH"
+            
+            # Remove any existing signatures first
+            echo "Removing existing signatures..."
+            codesign --remove-signature "$APP_PATH" 2>/dev/null || true
+            
+            # Find and sign the pyrax-node binary inside the app bundle
+            PYRAX_NODE=$(find "$APP_PATH" -name "pyrax-node" -type f | head -1)
+            if [ -n "$PYRAX_NODE" ]; then
+              echo "Signing embedded pyrax-node: $PYRAX_NODE"
+              codesign --force --options runtime --sign - "$PYRAX_NODE"
+            fi
+            
+            # Find and sign the main executable
+            MAIN_EXEC=$(find "$APP_PATH/Contents/MacOS" -type f -perm +111 | head -1)
+            if [ -n "$MAIN_EXEC" ]; then
+              echo "Signing main executable: $MAIN_EXEC"
+              codesign --force --options runtime --sign - "$MAIN_EXEC"
+            fi
+            
+            # Sign all frameworks and dylibs
+            find "$APP_PATH" -name "*.dylib" -o -name "*.framework" | while read -r lib; do
+              echo "Signing library: $lib"
+              codesign --force --options runtime --sign - "$lib" 2>/dev/null || true
+            done
+            
+            # Finally sign the entire app bundle with deep flag
+            echo "Signing entire app bundle..."
+            codesign --force --deep --options runtime --sign - "$APP_PATH"
+            
+            # Verify the signature
+            echo "Verifying signature..."
+            codesign --verify --deep --verbose=2 "$APP_PATH" && echo "✓ Signature verified" || echo "⚠ Signature verification had warnings (expected for ad-hoc)"
+            
+            # Remove quarantine attribute from the app
+            xattr -cr "$APP_PATH" 2>/dev/null || true
+            
+            echo "✓ Signing complete for: $APP_PATH"
+          else
+            echo "Warning: No .app bundle found to sign"
+          fi
+          
+          # Also sign the DMG if it exists
+          DMG_PATH=$(find target/${{ matrix.rust_target }}/release/bundle/dmg -name "*.dmg" -type f 2>/dev/null | head -1)
+          if [ -n "$DMG_PATH" ]; then
+            echo "Signing DMG: $DMG_PATH"
+            codesign --force --sign - "$DMG_PATH" 2>/dev/null || echo "DMG signing skipped (optional)"
+          fi
+
+      # Find and upload bundles - Windows
+      - name: Find bundle files (Windows)
+        if: matrix.platform == 'windows-latest'
+        id: find-bundle-windows
         shell: pwsh
         run: |
-          Write-Host "=== Listing ALL files in bundle directories ==="
-          Write-Host ""
-          Write-Host "--- NSIS directory ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/nsis" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "$($_.FullName) - $($_.Length) bytes"
-          }
-          Write-Host ""
-          Write-Host "--- MSI directory ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle/msi" -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "$($_.FullName) - $($_.Length) bytes"
-          }
-          Write-Host ""
-          Write-Host "--- Looking for .sig files anywhere ---"
-          Get-ChildItem -Path "pyrax-desktop/src-tauri/target/release/bundle" -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | ForEach-Object {
-            Write-Host "FOUND SIG: $($_.FullName)"
+          $bundleDir = "target/${{ matrix.rust_target }}/release/bundle/nsis"
+          Write-Host "Looking for Windows bundle in: $bundleDir"
+          
+          if (Test-Path $bundleDir) {
+            Get-ChildItem -Path $bundleDir | ForEach-Object { Write-Host "  $($_.Name)" }
+            
+            $exe = Get-ChildItem -Path $bundleDir -Filter "*setup*.exe" | Select-Object -First 1
+            $zip = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip" | Select-Object -First 1
+            $sig = Get-ChildItem -Path $bundleDir -Filter "*.nsis.zip.sig" | Select-Object -First 1
+            
+            if ($exe) { "exe_path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "exe_name=$($exe.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            if ($zip) { "zip_path=$($zip.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "zip_name=$($zip.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
+            if ($sig) { "sig_path=$($sig.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append; "sig_name=$($sig.Name)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append }
           }
 
-      - name: Find and upload bundle files to release
-        shell: pwsh
+      # Find and upload bundles - macOS
+      - name: Find bundle files (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        id: find-bundle-macos
+        run: |
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          echo "Looking for macOS bundle in: $BUNDLE_DIR"
+          
+          # Find DMG
+          DMG=$(find "$BUNDLE_DIR" -name "*.dmg" 2>/dev/null | head -1)
+          if [ -n "$DMG" ]; then
+            echo "dmg_path=$DMG" >> $GITHUB_OUTPUT
+            echo "dmg_name=$(basename $DMG)" >> $GITHUB_OUTPUT
+            echo "Found DMG: $DMG"
+          fi
+          
+          # Find app tarball for updates
+          APP_TAR=$(find "$BUNDLE_DIR" -name "*.app.tar.gz" 2>/dev/null | head -1)
+          if [ -n "$APP_TAR" ]; then
+            echo "tar_path=$APP_TAR" >> $GITHUB_OUTPUT
+            echo "tar_name=$(basename $APP_TAR)" >> $GITHUB_OUTPUT
+            echo "Found tar: $APP_TAR"
+          fi
+          
+          # Find signature
+          SIG=$(find "$BUNDLE_DIR" -name "*.tar.gz.sig" 2>/dev/null | head -1)
+          if [ -n "$SIG" ]; then
+            echo "sig_path=$SIG" >> $GITHUB_OUTPUT
+            echo "sig_name=$(basename $SIG)" >> $GITHUB_OUTPUT
+            echo "Found sig: $SIG"
+          fi
+          
+          # List all files
+          echo "All bundle files:"
+          find "$BUNDLE_DIR" -type f 2>/dev/null || true
+
+      # Verify and fix Linux AppImage permissions
+      - name: Verify Linux bundle permissions
+        if: startsWith(matrix.platform, 'ubuntu')
+        run: |
+          echo "Verifying Linux bundle..."
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          
+          # Ensure AppImage is executable
+          APPIMAGE=$(find "$BUNDLE_DIR" -name "*.AppImage" 2>/dev/null | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            echo "Making AppImage executable: $APPIMAGE"
+            chmod +x "$APPIMAGE"
+            # Verify it's a valid ELF executable
+            file "$APPIMAGE" || echo "Warning: Could not verify file type"
+          fi
+          
+          # Verify pyrax-node in resources is executable
+          if [ -f "pyrax-desktop/src-tauri/resources/pyrax-node" ]; then
+            chmod +x pyrax-desktop/src-tauri/resources/pyrax-node
+            echo "✓ pyrax-node is executable"
+          fi
+
+      # Find and upload bundles - Linux (all distros)
+      - name: Find bundle files (Linux)
+        if: startsWith(matrix.platform, 'ubuntu')
+        id: find-bundle-linux
+        run: |
+          BUNDLE_DIR="target/${{ matrix.rust_target }}/release/bundle"
+          echo "Looking for Linux bundle in: $BUNDLE_DIR"
+          
+          # Find AppImage
+          APPIMAGE=$(find "$BUNDLE_DIR" -name "*.AppImage" 2>/dev/null | head -1)
+          if [ -n "$APPIMAGE" ]; then
+            echo "appimage_path=$APPIMAGE" >> $GITHUB_OUTPUT
+            echo "appimage_name=$(basename $APPIMAGE)" >> $GITHUB_OUTPUT
+            echo "Found AppImage: $APPIMAGE"
+            # Show file info for debugging
+            ls -la "$APPIMAGE"
+          fi
+          
+          # Find .deb
+          DEB=$(find "$BUNDLE_DIR" -name "*.deb" 2>/dev/null | head -1)
+          if [ -n "$DEB" ]; then
+            echo "deb_path=$DEB" >> $GITHUB_OUTPUT
+            echo "deb_name=$(basename $DEB)" >> $GITHUB_OUTPUT
+            echo "Found deb: $DEB"
+          fi
+          
+          # Find AppImage tarball for updates
+          TAR=$(find "$BUNDLE_DIR" -name "*.AppImage.tar.gz" 2>/dev/null | head -1)
+          if [ -n "$TAR" ]; then
+            echo "tar_path=$TAR" >> $GITHUB_OUTPUT
+            echo "tar_name=$(basename $TAR)" >> $GITHUB_OUTPUT
+            echo "Found tar: $TAR"
+          fi
+          
+          # Find signature
+          SIG=$(find "$BUNDLE_DIR" -name "*.tar.gz.sig" 2>/dev/null | head -1)
+          if [ -n "$SIG" ]; then
+            echo "sig_path=$SIG" >> $GITHUB_OUTPUT
+            echo "sig_name=$(basename $SIG)" >> $GITHUB_OUTPUT
+            echo "Found sig: $SIG"
+          fi
+          
+          # List all files
+          echo "All bundle files:"
+          find "$BUNDLE_DIR" -type f 2>/dev/null || true
+
+      # Upload Windows assets using curl to uploads.github.com (correct endpoint for release assets)
+      - name: Upload Windows assets
+        if: matrix.platform == 'windows-latest'
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
-          $version = "${{ needs.create-release.outputs.version }}"
-          
-          Write-Host "=== Searching for bundle files ==="
-          
-          # Find bundle directory - check multiple possible locations
-          $bundleBase = "pyrax-desktop/src-tauri/target/release/bundle"
-          
-          if (-not (Test-Path $bundleBase)) {
-            Write-Host "Bundle directory not found at: $bundleBase"
-            Write-Host "Searching for bundle directory..."
-            $bundleBase = Get-ChildItem -Path "." -Directory -Recurse -Filter "bundle" -ErrorAction SilentlyContinue | 
-                          Where-Object { $_.FullName -like "*target*release*" } | 
-                          Select-Object -First 1 -ExpandProperty FullName
-            if ($bundleBase) {
-              Write-Host "Found bundle at: $bundleBase"
-            } else {
-              Write-Error "Could not find bundle directory anywhere!"
-              Write-Host "Listing all directories under pyrax-desktop:"
-              Get-ChildItem -Path "pyrax-desktop" -Directory -Recurse -Depth 6 | ForEach-Object { Write-Host $_.FullName }
-              exit 1
-            }
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
+            fi
           }
           
-          Write-Host "Bundle base: $bundleBase"
-          Write-Host ""
-          Write-Host "=== All files in bundle directory ==="
-          Get-ChildItem -Path $bundleBase -Recurse -File | ForEach-Object {
-            Write-Host "$($_.FullName) ($($_.Length) bytes)"
-          }
-          Write-Host ""
+          VERSION="${{ needs.create-release.outputs.version }}"
+          DISPLAY="${{ matrix.display_name }}"
           
-          # Find NSIS directory
-          $nsisDir = Join-Path $bundleBase "nsis"
-          if (-not (Test-Path $nsisDir)) {
-            Write-Host "NSIS dir not found, looking for any exe..."
-            $nsisDir = $bundleBase
-          }
+          # Upload EXE
+          if [ -n "${{ steps.find-bundle-windows.outputs.exe_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.exe_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}_setup.exe"
+          fi
           
-          # Upload all relevant files
-          $uploaded = 0
+          # Upload NSIS ZIP
+          if [ -n "${{ steps.find-bundle-windows.outputs.zip_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.zip_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.nsis.zip"
+          fi
           
-          # Find and upload exe
-          $exeFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*setup*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($exeFile) {
-            Write-Host "Uploading EXE: $($exeFile.Name)"
-            gh release upload "desktop-v$version" "$($exeFile.FullName)" --clobber
-            $uploaded++
-          }
-          
-          # Find and upload .nsis.zip
-          $zipFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*.nsis.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($zipFile) {
-            Write-Host "Uploading NSIS ZIP: $($zipFile.Name)"
-            gh release upload "desktop-v$version" "$($zipFile.FullName)" --clobber
-            $uploaded++
-          }
-          
-          # Find and upload .sig file
-          $sigFile = Get-ChildItem -Path $bundleBase -Recurse -Filter "*.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($sigFile) {
-            Write-Host "Uploading SIG: $($sigFile.Name)"
-            gh release upload "desktop-v$version" "$($sigFile.FullName)" --clobber
-            $uploaded++
-          } else {
-            Write-Host "WARNING: No .sig file found! OTA updates will not work."
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-windows.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-windows.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.nsis.zip.sig"
+          fi
+
+      # Upload macOS assets using curl to uploads.github.com
+      - name: Upload macOS assets
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-14'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
+            fi
           }
           
-          if ($uploaded -eq 0) {
-            Write-Error "No files were uploaded! Build may have failed."
-            exit 1
+          VERSION="${{ needs.create-release.outputs.version }}"
+          DISPLAY="${{ matrix.display_name }}"
+          
+          # Upload DMG
+          if [ -n "${{ steps.find-bundle-macos.outputs.dmg_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.dmg_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.dmg"
+          fi
+          
+          # Upload tar.gz for updates
+          if [ -n "${{ steps.find-bundle-macos.outputs.tar_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.app.tar.gz"
+          fi
+          
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-macos.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-macos.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.app.tar.gz.sig"
+          fi
+
+      # Upload Linux assets using curl to uploads.github.com
+      - name: Upload Linux assets
+        if: startsWith(matrix.platform, 'ubuntu')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          upload_asset() {
+            local file_path="$1"
+            local asset_name="$2"
+            if [ -f "$file_path" ]; then
+              echo "Uploading $asset_name..."
+              curl -sS -X POST \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$file_path" \
+                "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=${asset_name}" \
+                || echo "Warning: Failed to upload $asset_name"
+            fi
           }
           
-          Write-Host ""
-          Write-Host "Successfully uploaded $uploaded file(s)"
+          VERSION="${{ needs.create-release.outputs.version }}"
+          DISPLAY="${{ matrix.display_name }}"
+          
+          # Upload AppImage
+          if [ -n "${{ steps.find-bundle-linux.outputs.appimage_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.appimage_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage"
+          fi
+          
+          # Upload .deb
+          if [ -n "${{ steps.find-bundle-linux.outputs.deb_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.deb_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.deb"
+          fi
+          
+          # Upload tar.gz for updates
+          if [ -n "${{ steps.find-bundle-linux.outputs.tar_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.tar_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage.tar.gz"
+          fi
+          
+          # Upload signature
+          if [ -n "${{ steps.find-bundle-linux.outputs.sig_path }}" ]; then
+            upload_asset "${{ steps.find-bundle-linux.outputs.sig_path }}" "PYRAX-Desktop_${VERSION}_${DISPLAY}.AppImage.tar.gz.sig"
+          fi
 
   publish-release:
     needs: [create-release, build-tauri]
+    if: ${{ needs.create-release.result == 'success' && needs.build-tauri.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+      
+      # Upload installation guides using curl to uploads.github.com
+      - name: Upload Installation Guides
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          # Upload macOS guide
+          curl -sS -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: text/markdown" \
+            --data-binary @"pyrax-desktop/MACOS_INSTALL.md" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_macOS.md"
+          
+          # Upload Linux guide
+          curl -sS -X POST \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: text/markdown" \
+            --data-binary @"pyrax-desktop/LINUX_INSTALL.md" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=INSTALL_GUIDE_Linux.md"
+      
       - name: Publish release
         uses: actions/github-script@v7
         with:
@@ -256,6 +720,7 @@ jobs:
 
   generate-update-manifest:
     needs: [create-release, build-tauri, publish-release]
+    if: ${{ needs.publish-release.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -268,7 +733,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           script: |
-            const fs = require('fs');
             const version = '${{ needs.create-release.outputs.version }}';
             const releaseId = ${{ needs.create-release.outputs.release_id }};
             
@@ -281,27 +745,9 @@ jobs:
             
             console.log('Release assets:', release.assets.map(a => a.name));
             
-            // Find installer asset - try .nsis.zip first, then .exe
-            let installerAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
-            let sigAsset = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
-            
-            // Fallback to .exe if .nsis.zip not found
-            if (!installerAsset) {
-              installerAsset = release.assets.find(a => a.name.endsWith('-setup.exe') || a.name.endsWith('_x64-setup.exe'));
-              sigAsset = release.assets.find(a => a.name.endsWith('-setup.exe.sig') || a.name.endsWith('_x64-setup.exe.sig'));
-            }
-            
-            if (!installerAsset) {
-              core.setFailed(`No installer asset found in release`);
-              return;
-            }
-            
-            console.log('Found installer asset:', installerAsset.name);
-            
-            let signature = '';
-            if (sigAsset) {
-              console.log('Found sig asset:', sigAsset.name);
-              // Download signature using fetch
+            // Helper function to download signature
+            async function getSignature(sigAsset) {
+              if (!sigAsset) return '';
               const sigUrl = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/releases/assets/${sigAsset.id}`;
               const sigResponse = await fetch(sigUrl, {
                 headers: {
@@ -309,24 +755,80 @@ jobs:
                   'Accept': 'application/octet-stream'
                 }
               });
-              signature = await sigResponse.text();
-              console.log('Signature downloaded, length:', signature.length);
-            } else {
-              console.log('Warning: No signature file found - OTA updates may not work without signing');
-              signature = 'unsigned';
+              return (await sigResponse.text()).trim();
+            }
+            
+            // Build platforms object for all available platforms
+            const platforms = {};
+            
+            // Windows x86_64 - check for .nsis.zip first, fallback to .exe
+            let windowsAsset = release.assets.find(a => a.name.endsWith('.nsis.zip'));
+            let windowsSig = release.assets.find(a => a.name.endsWith('.nsis.zip.sig'));
+            if (!windowsAsset) {
+              windowsAsset = release.assets.find(a => a.name.includes('Windows') && a.name.endsWith('.exe'));
+            }
+            if (windowsAsset) {
+              console.log('Found Windows asset:', windowsAsset.name);
+              platforms['windows-x86_64'] = {
+                signature: windowsSig ? await getSignature(windowsSig) : '',
+                url: windowsAsset.browser_download_url
+              };
+            }
+            
+            // macOS x86_64 (Intel) - check for .app.tar.gz first, fallback to .dmg
+            let macosIntelAsset = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.app.tar.gz'));
+            let macosIntelSig = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.sig'));
+            if (!macosIntelAsset) {
+              macosIntelAsset = release.assets.find(a => a.name.includes('macOS-Intel') && a.name.endsWith('.dmg'));
+            }
+            if (macosIntelAsset) {
+              console.log('Found macOS Intel asset:', macosIntelAsset.name);
+              platforms['darwin-x86_64'] = {
+                signature: macosIntelSig ? await getSignature(macosIntelSig) : '',
+                url: macosIntelAsset.browser_download_url
+              };
+            }
+            
+            // macOS aarch64 (Apple Silicon) - check for .app.tar.gz first, fallback to .dmg
+            let macosArmAsset = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.app.tar.gz'));
+            let macosArmSig = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.sig'));
+            if (!macosArmAsset) {
+              macosArmAsset = release.assets.find(a => a.name.includes('macOS-ARM') && a.name.endsWith('.dmg'));
+            }
+            if (macosArmAsset) {
+              console.log('Found macOS ARM asset:', macosArmAsset.name);
+              platforms['darwin-aarch64'] = {
+                signature: macosArmSig ? await getSignature(macosArmSig) : '',
+                url: macosArmAsset.browser_download_url
+              };
+            }
+            
+            // Linux x86_64 - check for .AppImage.tar.gz first, fallback to .AppImage
+            let linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz'));
+            let linuxSig = release.assets.find(a => a.name.endsWith('.AppImage.tar.gz.sig'));
+            if (!linuxAsset) {
+              linuxAsset = release.assets.find(a => a.name.endsWith('.AppImage'));
+            }
+            if (linuxAsset) {
+              console.log('Found Linux asset:', linuxAsset.name);
+              platforms['linux-x86_64'] = {
+                signature: linuxSig ? await getSignature(linuxSig) : '',
+                url: linuxAsset.browser_download_url
+              };
+            }
+            
+            if (Object.keys(platforms).length === 0) {
+              console.log('Warning: No platform assets found - skipping manifest generation');
+              console.log('Available assets:', release.assets.map(a => a.name));
+              return;
             }
             
             // Create update manifest
             const manifest = {
               version: version,
-              notes: `PYRAX Desktop v${version}`,
+              notes: `Inferno Node v${version}`,
               pub_date: new Date().toISOString(),
-              platforms: {
-                'windows-x86_64': {
-                  signature: signature.trim(),
-                  url: installerAsset.browser_download_url
-                }
-              }
+              platforms: platforms
             };
             
             console.log('Generated manifest:', JSON.stringify(manifest, null, 2));
@@ -341,4 +843,40 @@ jobs:
               data: manifestContent
             });
             
-            console.log('Successfully uploaded latest.json to release');
+            console.log('Successfully uploaded latest.json with all platforms!');
+
+  # Cleanup draft releases if everything failed
+  cleanup-failed-release:
+    needs: [create-release, build-tauri, publish-release, generate-update-manifest]
+    if: ${{ failure() && needs.create-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete failed draft release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releaseId = ${{ needs.create-release.outputs.release_id }};
+            try {
+              // Check if release is still a draft
+              const { data: release } = await github.rest.repos.getRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: releaseId
+              });
+              
+              if (release.draft) {
+                console.log('Deleting failed draft release:', release.name);
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: releaseId
+                });
+                console.log('Draft release deleted successfully');
+              } else {
+                console.log('Release is not a draft, skipping deletion');
+              }
+            } catch (error) {
+              console.log('Error cleaning up release:', error.message);
+            }

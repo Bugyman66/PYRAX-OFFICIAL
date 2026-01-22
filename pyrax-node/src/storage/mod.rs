@@ -5,12 +5,15 @@
 //! - UTXO set management
 //! - Chain metadata persistence
 //! - Transaction indexing
+//! - State pruning for disk optimization
 
 mod chaindb;
 mod columns;
+pub mod pruning;
 
-pub use chaindb::ChainDB;
+pub use chaindb::{ChainDB, TxDirection, TxLocation};
 pub use columns::{ColumnFamily, keys, CURRENT_SCHEMA_VERSION};
+pub use pruning::{StatePruner, PruningConfig, PruningMode, PruningStats, HistoricalStateAPI};
 
 use thiserror::Error;
 

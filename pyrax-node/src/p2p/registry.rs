@@ -36,6 +36,43 @@ impl std::fmt::Display for PeerDirection {
     }
 }
 
+/// Mesh connection between two peers (for visualization)
+#[derive(Debug, Clone)]
+pub struct MeshConnection {
+    pub peer_a: String,
+    pub peer_b: String,
+    pub topic: String,
+    pub connection_type: String, // "mesh", "gossip", "direct"
+}
+
+/// Active relay circuit through this node
+#[derive(Debug, Clone)]
+pub struct RelayCircuit {
+    pub src_peer: String,
+    pub dst_peer: String,
+    pub established_at: u64,
+}
+
+/// Extended P2P metrics for RPC and dashboard
+#[derive(Debug, Clone)]
+pub struct RegistryMetrics {
+    pub inbound_peers: usize,
+    pub outbound_peers: usize,
+    pub target_peers: usize,
+    pub max_peers: usize,
+    pub dial_attempts: u64,
+    pub dial_successes: u64,
+    pub dial_failures: u64,
+    pub average_rtt_ms: Option<u64>,
+    pub network_state: String,
+    pub nat_status: String,
+    pub mesh_peers: usize,
+    pub gossip_peers: usize,
+    // Mesh topology for visualizer
+    pub mesh_connections: Vec<MeshConnection>,
+    pub relay_circuits: Vec<RelayCircuit>,
+}
+
 /// Shared peer registry accessible by RPC and P2P
 #[derive(Clone)]
 pub struct PeerRegistry {
@@ -46,6 +83,7 @@ struct PeerRegistryInner {
     peers: RwLock<HashMap<String, ConnectedPeer>>,
     local_peer_id: RwLock<String>,
     listen_addresses: RwLock<Vec<String>>,
+    metrics: RwLock<RegistryMetrics>,
 }
 
 impl PeerRegistry {
@@ -55,6 +93,7 @@ impl PeerRegistry {
                 peers: RwLock::new(HashMap::new()),
                 local_peer_id: RwLock::new(String::new()),
                 listen_addresses: RwLock::new(Vec::new()),
+                metrics: RwLock::new(RegistryMetrics::default()),
             }),
         }
     }
@@ -104,6 +143,14 @@ impl PeerRegistry {
         }
     }
 
+    /// Update peer's client version
+    pub async fn update_peer_version(&self, peer_id: &str, version: &str) {
+        if let Some(peer) = self.inner.peers.write().await.get_mut(peer_id) {
+            peer.client_version = version.to_string();
+            peer.last_seen = Instant::now();
+        }
+    }
+
     /// Get all connected peers
     pub async fn get_peers(&self) -> Vec<ConnectedPeer> {
         self.inner.peers.read().await.values().cloned().collect()
@@ -113,11 +160,42 @@ impl PeerRegistry {
     pub async fn peer_count(&self) -> usize {
         self.inner.peers.read().await.len()
     }
+
+    /// Get extended P2P metrics for RPC/dashboard
+    pub async fn get_metrics(&self) -> RegistryMetrics {
+        self.inner.metrics.read().await.clone()
+    }
+
+    /// Update extended P2P metrics (called by Network during status updates)
+    pub async fn update_metrics(&self, metrics: RegistryMetrics) {
+        *self.inner.metrics.write().await = metrics;
+    }
 }
 
 impl Default for PeerRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Default for RegistryMetrics {
+    fn default() -> Self {
+        Self {
+            inbound_peers: 0,
+            outbound_peers: 0,
+            target_peers: 50,
+            max_peers: 60,
+            dial_attempts: 0,
+            dial_successes: 0,
+            dial_failures: 0,
+            average_rtt_ms: None,
+            network_state: "Initializing".to_string(),
+            nat_status: "Detecting".to_string(),
+            mesh_peers: 0,
+            gossip_peers: 0,
+            mesh_connections: vec![],
+            relay_circuits: vec![],
+        }
     }
 }
 

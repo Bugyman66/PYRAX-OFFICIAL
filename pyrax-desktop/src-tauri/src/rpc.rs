@@ -14,10 +14,13 @@ pub struct RpcClient {
 
 impl RpcClient {
     /// Create a new RPC client
+    /// PERFORMANCE FIX: Reduced timeouts to prevent UI freezing
+    /// - Request timeout: 10s (was 30s)
+    /// - Connect timeout: 3s (was 5s)
     pub fn new(url: &str) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(30))
-            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(10))
+            .connect_timeout(Duration::from_secs(3))
             .build()
             .expect("Failed to create HTTP client");
 
@@ -69,12 +72,22 @@ impl RpcClient {
         rpc_response.result.ok_or(RpcError::NoResult)
     }
 
-    /// Check if node is reachable
+    /// Check if node is reachable - uses simple health check first, falls back to chain info
     pub async fn is_connected(&self) -> bool {
+        // Try simple health check first (no database access)
+        if self.health_check().await.is_ok() {
+            return true;
+        }
+        // Fall back to chain info check
         match self.get_block_number().await {
             Ok(_) => true,
             Err(_) => false,
         }
+    }
+
+    /// Simple health check that doesn't require database access
+    pub async fn health_check(&self) -> Result<String, RpcError> {
+        self.request("pyrax_health", ()).await
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -158,6 +171,11 @@ impl RpcClient {
         self.request("pyrax_getMempoolInfo", ()).await
     }
 
+    /// Get network info with extended P2P stats
+    pub async fn get_network_info(&self) -> Result<NetworkInfoResponse, RpcError> {
+        self.request("pyrax_getNetworkInfo", ()).await
+    }
+
     /// Check if syncing
     pub async fn is_syncing(&self) -> Result<SyncingResponse, RpcError> {
         let info: ChainInfoResponse = self.request("pyrax_getChainInfo", ()).await?;
@@ -181,6 +199,49 @@ impl RpcClient {
     /// Submit block
     pub async fn submit_block(&self, block_hex: &str) -> Result<bool, RpcError> {
         self.request("pyrax_submitBlock", (block_hex,)).await
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Address History Methods
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get transaction history for an address
+    pub async fn get_address_transactions(&self, address: &str, limit: Option<u32>) -> Result<AddressTransactionsResponse, RpcError> {
+        self.request("pyrax_getAddressTransactions", (address, limit)).await
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Explorer Helper Methods
+    // ═══════════════════════════════════════════════════════════════
+
+    /// Get peer count
+    pub async fn get_peer_count(&self) -> Result<u64, RpcError> {
+        let peers: Vec<PeerResponse> = self.get_peers().await.unwrap_or_default();
+        Ok(peers.len() as u64)
+    }
+
+    /// Get pending transaction count from mempool
+    pub async fn get_pending_transaction_count(&self) -> Result<u64, RpcError> {
+        let mempool = self.get_mempool_info().await?;
+        Ok(mempool.size as u64)
+    }
+
+    /// Get gas price (returns hex string for compatibility)
+    pub async fn get_gas_price(&self) -> Result<String, RpcError> {
+        // PYRAX uses fixed fee model, return a default
+        Ok("0x3b9aca00".to_string()) // 1 gwei
+    }
+
+    /// Get contract code at address
+    pub async fn get_code(&self, _address: &str) -> Result<String, RpcError> {
+        // PYRAX UTXO model doesn't have contract storage
+        Ok("0x".to_string())
+    }
+
+    /// Get balance as hex string
+    pub async fn get_balance_hex(&self, address: &str) -> Result<String, RpcError> {
+        let result: BalanceResponse = self.request("pyrax_getBalance", (address,)).await?;
+        Ok(format!("0x{:x}", result.balance))
     }
 }
 
@@ -315,12 +376,16 @@ pub struct UtxoResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PeerResponse {
-    pub id: String,
+    pub peer_id: String,
     pub address: String,
-    pub client_version: String,
-    pub best_height: u64,
-    pub latency_ms: u32,
+    pub ip: String,
+    pub port: u16,
+    pub protocol: String,
     pub direction: String,
+    pub connected_secs: u64,
+    pub last_seen: u64,
+    pub version: String,
+    pub block_height: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -353,4 +418,70 @@ pub struct BlockTemplateResponse {
     pub timestamp: u64,
     pub target: String,
     pub coinbase_value: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkInfoResponse {
+    pub peer_count: usize,
+    pub peers: Vec<PeerResponse>,
+    pub local_peer_id: String,
+    pub listen_addresses: Vec<String>,
+    // Extended P2P stats for realtime connection monitoring
+    pub inbound_peers: usize,
+    pub outbound_peers: usize,
+    pub target_peers: usize,
+    pub max_peers: usize,
+    pub dial_attempts: u64,
+    pub dial_successes: u64,
+    pub dial_failures: u64,
+    pub average_rtt_ms: Option<u64>,
+    pub network_state: String,
+    pub nat_status: String,
+    pub mesh_peers: usize,
+    pub gossip_peers: usize,
+    // Mesh topology for visualizer
+    pub mesh_connections: Vec<MeshConnection>,
+    pub relay_circuits: Vec<RelayCircuit>,
+}
+
+/// Mesh connection between two peers (for visualization)
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MeshConnection {
+    pub peer_a: String,
+    pub peer_b: String,
+    pub topic: String,
+    pub connection_type: String,
+}
+
+/// Active relay circuit through a node
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RelayCircuit {
+    pub src_peer: String,
+    pub dst_peer: String,
+    pub established_at: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddressTransactionsResponse {
+    pub address: String,
+    pub transactions: Vec<AddressTxResponse>,
+    pub total_received: u64,
+    pub total_sent: u64,
+    pub tx_count: usize,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AddressTxResponse {
+    pub txid: String,
+    pub block_hash: String,
+    pub block_height: u64,
+    pub tx_index: u32,
+    pub direction: String,
+    pub value: u64,
+    pub timestamp: u64,
+    pub is_coinbase: bool,
+    pub confirmations: u64,
 }

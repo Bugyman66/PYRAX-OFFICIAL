@@ -58,9 +58,9 @@ struct Args {
     #[arg(long, default_value = "/ip4/0.0.0.0/tcp/30303")]
     p2p_addr: String,
 
-    /// Bootstrap peer to connect to
-    #[arg(long)]
-    peer: Option<String>,
+    /// Bootstrap peers to connect to (can specify multiple times)
+    #[arg(long, action = clap::ArgAction::Append)]
+    peer: Vec<String>,
 
     /// Enable P2P networking
     #[arg(long)]
@@ -90,11 +90,19 @@ struct Args {
     #[arg(long, default_value = "0.0.0.0:8545")]
     rpc_addr: String,
 
-    /// Enable Stratum server for GPU mining (Stream B)
+    /// Enable BLAKE3 Stratum server for ASIC mining (Stream A)
+    #[arg(long)]
+    blake3_stratum: bool,
+
+    /// BLAKE3 Stratum server address (Stream A)
+    #[arg(long, default_value = "0.0.0.0:3334")]
+    blake3_stratum_addr: String,
+
+    /// Enable KAWPOW Stratum server for GPU mining (Stream B)
     #[arg(long)]
     stratum: bool,
 
-    /// Stratum server address
+    /// KAWPOW Stratum server address (Stream B)
     #[arg(long, default_value = "0.0.0.0:3333")]
     stratum_addr: String,
 
@@ -105,6 +113,24 @@ struct Args {
     /// Staking RPC address
     #[arg(long, default_value = "0.0.0.0:8547")]
     staking_addr: String,
+
+    /// Path to persistent node key file for P2P identity
+    /// If provided, the node will use a persistent peer ID that survives restarts
+    #[arg(long)]
+    node_key: Option<PathBuf>,
+
+    // === MASS ADOPTION NETWORK SETTINGS ===
+    /// Connection mode: full (requires port forwarding), relay (works behind any NAT), auto (tries both)
+    #[arg(long, default_value = "auto")]
+    connection_mode: String,
+
+    /// Enable WebSocket transport (works through proxies and strict firewalls)
+    #[arg(long)]
+    enable_websocket: bool,
+
+    /// Enable automatic port fallback (tries alternative ports if primary is blocked)
+    #[arg(long)]
+    auto_port_fallback: bool,
 }
 
 fn parse_network(s: &str) -> NetworkId {
@@ -162,7 +188,8 @@ async fn main() -> anyhow::Result<()> {
     
     // Log enabled services
     if args.rpc { info!("Stream A RPC: {}", args.rpc_addr); }
-    if args.stratum { info!("Stream B Stratum: {}", args.stratum_addr); }
+    if args.blake3_stratum { info!("Stream A BLAKE3 Stratum (ASIC): {}", args.blake3_stratum_addr); }
+    if args.stratum { info!("Stream B KAWPOW Stratum (GPU): {}", args.stratum_addr); }
     if args.staking { info!("Stream C Staking: {}", args.staking_addr); }
 
     // Open database
@@ -197,9 +224,88 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
-    // Start Stratum server if enabled (Stream B - GPU Mining)
+    // Start BLAKE3 Stratum server if enabled (Stream A - ASIC Mining)
+    let _blake3_stratum_handle = if args.blake3_stratum {
+        info!("Starting Stream A BLAKE3 Stratum server on {}", args.blake3_stratum_addr);
+        
+        use miner::{Blake3StratumServer, Blake3StratumConfig, Blake3BlockTemplate};
+        use types::stream_a_block::StreamABlock;
+        
+        let bind_addr: std::net::SocketAddr = args.blake3_stratum_addr.parse()
+            .unwrap_or_else(|_| "0.0.0.0:3334".parse().unwrap());
+        
+        let blake3_config = Blake3StratumConfig {
+            bind_addr,
+            default_difficulty: 1.0,
+            coinbase_address: miner_address,
+            network_difficulty: 1,
+            block_reward: 50_00000000, // 50 PYRAX for Stream A
+            ..Default::default()
+        };
+        
+        let blake3_server = Blake3StratumServer::new(blake3_config);
+        
+        // Set up template provider
+        let db_for_template = db.clone();
+        blake3_server.set_template_provider(Box::new(move || {
+            let tip = db_for_template.get_tip();
+            Some(Blake3BlockTemplate {
+                height: tip.height + 1,
+                parent_hash: tip.hash,
+                utxo_root: types::H256::zero(), // Simplified for devnet
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                difficulty: 1, // Easy difficulty for devnet
+                transactions: vec![],
+                coinbase_value: 50_00000000, // 50 PYRAX
+            })
+        })).await;
+        
+        // Set up block submission
+        let db_for_submit = db.clone();
+        blake3_server.set_block_submit_fn(Box::new(move |block: StreamABlock| {
+            let hash = block.hash();
+            info!("Submitting BLAKE3 block at height {}: 0x{}", block.height(), hex::encode(hash.as_bytes()));
+            // Convert StreamABlock to Block for storage
+            let generic_block = types::Block {
+                header: types::BlockHeader {
+                    version: block.header.version,
+                    stream: 0, // Stream A
+                    parent_hash: block.header.parent_hash,
+                    merkle_root: block.header.merkle_root,
+                    utxo_commitment: block.header.utxo_root,
+                    timestamp: block.header.timestamp,
+                    difficulty: block.header.difficulty,
+                    nonce: block.header.nonce,
+                    extra_nonce: block.header.extra_nonce,
+                    height: block.header.height,
+                    beneficiary: block.header.beneficiary,
+                },
+                transactions: vec![], // UTXO transactions handled separately
+            };
+            db_for_submit.commit_block(&generic_block).map_err(|e| e.to_string())?;
+            Ok(hash)
+        })).await;
+        
+        // Spawn the server
+        let server_handle = blake3_server;
+        tokio::spawn(async move {
+            if let Err(e) = server_handle.run().await {
+                error!("BLAKE3 Stratum server error: {}", e);
+            }
+        });
+        
+        info!("✓ Stream A BLAKE3 Stratum running on {}", args.blake3_stratum_addr);
+        Some(())
+    } else {
+        None
+    };
+
+    // Start KAWPOW Stratum server if enabled (Stream B - GPU Mining)
     let _stratum_handle = if args.stratum {
-        info!("Starting Stream B Stratum server on {}", args.stratum_addr);
+        info!("Starting Stream B KAWPOW Stratum server on {}", args.stratum_addr);
         
         use services::mining::{MiningService, MiningServiceConfig};
         
@@ -293,10 +399,34 @@ async fn main() -> anyhow::Result<()> {
     if args.p2p {
         info!("P2P networking enabled");
         
+        // Parse connection mode from CLI args
+        let connection_mode = p2p::ConnectionMode::from_str(&args.connection_mode);
+        
+        info!("MASS ADOPTION MODE: {:?} | WebSocket: {} | Auto-fallback: {}", 
+            connection_mode, args.enable_websocket, args.auto_port_fallback);
+        
+        // Use stability-tuned defaults for P2P config
+        // Aggressive intervals cause peer churn and mesh instability
         let p2p_config = P2PConfig {
             listen_addr: args.p2p_addr.clone(),
-            bootstrap_peers: args.peer.clone().map(|p| vec![p]).unwrap_or_default(),
-            max_peers: 50,
+            bootstrap_peers: args.peer.clone(),
+            target_peers: 50,
+            min_peers: 30,
+            max_peers: 60,
+            max_concurrent_dials: 5,
+            dial_timeout_secs: 15,       // Stability: 15s (was 10s - too aggressive)
+            ping_interval_secs: 45,      // Stability: 45s (was 15s - ping storms)
+            peer_refresh_interval_secs: 120,  // Stability: 120s (was 30s - too aggressive)
+            peer_reevaluate_interval_secs: 300, // Stability: 300s (was 60s - constant churn)
+            node_key_path: args.node_key.clone(),
+            // Mass adoption network settings
+            connection_mode,
+            enable_websocket: args.enable_websocket,
+            enable_quic: true,  // ISP bypass: QUIC transport enabled by default
+            websocket_port: None,  // Will use TCP port + 1 by default
+            quic_port: None,  // Will use same as TCP port by default
+            auto_port_fallback: args.auto_port_fallback,
+            fallback_ports: vec![443, 8080, 8443, 9999],
         };
 
         let mut network = Network::new(p2p_config, db.clone(), network, peer_registry.clone()).await?;
@@ -307,11 +437,12 @@ async fn main() -> anyhow::Result<()> {
         // Subscribe to gossip topics
         network.subscribe()?;
         
-        // Connect to bootstrap peer if provided
-        if let Some(peer_addr) = &args.peer {
-            info!("Connecting to peer: {}", peer_addr);
-            if let Err(e) = network.dial(peer_addr) {
-                warn!("Failed to dial peer: {}", e);
+        // Connect to ALL bootstrap peers and register for relay on each (NAT traversal)
+        // Using multiple relays provides redundancy and distributes load
+        for peer_addr in &args.peer {
+            info!("Connecting to bootstrap peer: {}", peer_addr);
+            if let Err(e) = network.dial_and_relay(peer_addr) {
+                warn!("Failed to dial peer {}: {}", peer_addr, e);
             }
         }
 
@@ -325,7 +456,7 @@ async fn main() -> anyhow::Result<()> {
             // Wait for peer connections before mining
             info!("Waiting 3 seconds for peer connections...");
             tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-            let peer_count = network.peer_count().await;
+            let peer_count = network.peer_count();
             info!("Connected to {} peers, starting miner", peer_count);
             
             // Create channel for mined blocks to broadcast

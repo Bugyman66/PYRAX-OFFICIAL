@@ -14,6 +14,7 @@ mod explorer;
 mod metrics;
 mod api;
 mod cli;
+pub mod chain;
 pub mod mining;
 pub mod staking;
 
@@ -22,6 +23,7 @@ pub use explorer::{ExplorerService, ExplorerConfig, BlockInfo, TransactionInfo, 
 pub use metrics::{MetricsService, MetricsConfig, ChainMetrics, NetworkMetrics};
 pub use api::{ApiGateway, ApiConfig, ApiResponse, RateLimiter};
 pub use cli::{CliCommand, CliConfig, CliRunner};
+pub use chain::{ChainService, ChainServiceConfig, ChainBlockTemplate, ChainStats, ChainError};
 pub use mining::{MiningService, MiningServiceConfig, MiningInfo, ChainStateProvider};
 pub use staking::{
     StakingService, StakingConfig, StakingStats, StakingEvent,

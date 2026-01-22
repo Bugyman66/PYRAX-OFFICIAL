@@ -9,6 +9,8 @@
 //! Validators stake PYRAX tokens and generate ZK proofs for Stream A/B blocks.
 //! Valid proofs earn 10 PYRAX per checkpoint, invalid proofs result in slashing.
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

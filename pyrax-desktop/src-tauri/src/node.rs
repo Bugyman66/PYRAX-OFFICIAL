@@ -125,13 +125,27 @@ impl NodeManager {
     }
 
     fn find_node_binary(&self) -> Result<PathBuf, String> {
+        // MAC/LINUX FIX: Use platform-specific binary name
+        #[cfg(target_os = "windows")]
+        let binary_name = "pyrax-node.exe";
+        #[cfg(not(target_os = "windows"))]
+        let binary_name = "pyrax-node";
+        
         // Check common locations
-        let candidates = vec![
-            self.data_dir.join("pyrax-node.exe"),
-            self.data_dir.join("pyrax-node"),
-            PathBuf::from("pyrax-node.exe"),
-            PathBuf::from("pyrax-node"),
+        let mut candidates = vec![
+            self.data_dir.join(binary_name),
+            PathBuf::from(binary_name),
         ];
+        
+        // MAC/LINUX FIX: Add Unix-specific paths
+        #[cfg(not(target_os = "windows"))]
+        {
+            candidates.push(PathBuf::from("/usr/local/bin/pyrax-node"));
+            candidates.push(PathBuf::from("/usr/bin/pyrax-node"));
+            if let Some(home) = std::env::var_os("HOME") {
+                candidates.push(PathBuf::from(home).join(".local/bin/pyrax-node"));
+            }
+        }
 
         for path in candidates {
             if path.exists() {

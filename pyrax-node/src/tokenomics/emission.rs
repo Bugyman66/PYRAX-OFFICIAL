@@ -2,6 +2,8 @@
 //!
 //! Mining rewards and ZK prover rewards with halving
 
+#![allow(dead_code)]
+
 use std::sync::Arc;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};

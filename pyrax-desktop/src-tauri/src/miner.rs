@@ -607,7 +607,7 @@ struct GpuDeviceFull {
 
 /// Detect OpenCL GPUs with full info for context creation
 fn detect_opencl_gpus_full() -> Vec<GpuDeviceFull> {
-    let mut devices = Vec::new();
+    let mut devices: Vec<GpuDeviceFull> = Vec::new();
     
     #[cfg(target_os = "windows")]
     unsafe {
@@ -682,7 +682,7 @@ fn detect_opencl_gpus_full() -> Vec<GpuDeviceFull> {
 
 /// Detect OpenCL GPUs
 fn detect_opencl_gpus() -> Vec<(String, u64)> {
-    let mut devices = Vec::new();
+    let mut devices: Vec<(String, u64)> = Vec::new();
     
     #[cfg(target_os = "windows")]
     unsafe {

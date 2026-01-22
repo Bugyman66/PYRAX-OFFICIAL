@@ -3,13 +3,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/20/solid'
-import { CubeIcon, ArrowsRightLeftIcon, UserCircleIcon, CodeBracketIcon } from '@heroicons/react/24/outline'
+import { CubeIcon, ArrowsRightLeftIcon, UserCircleIcon, CodeBracketIcon, CurrencyDollarIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 
 interface SearchResult {
   type: 'block' | 'transaction' | 'address' | 'contract' | 'token'
   value: string
   label: string
   sublabel?: string
+  exists?: boolean
+  data?: Record<string, unknown>
+}
+
+interface ApiSearchResponse {
+  results: SearchResult[]
+  query: string
+  timestamp?: number
+  error?: string
 }
 
 export default function SearchAutocomplete() {
@@ -18,85 +27,85 @@ export default function SearchAutocomplete() {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const router = useRouter()
 
-  // Detect search type based on query
-  const detectSearchType = useCallback((q: string): SearchResult[] => {
-    const trimmed = q.trim()
-    if (!trimmed) return []
-
-    const results: SearchResult[] = []
-
-    // Block number (pure digits)
-    if (/^\d+$/.test(trimmed)) {
-      results.push({
-        type: 'block',
-        value: trimmed,
-        label: `Block #${trimmed}`,
-        sublabel: 'View block details',
-      })
+  // Real-time API search with debouncing
+  const performSearch = useCallback(async (searchQuery: string) => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed) {
+      setResults([])
+      setIsOpen(false)
+      setSearchError(null)
+      return
     }
 
-    // Transaction hash (0x + 64 hex chars)
-    if (/^0x[a-fA-F0-9]{64}$/.test(trimmed)) {
-      results.push({
-        type: 'transaction',
-        value: trimmed,
-        label: `${trimmed.slice(0, 10)}...${trimmed.slice(-8)}`,
-        sublabel: 'Transaction',
-      })
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
+    abortControllerRef.current = new AbortController()
 
-    // Address (0x + 40 hex chars)
-    if (/^0x[a-fA-F0-9]{40}$/.test(trimmed)) {
-      results.push({
-        type: 'address',
-        value: trimmed,
-        label: `${trimmed.slice(0, 10)}...${trimmed.slice(-8)}`,
-        sublabel: 'Address',
+    setLoading(true)
+    setSearchError(null)
+
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, {
+        signal: abortControllerRef.current.signal,
+        cache: 'no-store',
       })
-      results.push({
-        type: 'contract',
-        value: trimmed,
-        label: `${trimmed.slice(0, 10)}...${trimmed.slice(-8)}`,
-        sublabel: 'View as Contract',
-      })
+
+      if (!response.ok) {
+        throw new Error('Search failed')
+      }
+
+      const data: ApiSearchResponse = await response.json()
+      
+      if (data.error) {
+        setSearchError(data.error)
+        setResults([])
+      } else {
+        setResults(data.results)
+        setIsOpen(data.results.length > 0)
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Request was cancelled, ignore
+        return
+      }
+      console.error('Search error:', error)
+      setSearchError('Search failed. Please try again.')
+      setResults([])
+    } finally {
+      setLoading(false)
+      setSelectedIndex(-1)
     }
-
-    // Partial hash (starts with 0x but not complete)
-    if (/^0x[a-fA-F0-9]+$/.test(trimmed) && trimmed.length > 2 && trimmed.length < 66) {
-      results.push({
-        type: 'transaction',
-        value: trimmed,
-        label: `Search for "${trimmed.slice(0, 16)}..."`,
-        sublabel: 'Partial hash search',
-      })
-    }
-
-    return results
   }, [])
 
-  // Debounced search
+  // Debounced search effect
   useEffect(() => {
     if (!query.trim()) {
       setResults([])
       setIsOpen(false)
+      setSearchError(null)
       return
     }
 
     setLoading(true)
     const timer = setTimeout(() => {
-      const detected = detectSearchType(query)
-      setResults(detected)
-      setIsOpen(detected.length > 0)
-      setLoading(false)
-      setSelectedIndex(-1)
-    }, 150)
+      performSearch(query)
+    }, 200) // 200ms debounce for API calls
 
-    return () => clearTimeout(timer)
-  }, [query, detectSearchType])
+    return () => {
+      clearTimeout(timer)
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [query, performSearch])
 
   // Close on outside click
   useEffect(() => {
@@ -171,9 +180,19 @@ export default function SearchAutocomplete() {
         return <UserCircleIcon className="h-4 w-4" />
       case 'contract':
         return <CodeBracketIcon className="h-4 w-4" />
+      case 'token':
+        return <CurrencyDollarIcon className="h-4 w-4" />
       default:
         return <MagnifyingGlassIcon className="h-4 w-4" />
     }
+  }
+
+  const getExistsIndicator = (exists?: boolean) => {
+    if (exists === undefined) return null
+    if (exists) {
+      return <CheckCircleIcon className="h-3.5 w-3.5 text-green-400" title="Found on chain" />
+    }
+    return <XCircleIcon className="h-3.5 w-3.5 text-stone-500" title="Not found" />
   }
 
   return (
@@ -203,14 +222,22 @@ export default function SearchAutocomplete() {
       </div>
 
       {/* Autocomplete dropdown */}
-      {isOpen && (
+      {(isOpen || loading || searchError) && (
         <div className="absolute top-full left-0 right-0 mt-2 rounded-lg bg-stone-900 border border-stone-700 shadow-xl overflow-hidden z-50">
           {loading ? (
-            <div className="px-4 py-3 text-sm text-stone-500">Searching...</div>
+            <div className="px-4 py-3 text-sm text-stone-500 flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Searching blockchain...
+            </div>
+          ) : searchError ? (
+            <div className="px-4 py-3 text-sm text-red-400">{searchError}</div>
           ) : results.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-stone-500">No results found</div>
+            <div className="px-4 py-3 text-sm text-stone-500">No results found for &quot;{query}&quot;</div>
           ) : (
-            <ul className="py-1">
+            <ul className="py-1 max-h-80 overflow-y-auto">
               {results.map((result, index) => (
                 <li key={`${result.type}-${result.value}-${index}`}>
                   <button
@@ -219,14 +246,15 @@ export default function SearchAutocomplete() {
                       selectedIndex === index
                         ? 'bg-pyrax-500/20 text-pyrax-400'
                         : 'text-stone-300 hover:bg-stone-800 hover:text-white'
-                    }`}
+                    } ${result.exists === false ? 'opacity-60' : ''}`}
                   >
                     <span className={`shrink-0 ${selectedIndex === index ? 'text-pyrax-400' : 'text-stone-500'}`}>
                       {getIcon(result.type)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate font-mono">
+                      <div className="text-sm font-medium truncate font-mono flex items-center gap-2">
                         {result.label}
+                        {getExistsIndicator(result.exists)}
                       </div>
                       {result.sublabel && (
                         <div className="text-xs text-stone-500">{result.sublabel}</div>
@@ -237,6 +265,7 @@ export default function SearchAutocomplete() {
                       result.type === 'transaction' ? 'bg-purple-500/10 text-purple-400' :
                       result.type === 'address' ? 'bg-green-500/10 text-green-400' :
                       result.type === 'contract' ? 'bg-yellow-500/10 text-yellow-400' :
+                      result.type === 'token' ? 'bg-pink-500/10 text-pink-400' :
                       'bg-stone-700 text-stone-400'
                     }`}>
                       {result.type}

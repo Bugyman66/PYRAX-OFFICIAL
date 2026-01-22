@@ -3,13 +3,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useNetwork } from '@/context/NetworkContext'
-import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Zap } from 'lucide-react'
+import { Globe, Server, Activity, Users, ChevronLeft, ChevronRight, RefreshCw, AlertCircle, Zap, Wifi, WifiOff } from 'lucide-react'
 import { STREAMS, StreamType } from '@/lib/networks'
 
 const ComposableMap = dynamic(() => import('react-simple-maps').then(m => m.ComposableMap), { ssr: false })
 const Geographies = dynamic(() => import('react-simple-maps').then(m => m.Geographies), { ssr: false })
 const Geography = dynamic(() => import('react-simple-maps').then(m => m.Geography), { ssr: false })
 const Marker = dynamic(() => import('react-simple-maps').then(m => m.Marker), { ssr: false })
+const Line = dynamic(() => import('react-simple-maps').then(m => m.Line), { ssr: false })
 const ZoomableGroup = dynamic(() => import('react-simple-maps').then(m => m.ZoomableGroup), { ssr: false })
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
@@ -30,6 +31,8 @@ interface ConnectedNode {
   version: string
   blockHeight: number
   latency: number
+  isBootnode?: boolean
+  online?: boolean
 }
 
 interface NodeStats {
@@ -37,6 +40,16 @@ interface NodeStats {
   byStream: Record<StreamType, number>
   byCountry: Record<string, number>
   averageLatency: number
+}
+
+interface Connection {
+  from: string
+  to: string
+  fromCoords: [number, number]
+  toCoords: [number, number]
+  isRelay?: boolean
+  isMesh?: boolean          // User-to-user mesh connection
+  connectionType?: string   // "mesh", "gossip", "direct"
 }
 
 function cn(...classes: (string | boolean | undefined)[]) {
@@ -72,12 +85,14 @@ function getFlagEmoji(cc: string): string {
 export default function NodesVisualizerPage() {
   const { networkState } = useNetwork()
   const [nodes, setNodes] = useState<ConnectedNode[]>([])
+  const [connections, setConnections] = useState<Connection[]>([])
   const [stats, setStats] = useState<NodeStats>({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [filterStream, setFilterStream] = useState<StreamType | 'all'>('all')
   const [mapReady, setMapReady] = useState(false)
+  const [animationPhase, setAnimationPhase] = useState(0)
   const pageSize = 10
 
   useEffect(() => {
@@ -91,6 +106,14 @@ export default function NodesVisualizerPage() {
     return () => clearTimeout(t)
   }, [])
 
+  // Animation loop for connection lines
+  useEffect(() => {
+    const animInterval = setInterval(() => {
+      setAnimationPhase(p => (p + 1) % 100)
+    }, 50)
+    return () => clearInterval(animInterval)
+  }, [])
+
   async function fetchNodes() {
     try {
       setLoading(true)
@@ -100,10 +123,12 @@ export default function NodesVisualizerPage() {
       const data = await res.json()
       if (data.error) setError(data.error)
       setNodes(data.nodes || [])
+      setConnections(data.connections || [])
       setStats(data.stats || { totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } catch (e) {
       setError(String(e))
       setNodes([])
+      setConnections([])
       setStats({ totalNodes: 0, byStream: { A: 0, B: 0, C: 0 }, byCountry: {}, averageLatency: 0 })
     } finally {
       setLoading(false)
@@ -187,28 +212,88 @@ export default function NodesVisualizerPage() {
                     <Geography key={geo.rsmKey} geography={geo} fill="#27272a" stroke="#3f3f46" strokeWidth={0.5} style={{ default: { outline: 'none' }, hover: { fill: '#3f3f46', outline: 'none' }, pressed: { outline: 'none' } }} />
                   ))}
                 </Geographies>
-                {mappableNodes.map(node => (
-                  <Marker key={node.id} coordinates={[node.lon, node.lat]}>
-                    <circle r={10} fill={getStreamColor(node.stream)} opacity={0.2} className="animate-ping" />
-                    <circle r={6} fill={getStreamColor(node.stream)} opacity={0.4} />
-                    <circle r={3} fill={getStreamColor(node.stream)} />
-                    <title>{node.city}, {node.country} - Stream {node.stream}</title>
-                  </Marker>
-                ))}
+                {/* Animated connection lines between nodes */}
+                {connections.map((conn, idx) => {
+                  // Determine connection type for styling
+                  const isBootnodeLink = conn.from.includes('bootnode') && conn.to.includes('bootnode')
+                  const isMeshLink = (conn as any).isMesh === true
+                  const pulseIntensity = 0.4 + (Math.sin((animationPhase + idx * 10) * 0.1) + 1) * 0.3
+                  const opacity = Math.round(pulseIntensity * 255).toString(16).padStart(2, '0')
+                  
+                  // Color coding:
+                  // - Orange: Bootnode-to-bootnode (infrastructure)
+                  // - Cyan: User-to-bootnode (relay connections)
+                  // - Purple: User-to-user mesh connections
+                  let baseColor = '#06b6d4' // Default cyan for user-bootnode
+                  if (isBootnodeLink) baseColor = '#f97316' // Orange for bootnode-bootnode
+                  else if (isMeshLink) baseColor = '#a855f7' // Purple for user-user mesh
+                  
+                  const strokeColor = `${baseColor}${opacity}`
+                  
+                  // Line thickness: bootnode 0.8, user-bootnode 0.4, mesh 0.3
+                  let strokeWidth = 0.4
+                  if (isBootnodeLink) strokeWidth = 0.8
+                  else if (isMeshLink) strokeWidth = 0.3
+                  
+                  // Dashed line for mesh connections
+                  return (
+                    <Line
+                      key={`${conn.from}-${conn.to}-${idx}`}
+                      from={conn.fromCoords}
+                      to={conn.toCoords}
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      strokeLinecap="round"
+                    />
+                  )
+                })}
+                {mappableNodes.map(node => {
+                  // Bootnodes get orange color for visibility, others get stream color
+                  const markerColor = node.isBootnode ? '#f97316' : getStreamColor(node.stream)
+                  // Smaller sizes: bootnodes 2.5, regular nodes 1.5
+                  const markerSize = node.isBootnode ? 2.5 : 1.5
+                  return (
+                    <Marker key={node.id} coordinates={[node.lon, node.lat]}>
+                      <circle r={markerSize * 2.5} fill={markerColor} opacity={0.15} className="animate-ping" />
+                      <circle r={markerSize * 1.5} fill={markerColor} opacity={0.3} />
+                      <circle r={markerSize} fill={markerColor} />
+                      <title>{node.isBootnode ? '🔴 BOOTNODE: ' : ''}{node.city}, {node.country} - Stream {node.stream}</title>
+                    </Marker>
+                  )
+                })}
               </ZoomableGroup>
             </ComposableMap>
           ) : (
             <div className="flex items-center justify-center h-full"><RefreshCw className="w-8 h-8 animate-spin text-stone-600" /></div>
           )}
           <div className="absolute bottom-4 left-4 bg-stone-900/95 rounded-lg p-3 border border-stone-700">
-            <div className="text-xs text-stone-400 mb-2">Stream Types</div>
-            <div className="flex gap-4">
+            <div className="text-xs text-stone-400 mb-2">Legend</div>
+            <div className="flex flex-wrap gap-4 mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-xs text-stone-300 font-medium">Bootnode</span>
+              </div>
               {(['A', 'B', 'C'] as StreamType[]).map(s => (
                 <div key={s} className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: getStreamColor(s) }} />
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: getStreamColor(s) }} />
                   <span className="text-xs text-stone-300">{STREAMS[s].algorithm}</span>
                 </div>
               ))}
+            </div>
+            <div className="text-xs text-stone-400 mb-1 mt-2 border-t border-stone-700 pt-2">Connections</div>
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-orange-500" />
+                <span className="text-xs text-stone-300">Bootnode</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-cyan-500" />
+                <span className="text-xs text-stone-300">User→Boot</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-4 h-0.5 bg-purple-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #a855f7 0, #a855f7 2px, transparent 2px, transparent 4px)' }} />
+                <span className="text-xs text-stone-300">User↔User</span>
+              </div>
             </div>
           </div>
           <div className="absolute top-4 right-4 bg-stone-900/95 rounded-lg p-3 border border-stone-700 min-w-[180px]">
@@ -248,41 +333,62 @@ export default function NodesVisualizerPage() {
           <table className="w-full">
             <thead className="bg-stone-800/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Peer ID</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Stream</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Latency</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Block Height</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Version</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase">Last Seen</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-stone-400 uppercase text-right">Latency</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-800">
-              {paginatedNodes.length > 0 ? paginatedNodes.map(node => (
-                <tr key={node.id} className="hover:bg-stone-800/30">
-                  <td className="px-4 py-3"><span className="font-mono text-sm text-stone-300">{node.peerId.slice(0, 8)}...{node.peerId.slice(-6)}</span></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{getFlagEmoji(node.countryCode)}</span>
-                      <div><div className="text-sm text-white">{node.city || 'Unknown'}</div><div className="text-xs text-stone-500">{node.country || 'Unknown'}</div></div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${getStreamColor(node.stream)}20`, color: getStreamColor(node.stream) }}>
-                      {node.stream} - {STREAMS[node.stream].algorithm}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-sm font-mono ${node.latency > 0 ? (node.latency < 100 ? 'text-green-400' : node.latency < 300 ? 'text-yellow-400' : 'text-red-400') : 'text-stone-500'}`}>
-                      {node.latency > 0 ? `${node.latency}ms` : '--'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-300 font-mono">#{node.blockHeight.toLocaleString()}</span></td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-400">{node.version}</span></td>
-                  <td className="px-4 py-3"><span className="text-sm text-stone-400">{formatTimeAgo(node.lastSeen)}</span></td>
-                </tr>
-              )) : (
-                <tr><td colSpan={7} className="px-4 py-12 text-center">
+              {paginatedNodes.length > 0 ? paginatedNodes.map(node => {
+                const isOnline = node.online !== false
+                const isBootnode = node.isBootnode === true
+                return (
+                  <tr key={node.id} className={cn('hover:bg-stone-800/30', isBootnode && 'bg-red-900/10 border-l-2 border-red-500')}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {isOnline ? (
+                          <Wifi className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <WifiOff className="w-4 h-4 text-red-400" />
+                        )}
+                        <span className={isOnline ? 'text-green-400 text-sm' : 'text-red-400 text-sm'}>
+                          {isOnline ? 'Online' : 'Offline'}
+                        </span>
+                        {isBootnode && (
+                          <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium">
+                            BOOTNODE
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{getFlagEmoji(node.countryCode)}</span>
+                        <div>
+                          <div className="text-sm text-white">{node.city || 'Unknown'}</div>
+                          <div className="text-xs text-stone-500">{node.country || 'Unknown'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: `${getStreamColor(node.stream)}20`, color: getStreamColor(node.stream) }}>
+                        {STREAMS[node.stream].algorithm}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono text-pyrax-400">v{node.version}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`text-sm font-mono ${node.latency > 0 ? (node.latency < 50 ? 'text-green-400' : node.latency < 100 ? 'text-yellow-400' : node.latency < 200 ? 'text-orange-400' : 'text-red-400') : 'text-stone-500'}`}>
+                        {isOnline && node.latency > 0 ? `${node.latency}ms` : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              }) : (
+                <tr><td colSpan={5} className="px-4 py-12 text-center">
                   {loading ? <div className="flex items-center justify-center gap-2 text-stone-400"><RefreshCw className="w-5 h-5 animate-spin" /><span>Loading...</span></div> : <div className="text-stone-500">No nodes connected yet. Be the first to run a PYRAX node!</div>}
                 </td></tr>
               )}

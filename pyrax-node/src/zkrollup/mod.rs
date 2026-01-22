@@ -7,6 +7,8 @@
 //! - Data availability guarantees
 //! - L2 ↔ L1 bridge with withdrawals
 
+#![allow(dead_code)]
+
 mod prover;
 mod verifier;
 mod sequencer;

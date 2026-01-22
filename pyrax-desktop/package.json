@@ -1,6 +1,6 @@
 {
   "name": "pyrax-desktop",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "PYRAX Desktop - Wallet, Node, and Miner Interface",
   "author": "PYRAX Team",
   "license": "MIT",
@@ -16,15 +16,17 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "@tauri-apps/api": "^1.5.0",
+    "chart.js": "^4.5.1",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.21.0",
-    "@tauri-apps/api": "^1.5.0",
-    "lucide-react": "^0.294.0",
     "recharts": "^2.10.0",
-    "zustand": "^4.4.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.2.0"
+    "tailwind-merge": "^2.2.0",
+    "zustand": "^4.4.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0",

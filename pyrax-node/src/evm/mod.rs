@@ -8,6 +8,9 @@
 //! - Precompiled contracts
 //! - L1-L2 bridge integration
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

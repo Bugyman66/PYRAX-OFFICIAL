@@ -2,6 +2,8 @@
 //!
 //! Production API gateway with rate limiting and authentication
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::net::IpAddr;

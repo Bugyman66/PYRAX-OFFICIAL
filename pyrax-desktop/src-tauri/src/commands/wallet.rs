@@ -401,9 +401,9 @@ pub async fn get_transactions(
     }
     
     let rpc = RpcClient::localhost(rpc_port);
-    let _max_txs = limit.unwrap_or(50) as usize;
+    let max_txs = limit.unwrap_or(50);
     
-    // Get UTXOs for the address(es) to find transaction history
+    // Get addresses to check
     let addresses_to_check: Vec<String> = match address {
         Some(addr) => vec![addr],
         None => wallet_addresses.iter().map(|wa| wa.address.clone()).collect(),
@@ -412,30 +412,41 @@ pub async fn get_transactions(
     let mut transactions = Vec::new();
     
     for addr in addresses_to_check {
-        // Get UTXOs to find txids
-        if let Ok(utxos) = rpc.get_utxos(&addr).await {
-            for utxo in utxos {
-                // Try to get the full transaction
-                if let Ok(Some(tx)) = rpc.get_transaction(&utxo.txid).await {
-                    let block_number = tx.block_number.as_ref()
-                        .and_then(|n| u64::from_str_radix(n.trim_start_matches("0x"), 16).ok());
-                    
-                    transactions.push(TransactionInfo {
-                        hash: tx.hash,
-                        from: tx.from,
-                        to: tx.to,
-                        value: tx.value,
-                        gas_price: tx.gas_price,
-                        gas_used: tx.gas.clone(),
-                        block_number,
-                        timestamp: None,
-                        status: "confirmed".to_string(),
-                        tx_type: if utxo.coinbase { "coinbase".to_string() } else { "transfer".to_string() },
-                    });
-                }
+        // Use the new address transactions RPC endpoint
+        if let Ok(tx_history) = rpc.get_address_transactions(&addr, Some(max_txs)).await {
+            for tx in tx_history.transactions {
+                // Determine tx_type based on direction
+                let tx_type = match tx.direction.as_str() {
+                    "mining" => "mining",
+                    "receive" => "receive",
+                    "send" => "send",
+                    _ => "transfer",
+                };
+                
+                // Convert value to PYRAX string
+                let value_pyrax = tx.value as f64 / 100_000_000.0;
+                
+                transactions.push(TransactionInfo {
+                    hash: tx.txid,
+                    from: if tx.is_coinbase { "Coinbase".to_string() } else { "Unknown".to_string() },
+                    to: Some(addr.clone()),
+                    value: format!("{:.8}", value_pyrax),
+                    gas_price: "0".to_string(),
+                    gas_used: "0".to_string(),
+                    block_number: Some(tx.block_height),
+                    timestamp: Some(tx.timestamp),
+                    status: if tx.confirmations > 0 { "confirmed".to_string() } else { "pending".to_string() },
+                    tx_type: tx_type.to_string(),
+                });
             }
         }
     }
+    
+    // Sort by block height descending (most recent first)
+    transactions.sort_by(|a, b| b.block_number.cmp(&a.block_number));
+    
+    // Limit results
+    transactions.truncate(max_txs as usize);
     
     Ok(transactions)
 }

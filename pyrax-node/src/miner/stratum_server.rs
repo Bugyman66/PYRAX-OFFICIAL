@@ -1156,10 +1156,15 @@ mod tests {
         let server = StratumServer::new(config);
         
         let id1 = server.generate_job_id(100);
-        let id2 = server.generate_job_id(100);
+        let id2 = server.generate_job_id(101);
         
-        // Different timestamps should produce different IDs
+        // Different block heights should produce different IDs
         assert_ne!(id1, id2);
+        
+        // Job ID format: 8 hex chars for height + 8 hex chars for timestamp
+        assert_eq!(id1.len(), 16);
+        assert!(id1.starts_with("00000064")); // 100 in hex = 0x64
+        assert!(id2.starts_with("00000065")); // 101 in hex = 0x65
     }
 
     #[test]

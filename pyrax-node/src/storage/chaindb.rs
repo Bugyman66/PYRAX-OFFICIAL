@@ -90,9 +90,15 @@ impl ChainDB {
         }
 
         // Initialize with genesis block
-        info!("Initializing new chain with genesis block");
+        info!("╔══════════════════════════════════════════════════════════════╗");
+        info!("║  INITIALIZING NEW CHAIN WITH GENESIS BLOCK                   ║");
+        info!("╚══════════════════════════════════════════════════════════════╝");
         let genesis = genesis_block(network);
         let genesis_hash = genesis.hash();
+        info!("Network: {:?} (chain_id: {})", network, network.0);
+        info!("Genesis hash: {}", genesis_hash);
+        info!("Genesis timestamp: {}", genesis.header.timestamp);
+        info!("Genesis difficulty: {}", genesis.header.difficulty);
 
         let mut batch = WriteBatch::default();
 
@@ -526,4 +532,78 @@ impl ChainDB {
     pub fn total_difficulty(&self) -> u64 {
         self.tip.read().total_difficulty
     }
+
+    /// Get transaction history for an address
+    /// Returns transactions where the address appears as input (sender) or output (receiver)
+    pub fn get_transactions_for_address(
+        &self,
+        address: &crate::types::Address,
+        limit: usize,
+    ) -> Result<Vec<(Transaction, TxLocation, TxDirection)>> {
+        let tip = self.get_tip();
+        let mut transactions = Vec::new();
+        
+        // Scan backwards from tip to find transactions involving this address
+        let start_height = tip.height;
+        let min_height = start_height.saturating_sub(1000); // Scan last 1000 blocks max
+        
+        for height in (min_height..=start_height).rev() {
+            if transactions.len() >= limit {
+                break;
+            }
+            
+            if let Ok(Some(block)) = self.get_block_by_height(height) {
+                let block_hash = block.hash();
+                
+                for (tx_idx, tx) in block.transactions.iter().enumerate() {
+                    let mut direction = TxDirection::Unknown;
+                    let mut involves_address = false;
+                    
+                    // Check outputs (receiving)
+                    for output in &tx.outputs {
+                        if let Some(output_addr) = output.get_address() {
+                            if &output_addr == address {
+                                involves_address = true;
+                                direction = TxDirection::Receive;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Check if this is a coinbase (mining reward)
+                    if tx.is_coinbase() && involves_address {
+                        direction = TxDirection::Mining;
+                    }
+                    
+                    // Note: For UTXO model, determining if address is sender requires
+                    // looking up the previous outputs which is expensive. For now we
+                    // only track receiving transactions efficiently.
+                    
+                    if involves_address {
+                        let loc = TxLocation {
+                            block_hash,
+                            block_height: height,
+                            tx_index: tx_idx as u32,
+                        };
+                        transactions.push((tx.clone(), loc, direction));
+                        
+                        if transactions.len() >= limit {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(transactions)
+    }
+}
+
+/// Direction of a transaction relative to an address
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum TxDirection {
+    Receive,
+    Send,
+    Mining,
+    Unknown,
 }

@@ -6,6 +6,11 @@
 //! - Parallel block download with bounded concurrency
 //! - Ordered block commit
 //! - Reorg handling with state rollback
+//! - Fast/Snap/Warp sync modes for accelerated syncing
+
+mod snap_sync;
+
+pub use snap_sync::{SyncMode, SnapSyncManager, SnapSyncState, SnapSyncStats, WarpSyncManager, ZkCheckpointProof, ZkProofType, StateChunk, PivotBlock};
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::sync::Arc;

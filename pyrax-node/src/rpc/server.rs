@@ -9,7 +9,7 @@ use jsonrpsee::core::{async_trait, RpcResult};
 use jsonrpsee::proc_macros::rpc;
 use tracing::info;
 
-use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo};
+use super::{RpcError, RpcBlock, RpcTransaction, RpcChainInfo, RpcPeerInfo, RpcMempoolInfo, RpcBlockTemplate, RpcSubmitResult, RpcBalance, RpcUtxo, RpcAddressTransactions, RpcAddressTx, RpcMiningInfo};
 use crate::storage::ChainDB;
 use crate::types::{H256, Address, Transaction, TxInput, TxOutput, Block, NetworkId, OutPoint};
 use crate::mempool::Mempool;
@@ -60,6 +60,10 @@ pub trait PyraxRpc {
     /// Submit mined block
     #[method(name = "pyrax_submitBlock")]
     async fn submit_block(&self, block_hex: String) -> RpcResult<RpcSubmitResult>;
+
+    /// Get mining info (for desktop app compatibility)
+    #[method(name = "pyrax_getMiningInfo")]
+    async fn get_mining_info(&self) -> RpcResult<RpcMiningInfo>;
     
     /// Create a test transaction (devnet only) - spends from one address to another
     #[method(name = "pyrax_createTestTransaction")]
@@ -68,6 +72,28 @@ pub trait PyraxRpc {
     /// Get network peer information
     #[method(name = "pyrax_getNetworkInfo")]
     async fn get_network_info(&self) -> RpcResult<super::RpcNetworkInfo>;
+
+    /// Get peer list (for desktop app compatibility)
+    #[method(name = "pyrax_getPeers")]
+    async fn get_peers(&self) -> RpcResult<Vec<RpcPeerInfo>>;
+
+    /// Simple health check - returns immediately without database access
+    #[method(name = "pyrax_health")]
+    async fn health(&self) -> RpcResult<String>;
+
+    /// Get local peer ID for P2P bootstrap discovery
+    /// Desktop/CLI apps use this to dynamically discover bootnode peer IDs
+    #[method(name = "pyrax_getPeerId")]
+    async fn get_peer_id(&self) -> RpcResult<String>;
+
+    /// Debug P2P state - shows both registry peers and metrics for troubleshooting
+    /// Use this to diagnose peer count mismatches
+    #[method(name = "pyrax_debugP2PState")]
+    async fn debug_p2p_state(&self) -> RpcResult<super::RpcP2PDebugState>;
+
+    /// Get transaction history for an address
+    #[method(name = "pyrax_getAddressTransactions")]
+    async fn get_address_transactions(&self, address: String, limit: Option<u32>) -> RpcResult<super::RpcAddressTransactions>;
 }
 
 /// RPC server state
@@ -118,6 +144,7 @@ impl PyraxRpcServer for RpcServerImpl {
             difficulty: tip.total_difficulty,
             utxo_count,
             syncing: false,
+            node_version: format!("pyrax-node/{}", env!("CARGO_PKG_VERSION")),
         })
     }
 
@@ -340,6 +367,18 @@ impl PyraxRpcServer for RpcServerImpl {
             }),
         }
     }
+
+    async fn get_mining_info(&self) -> RpcResult<RpcMiningInfo> {
+        let tip = self.db.get_tip();
+        Ok(RpcMiningInfo {
+            mining: false, // Node doesn't mine directly, desktop app handles mining
+            hashrate: 0.0,
+            difficulty: 1.0, // Devnet difficulty
+            blocks_found: 0,
+            network_hashrate: 0.0,
+            current_height: tip.height,
+        })
+    }
     
     async fn create_test_transaction(&self, from_address: String, to_address: String, amount: u64) -> RpcResult<RpcSubmitResult> {
         // Only allow on devnet
@@ -438,11 +477,56 @@ impl PyraxRpcServer for RpcServerImpl {
                 }
             }).collect();
 
+            // Get extended P2P stats from registry
+            let metrics = registry.get_metrics().await;
+            
+            // Convert mesh connections to RPC format
+            let rpc_mesh_connections: Vec<super::RpcMeshConnection> = metrics.mesh_connections.iter().map(|c| {
+                super::RpcMeshConnection {
+                    peer_a: c.peer_a.clone(),
+                    peer_b: c.peer_b.clone(),
+                    topic: c.topic.clone(),
+                    connection_type: c.connection_type.clone(),
+                }
+            }).collect();
+            
+            let rpc_relay_circuits: Vec<super::RpcRelayCircuit> = metrics.relay_circuits.iter().map(|c| {
+                super::RpcRelayCircuit {
+                    src_peer: c.src_peer.clone(),
+                    dst_peer: c.dst_peer.clone(),
+                    established_at: c.established_at,
+                }
+            }).collect();
+            
+            // PEER COUNT FIX: Use metrics as fallback if peer list is empty but metrics show connections
+            // This handles race conditions where metrics update before peer registry
+            let effective_peer_count = if rpc_peers.is_empty() && (metrics.inbound_peers + metrics.outbound_peers) > 0 {
+                metrics.inbound_peers + metrics.outbound_peers
+            } else {
+                rpc_peers.len()
+            };
+            
             Ok(super::RpcNetworkInfo {
-                peer_count: rpc_peers.len(),
+                peer_count: effective_peer_count,
                 peers: rpc_peers,
                 local_peer_id,
                 listen_addresses,
+                // Extended P2P stats
+                inbound_peers: metrics.inbound_peers,
+                outbound_peers: metrics.outbound_peers,
+                target_peers: metrics.target_peers,
+                max_peers: metrics.max_peers,
+                dial_attempts: metrics.dial_attempts,
+                dial_successes: metrics.dial_successes,
+                dial_failures: metrics.dial_failures,
+                average_rtt_ms: metrics.average_rtt_ms,
+                network_state: metrics.network_state.clone(),
+                nat_status: metrics.nat_status.clone(),
+                mesh_peers: metrics.mesh_peers,
+                gossip_peers: metrics.gossip_peers,
+                // Mesh topology for visualizer
+                mesh_connections: rpc_mesh_connections,
+                relay_circuits: rpc_relay_circuits,
             })
         } else {
             Ok(super::RpcNetworkInfo {
@@ -450,8 +534,195 @@ impl PyraxRpcServer for RpcServerImpl {
                 peers: vec![],
                 local_peer_id: String::new(),
                 listen_addresses: vec![],
+                // Default extended stats
+                inbound_peers: 0,
+                outbound_peers: 0,
+                target_peers: 50,
+                max_peers: 60,
+                dial_attempts: 0,
+                dial_successes: 0,
+                dial_failures: 0,
+                average_rtt_ms: None,
+                network_state: "Disconnected".to_string(),
+                nat_status: "Unknown".to_string(),
+                mesh_peers: 0,
+                gossip_peers: 0,
+                mesh_connections: vec![],
+                relay_circuits: vec![],
             })
         }
+    }
+
+    async fn get_peers(&self) -> RpcResult<Vec<RpcPeerInfo>> {
+        if let Some(ref registry) = self.peer_registry {
+            let peers = registry.get_peers().await;
+            let rpc_peers: Vec<RpcPeerInfo> = peers.iter().map(|p| {
+                RpcPeerInfo {
+                    peer_id: p.peer_id.clone(),
+                    address: p.address.clone(),
+                    ip: p.ip.clone(),
+                    port: p.port,
+                    protocol: format!("/pyrax/{}/1.0.0", self.network_id.name()),
+                    direction: p.direction.to_string(),
+                    connected_secs: p.connected_at.elapsed().as_secs(),
+                    last_seen: std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64 - p.last_seen.elapsed().as_millis() as u64,
+                    version: p.client_version.clone(),
+                    block_height: p.best_height,
+                }
+            }).collect();
+            Ok(rpc_peers)
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    async fn health(&self) -> RpcResult<String> {
+        Ok("ok".to_string())
+    }
+
+    async fn get_peer_id(&self) -> RpcResult<String> {
+        if let Some(ref registry) = self.peer_registry {
+            Ok(registry.local_peer_id().await)
+        } else {
+            // No P2P enabled - return empty string
+            Ok(String::new())
+        }
+    }
+
+    async fn debug_p2p_state(&self) -> RpcResult<super::RpcP2PDebugState> {
+        if let Some(ref registry) = self.peer_registry {
+            let peers = registry.get_peers().await;
+            let metrics = registry.get_metrics().await;
+            
+            let registry_peer_count = peers.len();
+            let registry_peers: Vec<String> = peers.iter().map(|p| p.peer_id.clone()).collect();
+            
+            let metrics_total = metrics.inbound_peers + metrics.outbound_peers;
+            
+            // Calculate effective peer count (same logic as get_network_info)
+            let effective_peer_count = if registry_peer_count > 0 {
+                registry_peer_count
+            } else if metrics_total > 0 {
+                metrics_total
+            } else {
+                0
+            };
+            
+            // Generate diagnosis
+            let diagnosis = if registry_peer_count == metrics_total {
+                "OK: Registry and metrics are in sync".to_string()
+            } else if registry_peer_count == 0 && metrics_total > 0 {
+                format!("MISMATCH: Registry empty but metrics show {} peers - using metrics fallback", metrics_total)
+            } else if registry_peer_count > 0 && metrics_total == 0 {
+                format!("MISMATCH: Registry has {} peers but metrics show 0 - metrics may not be updating", registry_peer_count)
+            } else {
+                format!("DRIFT: Registry has {} peers, metrics show {} - minor sync delay", registry_peer_count, metrics_total)
+            };
+            
+            Ok(super::RpcP2PDebugState {
+                registry_peer_count,
+                registry_peers,
+                metrics_inbound_peers: metrics.inbound_peers,
+                metrics_outbound_peers: metrics.outbound_peers,
+                metrics_mesh_peers: metrics.mesh_peers,
+                metrics_gossip_peers: metrics.gossip_peers,
+                metrics_dial_attempts: metrics.dial_attempts,
+                metrics_dial_successes: metrics.dial_successes,
+                metrics_dial_failures: metrics.dial_failures,
+                metrics_network_state: metrics.network_state,
+                metrics_nat_status: metrics.nat_status,
+                effective_peer_count,
+                diagnosis,
+            })
+        } else {
+            Ok(super::RpcP2PDebugState {
+                registry_peer_count: 0,
+                registry_peers: vec![],
+                metrics_inbound_peers: 0,
+                metrics_outbound_peers: 0,
+                metrics_mesh_peers: 0,
+                metrics_gossip_peers: 0,
+                metrics_dial_attempts: 0,
+                metrics_dial_successes: 0,
+                metrics_dial_failures: 0,
+                metrics_network_state: "P2P Disabled".to_string(),
+                metrics_nat_status: "Unknown".to_string(),
+                effective_peer_count: 0,
+                diagnosis: "P2P is not enabled - no peer registry available".to_string(),
+            })
+        }
+    }
+
+    async fn get_address_transactions(&self, address: String, limit: Option<u32>) -> RpcResult<RpcAddressTransactions> {
+        use crate::storage::TxDirection;
+        
+        let addr = parse_address(&address)?;
+        let max_txs = limit.unwrap_or(50).min(100) as usize;
+        let tip = self.db.get_tip();
+        
+        // Get transactions for this address
+        let txs = self.db.get_transactions_for_address(&addr, max_txs)
+            .map_err(|e| RpcError::InternalError(e.to_string()))?;
+        
+        let mut total_received = 0u64;
+        let mut total_sent = 0u64;
+        
+        let rpc_txs: Vec<RpcAddressTx> = txs.iter().map(|(tx, loc, direction)| {
+            // Calculate value for this address in this transaction
+            let value: u64 = tx.outputs.iter()
+                .filter_map(|o| {
+                    if let Some(out_addr) = o.get_address() {
+                        if out_addr == addr {
+                            return Some(o.value);
+                        }
+                    }
+                    None
+                })
+                .sum();
+            
+            match direction {
+                TxDirection::Receive | TxDirection::Mining => total_received += value,
+                TxDirection::Send => total_sent += value,
+                _ => {}
+            }
+            
+            // Get block timestamp
+            let timestamp = self.db.get_block(&loc.block_hash)
+                .ok()
+                .flatten()
+                .map(|b| b.header.timestamp)
+                .unwrap_or(0);
+            
+            let confirmations = tip.height.saturating_sub(loc.block_height) + 1;
+            
+            RpcAddressTx {
+                txid: format!("0x{}", hex::encode(&tx.txid().0)),
+                block_hash: format!("0x{}", hex::encode(&loc.block_hash.0)),
+                block_height: loc.block_height,
+                tx_index: loc.tx_index,
+                direction: match direction {
+                    TxDirection::Receive => "receive".to_string(),
+                    TxDirection::Send => "send".to_string(),
+                    TxDirection::Mining => "mining".to_string(),
+                    TxDirection::Unknown => "unknown".to_string(),
+                },
+                value,
+                timestamp,
+                is_coinbase: tx.is_coinbase(),
+                confirmations,
+            }
+        }).collect();
+        
+        Ok(RpcAddressTransactions {
+            address,
+            transactions: rpc_txs.clone(),
+            total_received,
+            total_sent,
+            tx_count: rpc_txs.len(),
+        })
     }
 }
 

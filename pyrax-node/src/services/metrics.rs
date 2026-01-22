@@ -2,6 +2,8 @@
 //!
 //! Production metrics collection and dashboard API
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
@@ -163,6 +165,8 @@ pub struct MiningMetrics {
     pub stream_a: StreamMetrics,
     /// Stream B (GPU) stats
     pub stream_b: StreamMetrics,
+    /// Stream C (ZK-STARK + PoS) stats
+    pub stream_c: StreamMetrics,
     /// Time to next halving (blocks)
     pub blocks_to_halving: u64,
     /// Current epoch
@@ -520,6 +524,11 @@ impl MetricsService {
         // ZK metrics
         output.push_str(&format!("pyrax_zk_proofs_24h {}\n", dashboard.zk.proofs_24h));
         output.push_str(&format!("pyrax_zk_burned {}\n", dashboard.zk.total_burned));
+
+        // Stream metrics (for pyrax-metrics Chain Observer)
+        // Note: Stream metrics require MiningMetrics to be populated separately
+        // These are placeholder values - actual stream data comes from MiningMetrics updates
+        output.push_str(&format!("pyrax_finality_secs {}\n", dashboard.chain.finality_secs));
 
         output
     }

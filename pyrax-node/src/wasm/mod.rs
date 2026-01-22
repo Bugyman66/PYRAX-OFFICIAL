@@ -9,6 +9,8 @@
 //! - EVM ↔ WASM interoperability
 //! - Contract deployment and invocation
 
+#![allow(dead_code)]
+
 mod runtime;
 mod host;
 mod metering;

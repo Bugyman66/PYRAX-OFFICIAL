@@ -9,6 +9,9 @@
 //! - Atomic cross-model transactions
 //! - Gas fee distribution across streams
 
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 mod dual_state;
 mod unified_address;
 mod fee_distribution;

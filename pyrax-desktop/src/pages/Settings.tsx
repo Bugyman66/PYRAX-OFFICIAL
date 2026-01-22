@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, FolderOpen, RefreshCw } from 'lucide-react';
+import { Settings as SettingsIcon, Save, FolderOpen, RefreshCw, Trash2, AlertTriangle, X, HardDrive, Shield, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/tauri';
 
 interface AppSettings {
@@ -14,6 +14,19 @@ interface AppSettings {
   p2pPort: number;
   maxPeers: number;
   theme: 'light' | 'dark' | 'system';
+}
+
+interface FirewallStatus {
+  rule_exists: boolean;
+  port: number;
+  requires_admin: boolean;
+  platform: string;
+}
+
+interface FirewallResult {
+  success: boolean;
+  message: string;
+  requires_restart: boolean;
 }
 
 export default function Settings() {
@@ -32,9 +45,18 @@ export default function Settings() {
   const [dataDir, setDataDir] = useState('');
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
+  const [clearResult, setClearResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [dataSizes, setDataSizes] = useState<Record<string, string>>({});
+  const [firewallStatus, setFirewallStatus] = useState<FirewallStatus | null>(null);
+  const [configuringFirewall, setConfiguringFirewall] = useState(false);
+  const [firewallResult, setFirewallResult] = useState<FirewallResult | null>(null);
 
   useEffect(() => {
     loadSettings();
+    loadDataSizes();
+    loadFirewallStatus();
   }, []);
 
   const loadSettings = async () => {
@@ -47,6 +69,70 @@ export default function Settings() {
       setDataDir(dir);
     } catch (e) {
       console.error('Failed to load settings:', e);
+    }
+  };
+
+  const loadDataSizes = async () => {
+    try {
+      const networks = ['testnet', 'devnet', 'mainnet'];
+      const sizes: Record<string, string> = {};
+      for (const network of networks) {
+        sizes[network] = await invoke<string>('get_local_data_size', { network });
+      }
+      setDataSizes(sizes);
+    } catch (e) {
+      console.error('Failed to load data sizes:', e);
+    }
+  };
+
+  const loadFirewallStatus = async () => {
+    try {
+      const status = await invoke<FirewallStatus>('check_firewall_status');
+      setFirewallStatus(status);
+    } catch (e) {
+      console.error('Failed to check firewall status:', e);
+    }
+  };
+
+  const handleConfigureFirewall = async () => {
+    setConfiguringFirewall(true);
+    setFirewallResult(null);
+    try {
+      const result = await invoke<FirewallResult>('configure_firewall');
+      setFirewallResult(result);
+      loadFirewallStatus(); // Refresh status
+    } catch (e) {
+      setFirewallResult({ success: false, message: e as string, requires_restart: false });
+    } finally {
+      setConfiguringFirewall(false);
+    }
+  };
+
+  const handleRemoveFirewallRules = async () => {
+    setConfiguringFirewall(true);
+    setFirewallResult(null);
+    try {
+      const result = await invoke<FirewallResult>('remove_firewall_rules');
+      setFirewallResult(result);
+      loadFirewallStatus(); // Refresh status
+    } catch (e) {
+      setFirewallResult({ success: false, message: e as string, requires_restart: false });
+    } finally {
+      setConfiguringFirewall(false);
+    }
+  };
+
+  const handleClearData = async (network: string) => {
+    setClearingData(true);
+    setClearResult(null);
+    try {
+      const result = await invoke<string>('clear_local_data', { network });
+      setClearResult({ success: true, message: result });
+      loadDataSizes(); // Refresh sizes
+    } catch (e) {
+      setClearResult({ success: false, message: e as string });
+    } finally {
+      setClearingData(false);
     }
   };
 
@@ -228,6 +314,105 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Firewall Configuration (All Platforms) */}
+      {firewallStatus && (
+        <div className="bg-gray-800 rounded-xl p-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Shield size={20} />
+            Firewall Configuration
+          </h2>
+          <p className="text-sm text-gray-400 mb-4">
+            {firewallStatus.platform === 'windows' && (
+              <>Configure Windows Firewall to allow P2P connections. This is <strong>optional</strong> but 
+              improves connection speed and reliability. Without this, the node uses relay servers which still works.</>
+            )}
+            {firewallStatus.platform === 'macos' && (
+              <>Configure macOS Firewall to allow incoming connections. When the app first connects, 
+              macOS may prompt you to allow connections - click <strong>Allow</strong>.</>
+            )}
+            {(firewallStatus.platform === 'linux' || firewallStatus.platform === 'linux-ufw' || firewallStatus.platform === 'linux-firewalld') && (
+              <>Configure Linux firewall (UFW/firewalld) to allow P2P connections on port {firewallStatus.port}. 
+              This may require sudo/root privileges.</>
+            )}
+          </p>
+          
+          <div className="bg-gray-700/50 rounded-lg p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {firewallStatus.rule_exists ? (
+                  <ShieldCheck size={24} className="text-green-400" />
+                ) : (
+                  <ShieldAlert size={24} className="text-yellow-400" />
+                )}
+                <div>
+                  <div className="font-medium">
+                    {firewallStatus.rule_exists ? 'Firewall Configured' : 'Firewall Not Configured'}
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    P2P Port: {firewallStatus.port}
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {!firewallStatus.rule_exists ? (
+                  <button
+                    onClick={handleConfigureFirewall}
+                    disabled={configuringFirewall}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {configuringFirewall ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <ShieldCheck size={16} />
+                    )}
+                    Configure Firewall
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRemoveFirewallRules}
+                    disabled={configuringFirewall}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {configuringFirewall ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <X size={16} />
+                    )}
+                    Remove Rules
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {firewallResult && (
+              <div className={`mt-4 p-3 rounded-lg ${
+                firewallResult.success 
+                  ? 'bg-green-900/30 border border-green-600/50 text-green-400' 
+                  : 'bg-red-900/30 border border-red-600/50 text-red-400'
+              }`}>
+                {firewallResult.message}
+              </div>
+            )}
+          </div>
+          
+          <div className="text-xs text-gray-500">
+            {firewallStatus.platform === 'windows' && (
+              <><strong>Note:</strong> Configuring firewall requires administrator privileges. 
+              If it fails, you may need to run the app as Administrator or configure manually.</>
+            )}
+            {firewallStatus.platform === 'macos' && (
+              <><strong>Note:</strong> macOS will prompt you to allow connections when the node starts. 
+              You can also manually add Inferno Node in System Settings → Network → Firewall → Options.</>
+            )}
+            {(firewallStatus.platform === 'linux' || firewallStatus.platform === 'linux-ufw' || firewallStatus.platform === 'linux-firewalld') && (
+              <><strong>Note:</strong> On Linux, you may need to run the commands manually in terminal with sudo. 
+              UFW: <code>sudo ufw allow {firewallStatus.port}/tcp</code> | 
+              firewalld: <code>sudo firewall-cmd --permanent --add-port={firewallStatus.port}/tcp && sudo firewall-cmd --reload</code></>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Mining Settings */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4">Mining</h2>
@@ -283,6 +468,39 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Data Management */}
+      <div className="bg-gray-800 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <HardDrive size={20} />
+          Data Management
+        </h2>
+        <p className="text-sm text-gray-400 mb-4">
+          Clear local blockchain data if you experience sync issues or genesis mismatches. 
+          The node will sync fresh from the network on next start.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {(['testnet', 'devnet', 'mainnet'] as const).map((network) => (
+            <div key={network} className="bg-gray-700/50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium capitalize">{network}</span>
+                <span className="text-sm text-gray-400">{dataSizes[network] || 'Loading...'}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setShowClearModal(true);
+                  setClearResult(null);
+                }}
+                disabled={network === 'mainnet'}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-600/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={14} />
+                Clear {network} Data
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* About */}
       <div className="bg-gray-800 rounded-xl p-6">
         <h2 className="text-lg font-semibold mb-4">About</h2>
@@ -301,6 +519,82 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* Clear Data Confirmation Modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4 border border-gray-700 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2 text-red-400">
+                <AlertTriangle size={20} />
+                Clear Local Data
+              </h3>
+              <button 
+                onClick={() => setShowClearModal(false)}
+                className="p-1 hover:bg-gray-700 rounded transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {clearResult ? (
+              <div className={`p-4 rounded-lg mb-4 ${clearResult.success ? 'bg-green-900/30 border border-green-600/50' : 'bg-red-900/30 border border-red-600/50'}`}>
+                <p className={clearResult.success ? 'text-green-400' : 'text-red-400'}>
+                  {clearResult.message}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 mb-4">
+                  <p className="text-yellow-400 text-sm">
+                    <strong>Warning:</strong> This will permanently delete all local blockchain data for the selected network. 
+                    You will need to sync from scratch which may take some time.
+                  </p>
+                </div>
+                
+                <p className="text-gray-300 mb-4">
+                  Select which network's data to clear:
+                </p>
+                
+                <div className="space-y-2 mb-6">
+                  {(['testnet', 'devnet'] as const).map((network) => (
+                    <button
+                      key={network}
+                      onClick={() => handleClearData(network)}
+                      disabled={clearingData}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Trash2 size={16} className="text-red-400" />
+                        <span className="capitalize font-medium">{network}</span>
+                      </div>
+                      <span className="text-sm text-gray-400">{dataSizes[network] || 'No data'}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowClearModal(false);
+                  setClearResult(null);
+                }}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                {clearResult ? 'Close' : 'Cancel'}
+              </button>
+            </div>
+            
+            {clearingData && (
+              <div className="absolute inset-0 bg-gray-800/80 rounded-xl flex items-center justify-center">
+                <RefreshCw size={24} className="animate-spin text-purple-400" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

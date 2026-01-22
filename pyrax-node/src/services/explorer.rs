@@ -2,6 +2,8 @@
 //!
 //! Production block explorer API for PYRAX blockchain
 
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;

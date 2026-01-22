@@ -30,6 +30,7 @@ import {
   BeakerIcon,
   ShareIcon,
   CommandLineIcon,
+  WalletIcon,
 } from '@heroicons/react/24/outline'
 import NetworkStatus from './NetworkStatus'
 import FaucetModal from './FaucetModal'
@@ -52,6 +53,7 @@ const simpleNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
   { name: 'Blocks', href: '/blocks', icon: CubeIcon },
   { name: 'Transactions', href: '/transactions', icon: ArrowsRightLeftIcon },
+  { name: 'Account', href: '/account', icon: WalletIcon },
 ]
 
 const categorizedNavigation: NavCategory[] = [
