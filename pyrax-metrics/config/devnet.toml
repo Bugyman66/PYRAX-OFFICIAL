@@ -65,5 +65,5 @@ json = false
 
 [crawler]
 enabled = true
-crawl_interval_ms = 9000  # 9 seconds
+crawl_interval_ms = 300000  # 5 minutes
 max_nodes = 100
