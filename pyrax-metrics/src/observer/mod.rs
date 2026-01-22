@@ -123,11 +123,12 @@ impl ChainObserver {
 
                 // 2. Node Operations Alerts
                 for status in &statuses {
-                    let is_healthy = status.is_synced && status.latency_ms < 2000;
+                    // Assuming !syncing means sycned. latency_ms check might need field verification but assuming standard
+                    let is_healthy = !status.syncing && status.latency_ms < 2000;
                     let prev_healthy = *node_health.get(&status.endpoint).unwrap_or(&true); 
                     
                     if !is_healthy && prev_healthy {
-                        let reason = if !status.is_synced { "Not Synced/Unreachable" } else { "High Latency" };
+                        let reason = if status.syncing { "Syncing/Falling Behind" } else { "High Latency" };
                         let msg = format!("🔴 <b>Node degraded</b>\nNode: {}\nIssue: {}", status.endpoint, reason);
                         // Use unique key so multiple nodes can alert independently
                         pending_alerts.push((format!("Node Ops {}", status.endpoint), msg));

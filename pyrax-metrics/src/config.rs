@@ -177,6 +177,17 @@ pub struct CrawlerConfig {
     pub probe_timeout_ms: u64,
 }
 
+impl Default for CrawlerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            crawl_interval_ms: default_crawl_interval(),
+            max_nodes: default_max_nodes(),
+            probe_timeout_ms: default_probe_timeout(),
+        }
+    }
+}
+
 // Default value functions
 fn default_poll_interval() -> u64 { 5000 }
 fn default_request_timeout() -> u64 { 3000 }

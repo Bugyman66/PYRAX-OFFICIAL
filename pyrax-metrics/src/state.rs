@@ -128,7 +128,8 @@ impl AppState {
     /// Get discovered nodes
     pub fn discovered_nodes(&self) -> Vec<DiscoveredNode> {
         if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
-            nodes.read().clone()
+            let list: Vec<DiscoveredNode> = nodes.read().clone();
+            list
         } else {
             Vec::new()
         }
@@ -137,7 +138,8 @@ impl AppState {
     /// Get discovered nodes count
     pub fn discovered_nodes_count(&self) -> usize {
         if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
-            nodes.read().len()
+            let count: usize = nodes.read().len();
+            count
         } else {
             0
         }
