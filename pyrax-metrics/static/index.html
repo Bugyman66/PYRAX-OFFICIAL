@@ -259,8 +259,12 @@
                 <div class="stat-value hashrate" id="hashrate">--</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Discovered / Online</div>
-                <div class="stat-value nodes" id="nodes">--</div>
+                <div class="stat-label">Discovered Nodes</div>
+                <div class="stat-value nodes" id="discoveredNodes">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Online Nodes</div>
+                <div class="stat-value nodes" id="onlineNodes">--</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Avg Latency</div>
@@ -315,7 +319,8 @@
                 // Update stats from JSON
                 document.getElementById('blockHeight').textContent = status.chain.head_block.toLocaleString();
                 document.getElementById('hashrate').textContent = formatNumber(status.chain.network_hashrate);
-                document.getElementById('nodes').textContent = `${status.chain.discovered_nodes} / ${status.chain.online_nodes}`;
+                document.getElementById('discoveredNodes').textContent = status.chain.discovered_nodes.toLocaleString();
+                document.getElementById('onlineNodes').textContent = status.chain.online_nodes.toLocaleString();
                 document.getElementById('latency').textContent = status.chain.avg_latency_ms + 'ms';
                 document.getElementById('difficulty').textContent = status.chain.difficulty.toLocaleString();
                 document.getElementById('blocksFound').textContent = status.chain.total_blocks_found.toLocaleString();
