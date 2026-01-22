@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PYRAX Network</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --border: #27272a;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-secondary);
+            border-radius: 9999px;
+            font-size: 14px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.stalled { background: var(--danger); }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .stat-value.hashrate { color: var(--accent); }
+        .stat-value.nodes { color: var(--success); }
+        .stat-value.latency { color: var(--warning); }
+        
+        /* Nodes Section */
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        /* Node List */
+        .node-list {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .node-item {
+            display: grid;
+            grid-template-columns: 1fr 100px 80px 80px;
+            gap: 16px;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            font-size: 14px;
+            align-items: center;
+        }
+        
+        .node-endpoint {
+            font-family: 'Fira Code', monospace;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .node-height { text-align: right; }
+        
+        .node-status {
+            text-align: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .node-status.online {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+        
+        .node-status.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+        
+        .node-latency {
+            text-align: right;
+            color: var(--text-secondary);
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .node-item {
+                grid-template-columns: 1fr 80px;
+            }
+            .node-latency, .node-height { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">PYRAX NETWORK</div>
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+        
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Block Height</div>
+                <div class="stat-value" id="blockHeight">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Network Hashrate</div>
+                <div class="stat-value hashrate" id="hashrate">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Discovered / Online</div>
+                <div class="stat-value nodes" id="nodes">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Latency</div>
+                <div class="stat-value latency" id="latency">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Difficulty</div>
+                <div class="stat-value" id="difficulty">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Blocks Found</div>
+                <div class="stat-value" id="blocksFound">--</div>
+            </div>
+        </div>
+        
+        <!-- Nodes Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">Network Nodes</h2>
+                <span id="nodeCount" style="color: var(--text-secondary); font-size: 14px;">0 nodes</span>
+            </div>
+            <div class="node-list" id="nodeList">
+                <div style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading...</div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <p>PYRAX Network Monitor • Data updates every 5 seconds</p>
+            <p style="margin-top: 8px;"><a href="/metrics" target="_blank">Prometheus Metrics</a> • <a href="/status" target="_blank">API Status</a></p>
+        </footer>
+    </div>
+    
+    <script>
+        // Format large numbers with K/M/T suffix
+        function formatNumber(num) {
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + ' TH/s';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + ' GH/s';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + ' MH/s';
+            if (num >= 1e3) return (num / 1e3).toFixed(2) + ' KH/s';
+            return num.toLocaleString();
+        }
+        
+        // Fetch and update dashboard
+        async function updateDashboard() {
+            try {
+                // Fetch main status
+                const statusRes = await fetch('/status');
+                const status = await statusRes.json();
+                
+                // Fetch metrics for mining data
+                const metricsRes = await fetch('/metrics');
+                const metricsText = await metricsRes.text();
+                
+                // Parse metrics
+                const hashrate = parseMetric(metricsText, 'pyrax_mining_hashrate');
+                const difficulty = parseMetric(metricsText, 'pyrax_mining_difficulty');
+                const blocksFound = parseMetric(metricsText, 'pyrax_mining_blocks_found');
+                const discovered = parseMetric(metricsText, 'pyrax_discovered_nodes_total');
+                const online = parseMetric(metricsText, 'pyrax_discovered_nodes_online');
+                
+                // Update stats
+                document.getElementById('blockHeight').textContent = status.chain.head_block.toLocaleString();
+                document.getElementById('hashrate').textContent = formatNumber(hashrate);
+                document.getElementById('nodes').textContent = `${discovered} / ${online}`;
+                document.getElementById('latency').textContent = status.chain.avg_latency_ms + 'ms';
+                document.getElementById('difficulty').textContent = difficulty.toLocaleString();
+                document.getElementById('blocksFound').textContent = blocksFound.toLocaleString();
+                
+                // Update status badge
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                if (status.chain.stalled) {
+                    statusDot.className = 'status-dot stalled';
+                    statusText.textContent = 'STALLED';
+                } else if (status.alerts.fork_detected) {
+                    statusDot.className = 'status-dot stalled';
+                    statusText.textContent = 'FORK DETECTED';
+                } else {
+                    statusDot.className = 'status-dot';
+                    statusText.textContent = 'LIVE';
+                }
+                
+                // Update node list
+                const nodeList = document.getElementById('nodeList');
+                const nodeCount = document.getElementById('nodeCount');
+                nodeCount.textContent = `${status.nodes.length} nodes`;
+                
+                if (status.nodes.length === 0) {
+                    nodeList.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">No nodes configured</div>';
+                } else {
+                    nodeList.innerHTML = status.nodes.map(node => `
+                        <div class="node-item">
+                            <div class="node-endpoint">${node.endpoint}</div>
+                            <div class="node-height">#${node.height.toLocaleString()}</div>
+                            <div class="node-status ${node.reachable ? 'online' : 'offline'}">${node.reachable ? 'Online' : 'Offline'}</div>
+                            <div class="node-latency">${node.latency_ms}ms</div>
+                        </div>
+                    `).join('');
+                }
+                
+            } catch (err) {
+                console.error('Failed to update:', err);
+                document.getElementById('statusDot').className = 'status-dot stalled';
+                document.getElementById('statusText').textContent = 'ERROR';
+            }
+        }
+        
+        // Parse a metric value from Prometheus format
+        function parseMetric(text, name) {
+            const regex = new RegExp(`^${name}\\s+([\\d.]+)`, 'm');
+            const match = text.match(regex);
+            return match ? parseFloat(match[1]) : 0;
+        }
+        
+        // Initial load
+        updateDashboard();
+        
+        // Refresh every 5 seconds
+        setInterval(updateDashboard, 5000);
+    </script>
+</body>
+</html>

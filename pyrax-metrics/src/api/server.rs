@@ -10,11 +10,19 @@ use axum::{
     Router,
     Json,
     extract::State,
+    response::{Html, IntoResponse, Response},
+    http::{header, StatusCode},
 };
+use rust_embed::Embed;
 use serde::Serialize;
 use std::net::SocketAddr;
 use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
+
+/// Embedded static files
+#[derive(Embed)]
+#[folder = "static/"]
+struct Assets;
 
 /// Health/Status API server
 pub struct ApiServer {
@@ -81,6 +89,7 @@ impl ApiServer {
         let app_state = self.app_state.clone();
         
         let mut app = Router::new()
+            .route("/", get(dashboard_handler))
             .route("/health", get(health_handler))
             .route("/status", get(status_handler))
             .with_state(app_state);
@@ -167,4 +176,22 @@ async fn status_handler(State(state): State<AppState>) -> Json<StatusResponse> {
             nodes_unreachable,
         },
     })
+}
+
+/// Handler for / endpoint - serves the dashboard
+async fn dashboard_handler() -> impl IntoResponse {
+    match Assets::get("index.html") {
+        Some(content) => {
+            let body = content.data.into_owned();
+            Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                .body(axum::body::Body::from(body))
+                .unwrap()
+        }
+        None => Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(axum::body::Body::from("Dashboard not found"))
+            .unwrap(),
+    }
 }
