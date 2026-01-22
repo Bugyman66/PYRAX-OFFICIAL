@@ -59,6 +59,13 @@ pub struct ChainStatus {
     pub avg_latency_ms: u64,
     pub stalled: bool,
     pub fork_detected: bool,
+    // Mining fields
+    pub network_hashrate: u64,
+    pub difficulty: u64,
+    pub total_blocks_found: u64,
+    // Discovery fields
+    pub discovered_nodes: usize,
+    pub online_nodes: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -147,6 +154,7 @@ async fn status_handler(State(state): State<AppState>) -> Json<StatusResponse> {
     let chain_state = state.chain_state();
     let fork_detected = state.is_fork_detected();
     let node_statuses = state.node_statuses();
+    let discovered_nodes = state.discovered_nodes();
     
     let nodes: Vec<NodeInfo> = node_statuses.iter().map(|s| NodeInfo {
         endpoint: s.endpoint.clone(),
@@ -158,6 +166,7 @@ async fn status_handler(State(state): State<AppState>) -> Json<StatusResponse> {
     }).collect();
     
     let nodes_unreachable = node_statuses.iter().filter(|s| !s.reachable).count();
+    let online_count = discovered_nodes.iter().filter(|n| n.reachable).count();
     
     Json(StatusResponse {
         chain: ChainStatus {
@@ -168,6 +177,11 @@ async fn status_handler(State(state): State<AppState>) -> Json<StatusResponse> {
             avg_latency_ms: chain_state.avg_latency_ms,
             stalled: chain_state.is_stalled,
             fork_detected,
+            network_hashrate: chain_state.network_hashrate,
+            difficulty: chain_state.difficulty,
+            total_blocks_found: chain_state.total_blocks_found,
+            discovered_nodes: discovered_nodes.len(),
+            online_nodes: online_count,
         },
         nodes,
         alerts: AlertsStatus {
