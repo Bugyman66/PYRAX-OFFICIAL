@@ -5,6 +5,7 @@ members = [
     "pyrax-wallet",
     "pyrax-desktop/src-tauri",
     "inferno-cli",
+    "pyrax-metrics",
 ]
 
 [workspace.package]

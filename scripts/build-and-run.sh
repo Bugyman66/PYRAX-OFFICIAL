@@ -20,12 +20,15 @@ if [ ! -d "$INSTALL_DIR/pyrax-node" ]; then
     echo "[0/4] Cloning PYRAX repository..."
     sudo mkdir -p $INSTALL_DIR
     sudo chown $USER:$USER $INSTALL_DIR
-    git clone $REPO_URL $INSTALL_DIR
+    git clone -b devnet $REPO_URL $INSTALL_DIR
 else
     echo ""
     echo "[0/4] Repository already exists at $INSTALL_DIR"
-    echo "      Pulling latest changes..."
-    cd $INSTALL_DIR && git pull || true
+    echo "      Switching to devnet branch and pulling..."
+    cd $INSTALL_DIR
+    git fetch origin
+    git checkout devnet || git checkout -b devnet origin/devnet
+    git pull origin devnet || true
 fi
 
 # ============================================
@@ -102,27 +105,55 @@ if [ -f "$BINARY_PATH" ]; then
     echo ""
     echo "╔════════════════════════════════════════════════════════════╗"
     echo "║                    BUILD SUCCESS!                          ║"
+    echo "║   Stream A (BLAKE3) | Stream B (KAWPOW) | Stream C (ZK)    ║"
     echo "╚════════════════════════════════════════════════════════════╝"
     echo ""
     echo "Binary: $BINARY_PATH"
     echo "Size: $(du -h $BINARY_PATH | cut -f1)"
     echo ""
-    PEER_IP="0.0.0.0"  # Replace with actual peer IP
     
-    echo "To connect to devnet:"
-    echo "  $BINARY_PATH --network devnet --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/\$PEER_IP/tcp/30303"
+    PEER_IP="209.38.137.105"  # Official PYRAX devnet peer
+    
+    echo "Available run modes:"
     echo ""
-    echo "To run in background:"
-    echo "  nohup $BINARY_PATH --network devnet --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/\$PEER_IP/tcp/30303 > pyrax.log 2>&1 &"
+    echo "  [A] Stream A - CPU Mining (BLAKE3)"
+    echo "      $BINARY_PATH --network devnet --mine --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303"
+    echo ""
+    echo "  [B] Stream B - GPU Mining (KAWPOW/Stratum)"
+    echo "      $BINARY_PATH --network devnet --stratum --stratum-addr 0.0.0.0:3333 --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303"
+    echo ""
+    echo "  [C] Stream C - Staking (ZK Validation)"
+    echo "      $BINARY_PATH --network devnet --staking --staking-addr 0.0.0.0:8547 --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303"
+    echo ""
+    echo "  [S] Sync Only (no mining)"
+    echo "      $BINARY_PATH --network devnet --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303"
     echo ""
     
-    read -p "Connect to devnet now? (y/n): " -n 1 -r
+    read -p "Select mode [A/B/C/S/n]: " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Connecting to PYRAX devnet..."
-        $BINARY_PATH --network devnet --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303
-    fi
+    case $REPLY in
+        [Aa])
+            echo "Starting Stream A (CPU/BLAKE3) mining..."
+            $BINARY_PATH --network devnet --mine --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303
+            ;;
+        [Bb])
+            echo "Starting Stream B (GPU/KAWPOW) Stratum server..."
+            $BINARY_PATH --network devnet --stratum --stratum-addr 0.0.0.0:3333 --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303
+            ;;
+        [Cc])
+            echo "Starting Stream C (Staking/ZK) service..."
+            $BINARY_PATH --network devnet --staking --staking-addr 0.0.0.0:8547 --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303
+            ;;
+        [Ss])
+            echo "Starting sync-only node..."
+            $BINARY_PATH --network devnet --rpc --rpc-addr 0.0.0.0:8545 --p2p --peer /ip4/$PEER_IP/tcp/30303
+            ;;
+        *)
+            echo "Not starting. Run manually with commands above."
+            ;;
+    esac
 else
     echo "ERROR: Binary not found at $BINARY_PATH"
     exit 1
 fi
+

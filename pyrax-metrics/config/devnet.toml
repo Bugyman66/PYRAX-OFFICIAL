@@ -1,0 +1,69 @@
+# PYRAX Metrics Configuration - Devnet
+
+[observer]
+# Polling interval in milliseconds
+poll_interval_ms = 5000
+# Request timeout in milliseconds
+request_timeout_ms = 3000
+# Maximum retries per node
+max_retries = 3
+
+[nodes]
+# List of RPC endpoints to monitor
+endpoints = [
+    "http://rpc.pyrax-devnet.org",
+    "http://209.38.137.105:8545",   # Bootnode
+]
+
+[chain]
+# Expected block time in milliseconds
+expected_block_time_ms = 10000
+# Stall threshold - alert if no new blocks for this duration (ms)
+stall_threshold_ms = 60000
+# Fork detection threshold - alert if nodes differ by more than this many blocks
+fork_threshold_blocks = 2
+# Network name for labeling
+network = "devnet"
+
+[streams]
+# Enable stream-specific monitoring
+enabled = true
+# Stream IDs to monitor
+stream_ids = ["a", "b", "c"]
+# Stream A (BLAKE3) expected block time (ms)
+stream_a_block_time_ms = 10000
+# Stream B (KAWPOW) expected block time (ms)
+stream_b_block_time_ms = 60000
+# Stream C checkpoint interval (blocks)
+stream_c_checkpoint_interval = 100
+
+[canary]
+# Enable canary transaction system
+enabled = false
+# Canary transaction interval (ms)
+interval_ms = 60000
+# Maximum pending canary transactions
+max_pending = 5
+
+[metrics]
+# Prometheus metrics server address
+listen_addr = "0.0.0.0:9092"
+# Enable histogram metrics (more detailed but higher cardinality)
+enable_histograms = false
+
+[api]
+# Health/Status API server address
+listen_addr = "0.0.0.0:8080"
+# Enable CORS
+enable_cors = true
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+# JSON logging format
+json = false
+
+[crawler]
+enabled = true
+crawl_interval_ms = 300000  # 5 minutes
+max_nodes = 100
