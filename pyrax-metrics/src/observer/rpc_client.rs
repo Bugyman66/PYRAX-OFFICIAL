@@ -17,7 +17,7 @@ pub struct RpcClient {
 }
 
 /// Status of a single node
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeStatus {
     pub endpoint: String,
     pub reachable: bool,
@@ -28,6 +28,7 @@ pub struct NodeStatus {
     pub latency_ms: u64,
     pub timestamp: u64,
     pub error: Option<String>,
+    pub hashrate: Option<u64>,
 }
 
 /// Chain info from RPC (matches pyrax-node RpcChainInfo)
@@ -138,7 +139,9 @@ impl RpcClient {
                             peer_count: 0,
                             latency_ms: start.elapsed().as_millis() as u64,
                             timestamp,
+                            timestamp,
                             error: Some(e.to_string()),
+                            hashrate: None,
                         });
                     }
                 }
@@ -148,6 +151,7 @@ impl RpcClient {
         // Get additional info (syncing and peer_count may use eth_ methods as fallback)
         let syncing = self.is_syncing().await.unwrap_or(false);
         let peer_count = self.get_peer_count().await.unwrap_or(0);
+        let hashrate = self.get_mining_info().await.ok().map(|m| m.hashrate);
         
         Ok(NodeStatus {
             endpoint: self.endpoint.clone(),
@@ -158,7 +162,9 @@ impl RpcClient {
             peer_count,
             latency_ms: start.elapsed().as_millis() as u64,
             timestamp,
+            timestamp,
             error: None,
+            hashrate,
         })
     }
     
@@ -289,6 +295,7 @@ impl Default for NodeStatus {
             peer_count: 0,
             latency_ms: 0,
             timestamp: 0,
+            hashrate: None,
             error: None,
         }
     }
