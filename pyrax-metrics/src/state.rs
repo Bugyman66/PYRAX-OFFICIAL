@@ -6,7 +6,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use crate::observer::{ChainState, NodeStatus};
 use crate::observer::fork_detector::ForkDetector;
-use crate::observer::stream_monitor::{StreamMonitor, Stream, StreamState};
+// use crate::observer::stream_monitor::{StreamMonitor, Stream, StreamState};
 use crate::crawler::{SharedDiscoveredNodes, DiscoveredNode};
 use crate::config::Config;
 use crate::alert::AlertManager;
@@ -127,9 +127,10 @@ impl AppState {
     
     /// Get discovered nodes
     pub fn discovered_nodes(&self) -> Vec<DiscoveredNode> {
-        if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
-            let list: Vec<DiscoveredNode> = nodes.read().clone();
-            list
+        let guard = self.inner.discovered_nodes.read();
+        if let Some(nodes) = guard.as_ref() {
+            let inner = nodes.read();
+            inner.clone()
         } else {
             Vec::new()
         }
@@ -137,9 +138,9 @@ impl AppState {
     
     /// Get discovered nodes count
     pub fn discovered_nodes_count(&self) -> usize {
-        if let Some(ref nodes) = *self.inner.discovered_nodes.read() {
-            let count: usize = nodes.read().len();
-            count
+        let guard = self.inner.discovered_nodes.read();
+        if let Some(nodes) = guard.as_ref() {
+            nodes.read().len()
         } else {
             0
         }
