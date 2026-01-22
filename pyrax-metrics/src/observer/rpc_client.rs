@@ -139,7 +139,6 @@ impl RpcClient {
                             peer_count: 0,
                             latency_ms: start.elapsed().as_millis() as u64,
                             timestamp,
-                            timestamp,
                             error: Some(e.to_string()),
                             hashrate: None,
                         });
@@ -161,7 +160,6 @@ impl RpcClient {
             syncing,
             peer_count,
             latency_ms: start.elapsed().as_millis() as u64,
-            timestamp,
             timestamp,
             error: None,
             hashrate,
