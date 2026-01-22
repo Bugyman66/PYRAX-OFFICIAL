@@ -80,6 +80,12 @@ async fn main() -> Result<()> {
     // Create API server with shared state
     let api_server = api::ApiServer::new(config.api.clone(), app_state.clone());
     
+    // Send Startup Notification
+    if config.telegram.enabled {
+        info!("Sending startup notification to Telegram...");
+        app_state.alert_manager().send_alert("🤖 System", "<b>PYRAX Observer Started</b>\nMonitoring initialized.").await;
+    }
+
     // Start all services concurrently
     tokio::select! {
         result = observer.run() => {

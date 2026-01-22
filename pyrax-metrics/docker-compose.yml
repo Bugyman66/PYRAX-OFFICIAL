@@ -12,6 +12,8 @@ services:
       - "8080:8080"  # Health/Status API
     volumes:
       - ./config:/config:ro
+    env_file:
+      - .env
     environment:
       - RUST_LOG=info
     restart: unless-stopped
