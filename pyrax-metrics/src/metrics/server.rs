@@ -90,18 +90,6 @@ async fn metrics_handler(State(state): State<AppState>) -> String {
     output.push_str("# TYPE pyrax_avg_latency_ms gauge\n");
     output.push_str(&format!("pyrax_avg_latency_ms {}\n", chain_state.avg_latency_ms));
     
-    output.push_str("# HELP pyrax_mining_hashrate Network hashrate\n");
-    output.push_str("# TYPE pyrax_mining_hashrate gauge\n");
-    output.push_str(&format!("pyrax_mining_hashrate {}\n", chain_state.network_hashrate));
-    
-    output.push_str("# HELP pyrax_mining_difficulty Current difficulty\n");
-    output.push_str("# TYPE pyrax_mining_difficulty gauge\n");
-    output.push_str(&format!("pyrax_mining_difficulty {}\n", chain_state.difficulty));
-
-    output.push_str("# HELP pyrax_mining_blocks_found Total blocks found by monitored nodes\n");
-    output.push_str("# TYPE pyrax_mining_blocks_found gauge\n");
-    output.push_str(&format!("pyrax_mining_blocks_found {}\n", chain_state.total_blocks_found));
-    
     // Per-node metrics
     output.push_str("# HELP pyrax_node_block_height Block height per node\n");
     output.push_str("# TYPE pyrax_node_block_height gauge\n");
@@ -140,19 +128,13 @@ async fn metrics_handler(State(state): State<AppState>) -> String {
     }
     
     // Discovered nodes metrics (from crawler)
-    let discovered_nodes = state.discovered_nodes();
-    let discovered_count = discovered_nodes.len();
-    let online_count = discovered_nodes.iter().filter(|n| n.reachable).count();
-    
+    let discovered_count = state.discovered_nodes_count();
     output.push_str("# HELP pyrax_discovered_nodes_total Total nodes discovered by crawler\n");
     output.push_str("# TYPE pyrax_discovered_nodes_total gauge\n");
     output.push_str(&format!("pyrax_discovered_nodes_total {}\n", discovered_count));
     
-    output.push_str("# HELP pyrax_discovered_nodes_online Discovered nodes that are online/reachable\n");
-    output.push_str("# TYPE pyrax_discovered_nodes_online gauge\n");
-    output.push_str(&format!("pyrax_discovered_nodes_online {}\n", online_count));
-    
     // Per-discovered-node metrics
+    let discovered_nodes = state.discovered_nodes();
     if !discovered_nodes.is_empty() {
         output.push_str("# HELP pyrax_discovered_node_height Block height of discovered node\n");
         output.push_str("# TYPE pyrax_discovered_node_height gauge\n");

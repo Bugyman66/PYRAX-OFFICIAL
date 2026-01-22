@@ -15,6 +15,7 @@ mod metrics;
 mod api;
 mod state;
 mod crawler;
+mod alert;
 
 use config::Config;
 use state::AppState;
@@ -37,6 +38,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Load .env file if present
+    dotenv::dotenv().ok();
+
     // Parse command line arguments
     let args = Args::parse();
     

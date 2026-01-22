@@ -76,109 +76,42 @@ impl NodeCrawler {
                 warn!("Crawl error: {}", e);
             }
             
-            // Verify which nodes are actually online via RPC (like desktop app)
-            self.verify_nodes().await;
-            
-            let discovered = self.discovered.read();
-            let total = discovered.len();
-            let online = discovered.iter().filter(|n| n.reachable).count();
-            info!("{} nodes discovered, {} online", total, online);
-        }
-    }
-    
-    /// Verify discovered nodes are reachable via RPC
-    async fn verify_nodes(&self) {
-        let timeout = Duration::from_millis(self.config.probe_timeout_ms);
-        let mut endpoints_to_check: Vec<(usize, String)> = Vec::new();
-        
-        // Collect endpoints to verify
-        {
-            let discovered = self.discovered.read();
-            for (i, node) in discovered.iter().enumerate() {
-                endpoints_to_check.push((i, node.endpoint.clone()));
-            }
-        }
-        
-        // Probe each endpoint
-        for (idx, endpoint) in endpoints_to_check {
-            let client = RpcClient::new(endpoint.clone(), timeout);
-            
-            // Try a simple RPC call to verify reachability
-            let is_reachable = match client.get_status().await {
-                Ok(status) => {
-                    // Update block height while we're at it
-                    let mut discovered = self.discovered.write();
-                    if let Some(node) = discovered.get_mut(idx) {
-                        node.best_height = status.block_height;
-                        node.last_seen = chrono::Utc::now().timestamp() as u64;
-                    }
-                    status.reachable
-                }
-                Err(_) => false,
-            };
-            
-            // Update reachable status
-            let mut discovered = self.discovered.write();
-            if let Some(node) = discovered.get_mut(idx) {
-                node.reachable = is_reachable;
-            }
+            let count = self.discovered.read().len();
+            info!("Discovered {} nodes", count);
         }
     }
     
     /// Perform one crawl cycle
     async fn crawl_network(&self) -> Result<()> {
         let timeout = Duration::from_millis(self.config.probe_timeout_ms);
-        let timestamp = chrono::Utc::now().timestamp() as u64;
         
-        // First, mark all discovered nodes as offline
+        // Start with seed endpoints
+        let mut endpoints_to_probe: Vec<String> = self.seed_endpoints.clone();
+        
+        // Add already discovered endpoints
         {
-            let mut discovered = self.discovered.write();
-            for node in discovered.iter_mut() {
-                node.reachable = false;
+            let discovered = self.discovered.read();
+            for node in discovered.iter() {
+                if !endpoints_to_probe.contains(&node.endpoint) {
+                    endpoints_to_probe.push(node.endpoint.clone());
+                }
             }
         }
         
-        // Collect current peer IDs in this crawl cycle
-        let mut current_peer_ids: std::collections::HashSet<String> = std::collections::HashSet::new();
-        
-        // Query seed endpoints for current peer list
-        for endpoint in &self.seed_endpoints {
+        // Probe each endpoint
+        for endpoint in endpoints_to_probe.iter() {
+            if self.discovered.read().len() >= self.config.max_nodes {
+                debug!("Reached max nodes limit");
+                break;
+            }
+            
             let client = RpcClient::new(endpoint.clone(), timeout);
             
+            // Try to get peers from this node
             match client.get_peers().await {
                 Ok(peers) => {
                     debug!("Got {} peers from {}", peers.len(), endpoint);
-                    
-                    for peer in peers {
-                        current_peer_ids.insert(peer.peer_id.clone());
-                        
-                        // Add or update node
-                        if let Some(ip) = &peer.ip {
-                            let node_endpoint = format!("http://{}:8545", ip);
-                            
-                            let mut discovered = self.discovered.write();
-                            
-                            // Check if already discovered
-                            if let Some(existing) = discovered.iter_mut().find(|n| n.peer_id == peer.peer_id) {
-                                // Update existing node - mark as online
-                                existing.reachable = true;
-                                existing.last_seen = timestamp;
-                                existing.best_height = peer.block_height;
-                            } else if discovered.len() < self.config.max_nodes {
-                                // Add new node as online
-                                let node = DiscoveredNode {
-                                    endpoint: node_endpoint.clone(),
-                                    peer_id: peer.peer_id.clone(),
-                                    last_seen: timestamp,
-                                    reachable: true, // Online - currently connected
-                                    best_height: peer.block_height,
-                                    version: peer.version.clone(),
-                                };
-                                info!("New node: {} (peer: {})", node_endpoint, &peer.peer_id[..16]);
-                                discovered.push(node);
-                            }
-                        }
-                    }
+                    self.process_peers(peers).await;
                 }
                 Err(e) => {
                     debug!("Failed to get peers from {}: {}", endpoint, e);
@@ -195,34 +128,34 @@ impl NodeCrawler {
         
         for peer in peers {
             // Skip if already seen
-            if self.seen_peers.read().contains(&peer.peer_id) {
+            if self.seen_peers.read().contains(&peer.id) {
                 continue;
             }
             
             // Mark as seen
-            self.seen_peers.write().insert(peer.peer_id.clone());
+            self.seen_peers.write().insert(peer.id.clone());
             
-            // Extract RPC endpoint from IP if available
-            if let Some(ip) = &peer.ip {
-                // Construct RPC URL from IP address
-                // Assume RPC port is 8545 by default for discovered nodes
-                let endpoint = format!("http://{}:8545", ip);
-                
-                let node = DiscoveredNode {
-                    endpoint,
-                    peer_id: peer.peer_id.clone(),
-                    last_seen: timestamp,
-                    reachable: true, // Will be verified on next probe
-                    best_height: peer.block_height,
-                    version: peer.version.clone(),
-                };
-                
-                // Check if not already discovered
-                let mut discovered = self.discovered.write();
-                if !discovered.iter().any(|n| n.peer_id == peer.peer_id) {
-                    if discovered.len() < self.config.max_nodes {
-                        info!("Discovered new node: {} (height: {})", node.endpoint, node.best_height);
-                        discovered.push(node);
+            // Extract RPC endpoint from remote_addr if available
+            if let Some(remote_addr) = &peer.remote_addr {
+                // Try to construct RPC URL from remote address
+                // Format: IP:P2P_PORT -> http://IP:RPC_PORT (assume RPC is P2P_PORT - 1)
+                if let Some(endpoint) = self.addr_to_rpc_endpoint(remote_addr) {
+                    let node = DiscoveredNode {
+                        endpoint,
+                        peer_id: peer.id.clone(),
+                        last_seen: timestamp,
+                        reachable: true, // Will be verified on next probe
+                        best_height: peer.best_height,
+                        version: peer.version.clone(),
+                    };
+                    
+                    // Check if not already discovered
+                    let mut discovered = self.discovered.write();
+                    if !discovered.iter().any(|n| n.peer_id == peer.id) {
+                        if discovered.len() < self.config.max_nodes {
+                            info!("Discovered new node: {} (height: {})", node.endpoint, node.best_height);
+                            discovered.push(node);
+                        }
                     }
                 }
             }

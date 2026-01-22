@@ -2,61 +2,20 @@
 name = "pyrax-metrics"
 version = "0.1.0"
 edition = "2021"
-authors = ["PYRAX Team"]
-description = "Chain Observer and Metrics Service for PYRAX Blockchain"
-license = "MIT"
-repository = "https://github.com/PYRAX-Chain/PYRAX-OFFICIAL"
-
-[[bin]]
-name = "pyrax-metrics"
-path = "src/main.rs"
 
 [dependencies]
-# Async runtime
-tokio = { version = "1", features = ["full", "signal"] }
-
-# Web framework
-axum = { version = "0.7", features = ["json"] }
-tower = "0.4"
-tower-http = { version = "0.5", features = ["cors", "trace"] }
-
-# Serialization
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "0.8"
-
-# HTTP client for RPC calls
-reqwest = { version = "0.11", features = ["json", "rustls-tls"], default-features = false }
-
-# Async utilities
-futures = "0.3"
-
-# Prometheus metrics
-prometheus = "0.13"
-
-# Logging
+tokio = { version = "1.35", features = ["full"] }
+anyhow = "1.0"
+thiserror = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-
-# Error handling
-anyhow = "1"
-thiserror = "1"
-
-# Command line
-clap = { version = "4", features = ["derive", "env"] }
-
-# Time
-chrono = { version = "0.4", features = ["serde"] }
-
-# Utility
-parking_lot = "0.12"
-rust-embed = "8"
-
-[dev-dependencies]
-tokio-test = "0.4"
-mockito = "1"
-
-[profile.release]
-lto = true
-codegen-units = 1
-opt-level = 3
+clap = { version = "4.4", features = ["derive", "env"] }
+config = "0.13"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+axum = "0.7"
+prometheus = "0.13"
+chrono = "0.4"
+futures = "0.3"
+dotenv = "0.15"

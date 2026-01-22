@@ -28,6 +28,31 @@ pub struct Config {
     pub api: ApiConfig,
     /// Logging settings
     pub logging: LoggingConfig,
+    /// Telegram Alert settings
+    #[serde(default)]
+    pub telegram: TelegramConfig,
+}
+
+/// Telegram Alert configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelegramConfig {
+    /// Enable Telegram alerts
+    #[serde(default)]
+    pub enabled: bool,
+    /// Bot API Token (can be set via TELEGRAM_BOT_TOKEN env)
+    pub bot_token: Option<String>,
+    /// Chat ID (can be set via TELEGRAM_CHAT_ID env)
+    pub chat_id: Option<String>,
+}
+
+impl Default for TelegramConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bot_token: None,
+            chat_id: None,
+        }
+    }
 }
 
 /// Observer behavior settings
@@ -136,7 +161,7 @@ pub struct LoggingConfig {
 }
 
 /// Node discovery crawler settings
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrawlerConfig {
     /// Enable node discovery crawler
     #[serde(default)]
@@ -180,9 +205,22 @@ impl Config {
         let content = std::fs::read_to_string(&path)
             .with_context(|| format!("Failed to read config file: {}", path.as_ref().display()))?;
         
-        let config: Config = toml::from_str(&content)
+        let mut config: Config = toml::from_str(&content)
             .with_context(|| "Failed to parse config file")?;
         
+        // Override Telegram settings from Environment Variables
+        if let Ok(token) = std::env::var("TELEGRAM_BOT_TOKEN") {
+            config.telegram.bot_token = Some(token);
+        }
+        if let Ok(chat_id) = std::env::var("TELEGRAM_CHAT_ID") {
+            config.telegram.chat_id = Some(chat_id);
+        }
+        
+        // Auto-enable if both are present
+        if config.telegram.bot_token.is_some() && config.telegram.chat_id.is_some() {
+             config.telegram.enabled = true;
+        }
+
         config.validate()?;
         
         Ok(config)
@@ -253,6 +291,7 @@ impl Default for Config {
                 max_nodes: default_max_nodes(),
                 probe_timeout_ms: default_probe_timeout(),
             },
+            telegram: TelegramConfig::default(),
         }
     }
 }

@@ -9,6 +9,7 @@ use crate::observer::fork_detector::ForkDetector;
 use crate::observer::stream_monitor::{StreamMonitor, Stream, StreamState};
 use crate::crawler::{SharedDiscoveredNodes, DiscoveredNode};
 use crate::config::Config;
+use crate::alert::AlertManager;
 
 /// Shared application state
 #[derive(Clone)]
@@ -27,6 +28,8 @@ struct AppStateInner {
     stream_states: RwLock<StreamStates>,
     /// Discovered nodes from crawler
     discovered_nodes: RwLock<Option<SharedDiscoveredNodes>>,
+    /// Alert Manager
+    alert_manager: Arc<AlertManager>,
     /// Configuration
     config: Config,
 }
@@ -52,6 +55,8 @@ pub struct StreamStateSnapshot {
 impl AppState {
     /// Create new shared state
     pub fn new(config: Config) -> Self {
+        let alert_manager = Arc::new(AlertManager::new(config.telegram.clone()));
+        
         Self {
             inner: Arc::new(AppStateInner {
                 chain_state: RwLock::new(ChainState::default()),
@@ -59,9 +64,15 @@ impl AppState {
                 fork_detected: RwLock::new(false),
                 stream_states: RwLock::new(StreamStates::default()),
                 discovered_nodes: RwLock::new(None),
+                alert_manager,
                 config,
             }),
         }
+    }
+    
+    /// Get alert manager
+    pub fn alert_manager(&self) -> Arc<AlertManager> {
+        self.inner.alert_manager.clone()
     }
     
     /// Update chain state
