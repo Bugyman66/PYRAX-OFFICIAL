@@ -200,6 +200,7 @@ async fn dashboard_handler() -> impl IntoResponse {
             Response::builder()
                 .status(StatusCode::OK)
                 .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                 .body(axum::body::Body::from(body))
                 .unwrap()
         }
